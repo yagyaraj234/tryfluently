@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: impromptu
+      POSTGRES_PASSWORD: impromptu
+      POSTGRES_DB: impromptu
+    ports: ["5433:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+    healthcheck:
+      test: pg_isready -U impromptu
+      interval: 1s
+      retries: 30
+volumes:
+  pgdata:
