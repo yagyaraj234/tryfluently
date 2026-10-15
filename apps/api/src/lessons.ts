@@ -6,10 +6,10 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
+import { completeLesson } from "./completion";
 import { findRecording, recordedSecondsToday, recordingForm, timingOf, type Timing } from "./recordings";
-import { progressUnit } from "./roadmap";
 import { createRoleplay, roleplayKindFor } from "./roleplays";
-import { recordScores, skillProfile } from "./scoring";
+import { skillProfile } from "./scoring";
 import { stepTools, stepTypes, takeAnswer } from "./steps";
 
 const { lesson, step, unit, goal, focusItem } = schema;
@@ -45,23 +45,6 @@ one-sentence explanation and the ids of any open Focus Items the answer used cor
 fillGap answers are already graded on the server: use its verdict. Keep any text short.
 Once the objective has been practised enough, call endLesson.`;
 
-const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
-
-// What the judge returns after each Lesson: only the skills it saw evidence for are scored.
-const judgeOutput = z.object({
-  skills: z.object({ fluency: skillResult, grammar: skillResult, vocabulary: skillResult }).partial(),
-  objectiveProgress: z.number().int().min(0).max(100),
-  summary: z.string(),
-  focusItems: z.array(z.object({ label: z.string(), kind: z.enum(["grammar", "vocabulary", "phrase"]) })).optional(),
-});
-
-const judgeInstructions = `You are an examiner for English as a second language. Judge one finished Lesson from its Steps:
-what the Learner was asked, what they answered and the feedback they got. Using the official CEFR descriptors, score
-0–100 only the skills (fluency, grammar, vocabulary) the Learner showed evidence of, with quotes. Rate progress on the
-Lesson objective 0–100, and write a two-sentence summary that the next Lesson can build on.
-If the Learner made the same mistake more than once, add it as a Focus Item with a short label and its kind.
-Score fluency only from voice Steps (mode "voice"), using their timing (words per minute) and how smoothly they flow.`;
-
 export const lessons = ({
   db,
   now,
@@ -95,48 +78,6 @@ export const lessons = ({
         closedAt: sql`case when ${closes} then ${now().toISOString()}::timestamp end`,
       })
       .where(and(eq(focusItem.userId, userId), eq(focusItem.status, "open"), inArray(focusItem.id, [...new Set(ids)])));
-  }
-
-  // Runs the judge once, stores its verdict, moves the practised skills and checks the Unit's progress.
-  async function completeLesson(row: typeof lesson.$inferSelect) {
-    const at = now();
-    const [steps, [u]] = await Promise.all([
-      db
-        .select({ type: step.type, mode: step.mode, input: step.input, output: step.output, feedback: step.feedback, timing: step.timing })
-        .from(step)
-        .where(eq(step.lessonId, row.id))
-        .orderBy(asc(step.position)),
-      row.unitId ? db.select({ objective: unit.objective, skills: unit.skills }).from(unit).where(eq(unit.id, row.unitId)) : [],
-    ]);
-
-    let judged: z.infer<typeof judgeOutput> | undefined;
-    try {
-      ({ output: judged } = await generate({ db, now }, row.userId, {
-        model: models.judge,
-        instructions: judgeInstructions,
-        prompt: JSON.stringify({ lesson: { objective: row.objective }, unit: u, steps }),
-        output: Output.object({ schema: judgeOutput }),
-      }));
-    } catch (e) {
-      // The Lesson still counts as done; it just doesn't move the Skill Profile or the Unit.
-      if (!NoObjectGeneratedError.isInstance(e)) throw e;
-      console.error("lesson judge failed", e);
-    }
-
-    await db
-      .update(lesson)
-      .set({ status: "completed", completedAt: at, objectiveProgress: judged?.objectiveProgress, summary: judged?.summary })
-      .where(eq(lesson.id, row.id));
-    if (!judged) return;
-    if (judged.focusItems?.length)
-      await db
-        .insert(focusItem)
-        .values(judged.focusItems.map((f) => ({ userId: row.userId, ...f, source: "lesson" as const, sourceId: row.id, createdAt: at })));
-    const scores = Object.fromEntries(Object.entries(judged.skills).flatMap(([s, r]) => (r ? [[s, r.score]] : [])));
-    // Fluency is only measured from speech: a Lesson answered entirely in text leaves it alone.
-    if (!steps.some((s) => s.mode === "voice")) delete scores.fluency;
-    await recordScores(db, row.userId, scores, { alpha: settings.alphaLesson, source: "lesson", sourceId: row.id, at });
-    if (row.unitId) await progressUnit({ db, now, models }, row.unitId);
   }
 
   return new Hono<AppEnv>()
@@ -251,7 +192,7 @@ export const lessons = ({
           description: "End the Lesson.",
           inputSchema: z.object({}),
           execute: async () => {
-            await completeLesson(row);
+            await completeLesson({ db, now, models, settings }, row.id, row.userId);
             return { ended: true };
           },
         }),

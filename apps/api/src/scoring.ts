@@ -1,4 +1,5 @@
 import { schema, type CefrLevel, type Skill, type Tx as Db } from "@impromptu/db";
+import type { UIMessage } from "ai";
 import { asc, desc, eq } from "drizzle-orm";
 
 export const skills = ["fluency", "grammar", "vocabulary"] as const satisfies Skill[];
@@ -70,6 +71,15 @@ export async function recordScores(
 }
 
 export type SpeechSegment = { words: number; startMs: number; endMs: number };
+
+// The Learner's spoken stretches, from the timing kept on a Voice Assessment or Roleplay transcript.
+export const speechSegments = (transcript: UIMessage[]): SpeechSegment[] =>
+  transcript.flatMap((m) => {
+    const t = m.metadata as { speechStartMs?: number; speechEndMs?: number } | undefined;
+    if (m.role !== "user" || t?.speechStartMs === undefined || t.speechEndMs === undefined) return [];
+    const words = m.parts.flatMap((p) => (p.type === "text" ? p.text.split(/\s+/).filter(Boolean) : [])).length;
+    return [{ words, startMs: t.speechStartMs, endMs: t.speechEndMs }];
+  });
 
 // Fluency from voice timing plus the judge's view of coherence (0–100). Filler words aren't counted.
 // ponytail: deliberately rough. Gaps under 3 s between the Learner's stretches count as hesitation (a coach reply

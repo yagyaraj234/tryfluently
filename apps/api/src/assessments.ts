@@ -10,7 +10,7 @@ import { cefrLevel, goalKind, targetLevels } from "./goals";
 import { reportEmail } from "./mailer";
 import type { RealtimeBroker } from "./realtime";
 import { buildRoadmap, reviseRoadmap } from "./roadmap";
-import { fluencyScore, recordScores, scoreView, type SpeechSegment } from "./scoring";
+import { fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
 
 const { assessment, goal, focusItem } = schema;
@@ -89,15 +89,6 @@ const textOf = (messages: UIMessage[]) =>
     .join("\n");
 
 type Row = typeof assessment.$inferSelect;
-
-// The Learner's spoken stretches, from the voice timing kept on a Voice Assessment's transcript.
-export const speechSegments = (transcript: UIMessage[]): SpeechSegment[] =>
-  transcript.flatMap((m) => {
-    const t = m.metadata as { speechStartMs?: number; speechEndMs?: number } | undefined;
-    if (m.role !== "user" || t?.speechStartMs === undefined || t.speechEndMs === undefined) return [];
-    const words = m.parts.flatMap((p) => (p.type === "text" ? p.text.split(/\s+/).filter(Boolean) : [])).length;
-    return [{ words, startMs: t.speechStartMs, endMs: t.speechEndMs }];
-  });
 
 export const assessments = ({
   db,
