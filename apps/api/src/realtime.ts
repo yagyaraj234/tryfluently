@@ -35,7 +35,9 @@ export const openaiRealtime = (apiKey: string): Realtime => {
       // Bun's WebSocket takes headers, which browsers' doesn't.
       const ws = new WebSocket(`${API}?call_id=${callId}`, { headers: { authorization } } as any);
       ws.onmessage = (m) => onEvent(JSON.parse(String(m.data)));
-      ws.onclose = () => void onClose();
+      ws.onclose = () => {
+        void Promise.resolve().then(onClose).catch((error) => console.error("realtime close failed", error));
+      };
       const send = (event: object) =>
         ws.readyState === WebSocket.OPEN
           ? ws.send(JSON.stringify(event))
@@ -43,7 +45,8 @@ export const openaiRealtime = (apiKey: string): Realtime => {
       return {
         send,
         async hangup() {
-          await fetch(`${API}/calls/${callId}/hangup`, { method: "POST", headers: { authorization } });
+          const res = await fetch(`${API}/calls/${callId}/hangup`, { method: "POST", headers: { authorization } });
+          if (!res.ok) throw new Error(`OpenAI Realtime hangup ${res.status}: ${await res.text()}`);
           ws.close();
         },
       };
@@ -68,7 +71,8 @@ export type CallPurpose = "assessment" | "roleplay";
 const WRAP_UP_SECONDS = 60;
 const wrapUp = "\n\nAbout a minute is left. Start to wrap up now: ask no new questions, and close the conversation politely.";
 
-type Live = { sideband?: Sideband; closed: Promise<void>; purpose: CallPurpose; startedAt?: Date };
+type SaveFailure = { error: unknown };
+type Live = { sideband?: Sideband; closed: Promise<SaveFailure | undefined>; purpose: CallPurpose; startedAt?: Date };
 
 export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule }) {
   // ponytail: live calls are held in memory, so "one call per Learner" holds on a single API instance; move it to a DB lock to scale out.
@@ -107,7 +111,7 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
     },
   ) {
     if (live.has(userId)) return { busy: true as const };
-    let closed!: () => void;
+    let closed!: (failure?: SaveFailure) => void;
     const entry: Live = { closed: new Promise((r) => (closed = r)), purpose: opts.purpose };
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
 
@@ -126,12 +130,19 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
     const transcript: UIMessage[] = [];
     const timing = new Map<string, { speechStartMs?: number; speechEndMs?: number }>();
     const usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
-    let saving: Promise<unknown> = Promise.resolve();
+    let saving: Promise<SaveFailure | undefined> = Promise.resolve(undefined);
     let ended = false;
 
     const add = (message: UIMessage) => {
       transcript.push(message);
-      saving = saving.then(() => opts.onTranscript([...transcript]));
+      saving = saving.then(async () => {
+        try {
+          await opts.onTranscript([...transcript]);
+        } catch (error) {
+          console.error("realtime transcript save failed", error);
+          return { error };
+        }
+      });
     };
 
     entry.sideband = realtime.attach(call.callId, {
@@ -151,20 +162,30 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
         }
       },
       async onClose() {
-        if (ended) return; // hangup and the socket closing both land here
+        if (ended) {
+          const failure = await entry.closed;
+          if (failure) throw failure.error;
+          return;
+        }
         ended = true;
         for (const cancel of timers) cancel();
-        await saving;
-        await db.insert(schema.aiUsage).values({
-          userId,
-          kind: "realtime",
-          callId: call.callId,
-          startedAt,
-          seconds: (now().getTime() - startedAt.getTime()) / 1000,
-          usage: { ...usage, purpose: opts.purpose },
-        });
-        live.delete(userId);
-        closed();
+        let failure = await saving;
+        try {
+          await db.insert(schema.aiUsage).values({
+            userId,
+            kind: "realtime",
+            callId: call.callId,
+            startedAt,
+            seconds: (now().getTime() - startedAt.getTime()) / 1000,
+            usage: { ...usage, purpose: opts.purpose },
+          });
+        } catch (error) {
+          failure ??= { error };
+        } finally {
+          live.delete(userId);
+          closed(failure);
+        }
+        if (failure) throw failure.error;
       },
     });
     entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions } });
@@ -174,7 +195,9 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
         schedule(Math.max(0, opts.budgetSeconds - WRAP_UP_SECONDS) * 1000, () =>
           sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions + wrapUp } }),
         ),
-        schedule(opts.budgetSeconds * 1000, () => hangup(userId)),
+        schedule(opts.budgetSeconds * 1000, () =>
+          hangup(userId).catch((error) => console.error("realtime timed hangup failed", error)),
+        ),
       );
     }
     return { answer: call.answer };
@@ -185,7 +208,8 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
     const entry = live.get(userId);
     if (!entry) return;
     await entry.sideband?.hangup();
-    await entry.closed;
+    const failure = await entry.closed;
+    if (failure) throw failure.error;
   }
 
   return { start, hangup, roleplaySecondsToday };
