@@ -4,6 +4,10 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
+import { goals } from "./goals";
+import type { Models } from "./models";
+
+export type { Models };
 
 // DateTimeFormat throws on unknown zones and, unlike supportedValuesOf, accepts aliases like Asia/Kolkata.
 const timezone = z.string().refine((tz) => {
@@ -25,9 +29,13 @@ export type Env = {
   COOKIE_DOMAIN?: string;
 };
 
-export type Deps = { db: Db; now: () => Date; env: Env };
+export type Deps = { db: Db; now: () => Date; env: Env; models: Models };
 
-export function createApp({ db, now, env }: Deps) {
+export type User = typeof schema.user.$inferSelect;
+export type AppEnv = { Variables: { user: User } };
+
+export function createApp(deps: Deps) {
+  const { db, env } = deps;
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
@@ -44,21 +52,19 @@ export function createApp({ db, now, env }: Deps) {
     },
   });
 
-  type User = typeof auth.$Infer.Session.user;
-
   return (
-    new Hono<{ Variables: { user: User; now: () => Date } }>()
+    new Hono<AppEnv>()
       .use("/api/*", cors({ origin: env.WEB_ORIGIN, credentials: true }))
       .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
       // Registered after the auth handler, so it guards every other /api route.
       .use("/api/*", async (c, next) => {
         const session = await auth.api.getSession({ headers: c.req.raw.headers });
         if (!session) return c.json({ error: "Unauthorized" }, 401);
-        c.set("user", session.user);
-        c.set("now", now);
+        c.set("user", session.user as User);
         await next();
       })
       .get("/api/me", (c) => c.json(c.var.user))
+      .route("/api/goals", goals(deps))
   );
 }
 

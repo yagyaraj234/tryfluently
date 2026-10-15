@@ -11,7 +11,11 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@ai-sdk/google": "4.0.96",
+    "@ai-sdk/openai": "4.0.94",
+    "@hono/zod-validator": "^0.9.1",
     "@impromptu/db": "workspace:*",
+    "ai": "7.0.141",
     "better-auth": "^1.7.10",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.13",
