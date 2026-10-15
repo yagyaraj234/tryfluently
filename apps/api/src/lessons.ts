@@ -8,6 +8,7 @@ import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { findRecording, recordedSecondsToday, recordingForm, timingOf, type Timing } from "./recordings";
 import { progressUnit } from "./roadmap";
+import { createRoleplay, roleplayKindFor } from "./roleplays";
 import { recordScores, skillProfile } from "./scoring";
 import { stepTools, stepTypes, takeAnswer } from "./steps";
 
@@ -16,6 +17,7 @@ const { lesson, step, unit, goal, focusItem } = schema;
 const MIN_STEPS = 3;
 const MAX_STEPS = 10;
 const HITS_TO_CLOSE = 3;
+const ROLEPLAY_AT = 80;
 
 const feedbackInput = z.object({
   verdict: z.enum(["correct", "almost", "incorrect"]),
@@ -148,6 +150,14 @@ export const lessons = ({
       const current = inUnit.find((l) => l.status === "in_progress");
       if (current) return c.json(await withSteps(current));
 
+      // A Unit that ends with a Roleplay gets one once a practice Lesson reaches 80+ on the objective;
+      // a Roleplay at 80+ after it then masters the Unit.
+      const lastDone = inUnit.findLast((l) => l.status === "completed");
+      if (active.endsWithRoleplay && lastDone?.kind === "practice" && (lastDone.objectiveProgress ?? 0) >= ROLEPLAY_AT) {
+        const kind = await roleplayKindFor({ db }, userId);
+        return c.json(await withSteps(await createRoleplay({ db, now }, userId, { kind, unitId: active.id, position: inUnit.length })), 201);
+      }
+
       let plan: z.infer<typeof planOutput>;
       try {
         ({ output: plan } = await generate({ db, now }, userId, {
@@ -205,6 +215,7 @@ export const lessons = ({
       const row = await find(c.req.param("id"), userId);
       if (!row) return c.json({ error: "Lesson not found" }, 404);
       if (row.status !== "in_progress") return c.json({ error: "This Lesson has ended" }, 409);
+      if (row.kind === "roleplay") return c.json({ error: "A Roleplay runs through /api/roleplays" }, 409);
 
       // A recorded answer points at a recording the server transcribed; the transcript stands in as the answer.
       const incoming = c.req.valid("json").message;
