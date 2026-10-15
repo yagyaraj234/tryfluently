@@ -91,7 +91,7 @@ const textOf = (messages: UIMessage[]) =>
 type Row = typeof assessment.$inferSelect;
 
 // The Learner's spoken stretches, from the voice timing kept on a Voice Assessment's transcript.
-const speechSegments = (transcript: UIMessage[]): SpeechSegment[] =>
+export const speechSegments = (transcript: UIMessage[]): SpeechSegment[] =>
   transcript.flatMap((m) => {
     const t = m.metadata as { speechStartMs?: number; speechEndMs?: number } | undefined;
     if (m.role !== "user" || t?.speechStartMs === undefined || t.speechEndMs === undefined) return [];
