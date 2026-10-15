@@ -36,6 +36,13 @@
       "when": 1792080904148,
       "tag": "0004_lesson",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792081221555,
+      "tag": "0005_pronunciation_clip",
+      "breakpoints": true
     }
   ]
 }

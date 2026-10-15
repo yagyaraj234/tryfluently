@@ -1,11 +1,23 @@
 import type { LanguageModel } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
-import { createApp, type Mailer, type Models } from "../src/app";
+import { createApp, type Mailer, type Models, type Speech } from "../src/app";
 import { testDb } from "./setup";
 
 export const WEB_ORIGIN = "http://localhost:5173";
 
-type Overrides = { now?: () => Date; models?: Partial<Models>; mailer?: Mailer };
+type Overrides = { now?: () => Date; models?: Partial<Models>; mailer?: Mailer; speech?: Speech };
+
+// Returns fake audio and records what it was asked to say.
+export function fakeSpeech() {
+  const calls: Parameters<Speech["speak"]>[0][] = [];
+  return {
+    calls,
+    speak: async (req: (typeof calls)[number]) => {
+      calls.push(req);
+      return { audio: new TextEncoder().encode(`audio:${req.voice}:${req.text}`), contentType: "audio/mpeg" };
+    },
+  };
+}
 
 // Records emails instead of sending them.
 export function fakeMailer() {
@@ -21,11 +33,17 @@ const unscripted = (job: string) =>
     },
   });
 
-export function makeApp({ now = () => new Date("2026-10-15T09:00:00Z"), models = {}, mailer = fakeMailer() }: Overrides = {}) {
+export function makeApp({
+  now = () => new Date("2026-10-15T09:00:00Z"),
+  models = {},
+  mailer = fakeMailer(),
+  speech = fakeSpeech(),
+}: Overrides = {}) {
   return createApp({
     db: testDb,
     now,
     mailer,
+    speech,
     models: {
       step: unscripted("step"),
       brief: unscripted("brief"),
