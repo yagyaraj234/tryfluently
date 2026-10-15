@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgEnum, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
 
 // Better Auth's tables. Every later table must reference user.id with onDelete: "cascade".
 export const user = pgTable("user", {
@@ -46,4 +46,37 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp().notNull(),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
+});
+
+const id = () => text().primaryKey().$defaultFn(() => crypto.randomUUID());
+const learner = () => text().notNull().references(() => user.id, { onDelete: "cascade" });
+
+export type Skill = "fluency" | "grammar" | "vocabulary";
+export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
+export const goalKind = pgEnum("goal_kind", ["job_interview", "client_communication", "general_fluency"]);
+export const goalStatus = pgEnum("goal_status", ["proposed", "confirmed"]);
+
+export const goal = pgTable("goal", {
+  id: id(),
+  userId: learner(),
+  kind: goalKind().notNull(),
+  // Raw Goal Context, kept only so the Brief can be regenerated. Prompts use `brief`.
+  contextRaw: text(),
+  brief: text(),
+  targetLevels: jsonb().$type<Partial<Record<Skill, CefrLevel>>>().notNull().default({}),
+  status: goalStatus().notNull().default("proposed"),
+  createdAt: timestamp().notNull().defaultNow(),
+});
+
+export const usageKind = pgEnum("usage_kind", ["realtime", "recording", "text"]);
+
+export const aiUsage = pgTable("ai_usage", {
+  id: id(),
+  userId: learner(),
+  kind: usageKind().notNull(),
+  callId: text(),
+  startedAt: timestamp().notNull(),
+  seconds: real().notNull().default(0),
+  usage: jsonb().$type<Record<string, unknown>>(),
 });
