@@ -1,11 +1,12 @@
 import type { LanguageModel } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
 import { createApp, type Mailer, type Models, type Speech } from "../src/app";
+import type { Realtime, RealtimeEvent, RealtimeSession } from "../src/realtime";
 import { testDb } from "./setup";
 
 export const WEB_ORIGIN = "http://localhost:5173";
 
-type Overrides = { now?: () => Date; models?: Partial<Models>; mailer?: Mailer; speech?: Speech };
+type Overrides = { now?: () => Date; models?: Partial<Models>; mailer?: Mailer; speech?: Speech; realtime?: Realtime };
 
 // Returns fake audio and records what it was asked to say.
 export function fakeSpeech() {
@@ -17,6 +18,39 @@ export function fakeSpeech() {
       return { audio: new TextEncoder().encode(`audio:${req.voice}:${req.text}`), contentType: "audio/mpeg" };
     },
   };
+}
+
+// Stands in for OpenAI Realtime: records calls and lets a test play sideband events and close the call.
+export function fakeRealtime() {
+  const calls: { sdp: string; session: RealtimeSession; callId: string }[] = [];
+  const sidebands = new Map<
+    string,
+    { sent: any[]; hungUp: boolean; emit: (e: RealtimeEvent) => void; close: () => Promise<void> }
+  >();
+  const realtime: Realtime = {
+    async createCall(sdp, session) {
+      const callId = `rtc_${calls.length + 1}`;
+      calls.push({ sdp, session, callId });
+      return { answer: `v=0 answer for ${callId}`, callId };
+    },
+    attach(callId, { onEvent, onClose }) {
+      const sb = {
+        sent: [] as any[],
+        hungUp: false,
+        emit: onEvent,
+        close: async () => onClose(),
+      };
+      sidebands.set(callId, sb);
+      return {
+        send: (e: object) => void sb.sent.push(e),
+        hangup: async () => {
+          sb.hungUp = true;
+          await onClose();
+        },
+      };
+    },
+  };
+  return { ...realtime, calls, sidebands, sideband: (n = calls.length) => sidebands.get(`rtc_${n}`)! };
 }
 
 // Records emails instead of sending them.
@@ -38,12 +72,14 @@ export function makeApp({
   models = {},
   mailer = fakeMailer(),
   speech = fakeSpeech(),
+  realtime = fakeRealtime(),
 }: Overrides = {}) {
   return createApp({
     db: testDb,
     now,
     mailer,
     speech,
+    realtime,
     models: {
       step: unscripted("step"),
       brief: unscripted("brief"),

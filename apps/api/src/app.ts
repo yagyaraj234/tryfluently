@@ -10,11 +10,12 @@ import { lessons } from "./lessons";
 import type { Mailer } from "./mailer";
 import type { Models } from "./models";
 import { pronunciation, type Speech } from "./pronunciation";
+import { realtimeBroker, type Realtime } from "./realtime";
 import { roadmap } from "./roadmap";
 import { progress } from "./progress";
 import { skillHistory, skillProfile } from "./scoring";
 
-export type { Mailer, Models, Speech };
+export type { Mailer, Models, Realtime, Speech };
 
 // DateTimeFormat throws on unknown zones and, unlike supportedValuesOf, accepts aliases like Asia/Kolkata.
 const timezone = z.string().refine((tz) => {
@@ -50,6 +51,7 @@ export type Deps = {
   models: Models;
   mailer: Mailer;
   speech: Speech;
+  realtime: Realtime;
   settings?: Partial<Settings>;
 };
 
@@ -59,6 +61,7 @@ export type AppEnv = { Variables: { user: User } };
 export function createApp(deps: Deps) {
   const { db, env } = deps;
   const settings = { ...defaultSettings, ...deps.settings };
+  const broker = realtimeBroker(deps);
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
@@ -88,7 +91,7 @@ export function createApp(deps: Deps) {
       })
       .get("/api/me", (c) => c.json(c.var.user))
       .route("/api/goals", goals(deps))
-      .route("/api/assessments", assessments({ ...deps, settings }))
+      .route("/api/assessments", assessments({ ...deps, settings, broker }))
       .route("/api/roadmap", roadmap(deps))
       .route("/api/lessons", lessons({ ...deps, settings }))
       .route("/api/pronunciation", pronunciation(deps))
