@@ -82,7 +82,7 @@ what the Learner was asked, what they answered and the feedback they got. Using 
 0–100 only the skills (fluency, grammar, vocabulary) the Learner showed evidence of, with quotes. Rate progress on the
 Lesson objective 0–100, and write a two-sentence summary that the next Lesson can build on.`;
 
-const isPendingStep =(p: UIMessage["parts"][number]): p is ToolUIPart =>
+const isPendingStep = (p: UIMessage["parts"][number]): p is ToolUIPart =>
   stepTypes.includes(p.type.replace(/^tool-/, "") as StepType) && "state" in p && p.state === "input-available";
 
 export const lessons = ({ db, now, models, settings }: Deps & { settings: { alphaLesson: number } }) => {
