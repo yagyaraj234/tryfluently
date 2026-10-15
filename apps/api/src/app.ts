@@ -90,7 +90,7 @@ export function createApp(deps: Deps) {
       .route("/api/goals", goals(deps))
       .route("/api/assessments", assessments({ ...deps, settings }))
       .route("/api/roadmap", roadmap(deps))
-      .route("/api/lessons", lessons(deps))
+      .route("/api/lessons", lessons({ ...deps, settings }))
       .route("/api/pronunciation", pronunciation(deps))
       .get("/api/skill-profile", async (c) => c.json(await skillProfile(db, c.var.user.id)))
       .get("/api/skill-profile/history", async (c) => c.json(await skillHistory(db, c.var.user.id)))

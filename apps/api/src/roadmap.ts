@@ -7,7 +7,7 @@ import { generate } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { skillProfile, skills } from "./scoring";
 
-const { unit, goal, focusItem } = schema;
+const { unit, goal, focusItem, lesson } = schema;
 
 export const unitOutput = z.object({
   title: z.string(),
@@ -68,9 +68,53 @@ export async function buildRoadmap({ db, now, models }: Ctx, userId: string) {
   return "built" as const;
 }
 
+const MASTERY_PROGRESS = 80;
+const MAX_LESSONS = 15;
+
+// The one place a Unit finishes. Finishing the active Unit abandons its open Lesson and activates the next planned one.
+// ponytail: a Unit that hits the 15-Lesson cap is marked skipped, since the spec's statuses have no "ended".
+export async function finishUnit({ db }: Pick<Deps, "db">, id: string, status: "mastered" | "skipped") {
+  const [before] = await db.select().from(unit).where(eq(unit.id, id));
+  await db.update(unit).set({ status }).where(eq(unit.id, id));
+  if (before?.status !== "active") return;
+  await db
+    .update(lesson)
+    .set({ status: "abandoned" })
+    .where(and(eq(lesson.unitId, id), eq(lesson.status, "in_progress")));
+  const [next] = await db
+    .select({ id: unit.id })
+    .from(unit)
+    .where(and(eq(unit.userId, before.userId), eq(unit.status, "planned")))
+    .orderBy(asc(unit.position))
+    .limit(1);
+  if (next) await db.update(unit).set({ status: "active" }).where(eq(unit.id, next.id));
+}
+
+// After each completed Lesson: mastered at 80+ in two Lessons in a row, ended after 15 Lessons.
+export async function progressUnit(deps: Pick<Deps, "db">, id: string) {
+  const done = await deps.db
+    .select({ progress: lesson.objectiveProgress })
+    .from(lesson)
+    .where(and(eq(lesson.unitId, id), eq(lesson.status, "completed")))
+    .orderBy(asc(lesson.position));
+  const lastTwo = done.slice(-2);
+  if (lastTwo.length === 2 && lastTwo.every((l) => (l.progress ?? 0) >= MASTERY_PROGRESS)) return finishUnit(deps, id, "mastered");
+  if (done.length >= MAX_LESSONS) return finishUnit(deps, id, "skipped");
+}
+
 export const roadmap = (deps: Deps) =>
   new Hono<AppEnv>()
     .get("/", async (c) => c.json(await deps.db.select().from(unit).where(eq(unit.userId, c.var.user.id)).orderBy(asc(unit.position))))
+    .post("/units/:id/skip", async (c) => {
+      const [row] = await deps.db
+        .select()
+        .from(unit)
+        .where(and(eq(unit.id, c.req.param("id")), eq(unit.userId, c.var.user.id)));
+      if (!row) return c.json({ error: "Unit not found" }, 404);
+      if (row.status !== "active" && row.status !== "planned") return c.json({ error: "This Unit is already finished" }, 409);
+      await finishUnit(deps, row.id, "skipped");
+      return c.json({ status: "skipped" });
+    })
     .post("/", async (c) => {
       const result = await buildRoadmap(deps, c.var.user.id);
       if (result === "built") return c.json({ status: result }, 201);
