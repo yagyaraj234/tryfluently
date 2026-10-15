@@ -164,7 +164,7 @@ export async function debrief({ db, now, models, settings }: Ctx & Pick<Deps, "m
       .set({ status: "completed", completedAt: at, debrief: debriefRecord, objectiveProgress: out.objectiveProgress, summary: out.summary })
       .where(eq(lesson.id, row.id));
   });
-  if (row.unitId) await progressUnit({ db }, row.unitId);
+  if (row.unitId) await progressUnit({ db, now, models }, row.unitId);
   return { status: "completed" as const, debrief: debriefRecord };
 }
 

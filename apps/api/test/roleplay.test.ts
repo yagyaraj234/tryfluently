@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { schema } from "@impromptu/db";
 import { and, eq } from "drizzle-orm";
-import { answerStep, feedback, fillGap, learnerWithRoadmap, lessonPlan } from "./fixtures";
+import { answerStep, feedback, fillGap, learnerWithRoadmap, lessonPlan, unitsReply } from "./fixtures";
 import { fakeRealtime, get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, WEB_ORIGIN, type TestApp } from "./helpers";
 import { testDb } from "./setup";
 
@@ -257,12 +257,14 @@ describe("Roleplay at the end of a Unit", () => {
     const step = mockTurns([fillGap()], [feedback(), fillGap()], [feedback(), fillGap()], [feedback(), { tool: "endLesson", input: {} }]);
     step.doGenerate = mockModel(lessonPlan()).doGenerate;
     const judge = mockModel({ skills: {}, objectiveProgress: 85, summary: "Nearly there." }, debriefReply({ objectiveProgress: 90 }));
-    const app = makeApp({ now: clock, realtime, models: { step, judge } });
+    // The first skip's revision plans one final Unit that ends with a Roleplay; mastering it later extends the Roadmap.
+    const roadmap = mockModel(unitsReply(1, "Final"), unitsReply(2, "More"));
+    const app = makeApp({ now: clock, realtime, models: { step, judge, roadmap } });
     const { cookie, units } = await learnerWithRoadmap(clock);
-    // Only the last Unit ends with a Roleplay; skip ahead to it.
-    for (const u of units.slice(0, -1)) await app.request(`/api/roadmap/units/${u.id}/skip`, json({}, cookie));
-    const last = units.at(-1);
-    expect(last.endsWithRoleplay).toBe(true);
+    await app.request(`/api/roadmap/units/${units[0].id}/skip`, json({}, cookie));
+    await app.request(`/api/roadmap/units/${units[1].id}/skip`, json({}, cookie));
+    const last = ((await (await app.request("/api/roadmap", get(cookie))).json()) as any[]).find((u) => u.status === "active");
+    expect(last).toMatchObject({ title: "Final 1", endsWithRoleplay: true });
 
     const practice = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
     expect(practice).toMatchObject({ kind: "practice", unitId: last.id });
@@ -280,7 +282,8 @@ describe("Roleplay at the end of a Unit", () => {
     expect((await app.request(`/api/roleplays/${roleplay.id}/end`, json({}, cookie))).status).toBe(200);
 
     // 85 then 90: two Lessons in a row at 80+.
-    expect(((await (await app.request("/api/roadmap", get(cookie))).json()) as any[]).at(-1).status).toBe("mastered");
+    const after = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
+    expect(after.find((u) => u.id === last.id).status).toBe("mastered");
   });
 
   test("a Roleplay can't be driven through the practice chat", async () => {
