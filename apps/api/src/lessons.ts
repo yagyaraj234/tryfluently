@@ -1,7 +1,7 @@
 import { schema } from "@impromptu/db";
 import { zValidator } from "@hono/zod-validator";
 import { NoObjectGeneratedError, Output, safeValidateUIMessages, tool, type UIMessage } from "ai";
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate, streamChat } from "./ai";
@@ -14,11 +14,13 @@ const { lesson, step, unit, goal, focusItem } = schema;
 
 const MIN_STEPS = 3;
 const MAX_STEPS = 10;
+const HITS_TO_CLOSE = 3;
 
 const feedbackInput = z.object({
   verdict: z.enum(["correct", "almost", "incorrect"]),
   corrected: z.string(),
   explanation: z.string(),
+  focusItemIds: z.array(z.string()).optional().describe("Ids of open Focus Items the Learner used correctly in this answer"),
 });
 
 const planOutput = z.object({ title: z.string(), objective: z.string() });
@@ -27,14 +29,16 @@ const planInstructions = `You plan the next short Lesson (3–10 Steps) in a Uni
 Give it a title and one concrete objective. Build on the earlier Lessons' summaries without repeating them,
 and work in the Learner's open Focus Items where they fit the Unit.`;
 
-const chatInstructions = (l: { objective: string }, briefs: string[], focus: string[], answered: number) =>
+type Focus = { id: string; label: string };
+
+const chatInstructions = (l: { objective: string }, briefs: string[], focus: Focus[], answered: number) =>
   `You are Impromptu, an English coach, running a short Lesson made of Steps.
 Lesson objective: ${l.objective}
 ${briefs.length ? `What you know about the Learner:\n${briefs.join("\n\n")}` : ""}
-${focus.length ? `Their open Focus Items, to weave in where natural: ${focus.join("; ")}` : ""}
+${focus.length ? `Their open Focus Items, to weave in where natural (id: label):\n${focus.map((f) => `${f.id}: ${f.label}`).join("\n")}` : ""}
 Steps answered so far: ${answered}.
-Each turn: if the Learner just answered a Step, first call giveFeedback with a verdict, the corrected version and a
-one-sentence explanation. Then call exactly one Step tool for the next Step, adapting to how they did.
+Each turn: if the Learner just answered a Step, first call giveFeedback with a verdict, the corrected version, a
+one-sentence explanation and the ids of any open Focus Items the answer used correctly. Then call exactly one Step tool for the next Step, adapting to how they did.
 fillGap answers are already graded on the server: use its verdict. Keep any text short.
 Once the objective has been practised enough, call endLesson.`;
 
@@ -45,12 +49,14 @@ const judgeOutput = z.object({
   skills: z.object({ fluency: skillResult, grammar: skillResult, vocabulary: skillResult }).partial(),
   objectiveProgress: z.number().int().min(0).max(100),
   summary: z.string(),
+  focusItems: z.array(z.object({ label: z.string(), kind: z.enum(["grammar", "vocabulary", "phrase"]) })).optional(),
 });
 
 const judgeInstructions = `You are an examiner for English as a second language. Judge one finished Lesson from its Steps:
 what the Learner was asked, what they answered and the feedback they got. Using the official CEFR descriptors, score
 0–100 only the skills (fluency, grammar, vocabulary) the Learner showed evidence of, with quotes. Rate progress on the
-Lesson objective 0–100, and write a two-sentence summary that the next Lesson can build on.`;
+Lesson objective 0–100, and write a two-sentence summary that the next Lesson can build on.
+If the Learner made the same mistake more than once, add it as a Focus Item with a short label and its kind.`;
 
 export const lessons = ({ db, now, models, settings }: Deps & { settings: { alphaLesson: number } }) => {
   const find = async (id: string, userId: string) =>
@@ -61,10 +67,25 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
     steps: await db.select().from(step).where(eq(step.lessonId, l.id)).orderBy(asc(step.position)),
   });
 
-  const openFocus = async (userId: string) =>
-    (await db.select({ label: focusItem.label }).from(focusItem).where(and(eq(focusItem.userId, userId), eq(focusItem.status, "open")))).map(
-      (f) => f.label,
-    );
+  const openFocus = (userId: string) =>
+    db
+      .select({ id: focusItem.id, label: focusItem.label })
+      .from(focusItem)
+      .where(and(eq(focusItem.userId, userId), eq(focusItem.status, "open")));
+
+  // One hit per Focus Item used correctly; the 3rd closes it. Only the Learner's own open items count.
+  async function countHits(userId: string, ids: string[]) {
+    if (!ids.length) return;
+    const closes = sql`${focusItem.hits} + 1 >= ${HITS_TO_CLOSE}`;
+    await db
+      .update(focusItem)
+      .set({
+        hits: sql`${focusItem.hits} + 1`,
+        status: sql`case when ${closes} then 'closed'::focus_status else 'open'::focus_status end`,
+        closedAt: sql`case when ${closes} then ${now().toISOString()}::timestamp end`,
+      })
+      .where(and(eq(focusItem.userId, userId), eq(focusItem.status, "open"), inArray(focusItem.id, [...new Set(ids)])));
+  }
 
   // Runs the judge once, stores its verdict, moves the practised skills and checks the Unit's progress.
   async function completeLesson(row: typeof lesson.$inferSelect) {
@@ -97,6 +118,10 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
       .set({ status: "completed", completedAt: at, objectiveProgress: judged?.objectiveProgress, summary: judged?.summary })
       .where(eq(lesson.id, row.id));
     if (!judged) return;
+    if (judged.focusItems?.length)
+      await db
+        .insert(focusItem)
+        .values(judged.focusItems.map((f) => ({ userId: row.userId, ...f, source: "lesson" as const, sourceId: row.id, createdAt: at })));
     const scores = Object.fromEntries(Object.entries(judged.skills).flatMap(([s, r]) => (r ? [[s, r.score]] : [])));
     await recordScores(db, row.userId, scores, { alpha: settings.alphaLesson, source: "lesson", sourceId: row.id, at });
     if (row.unitId) await progressUnit({ db }, row.unitId);
@@ -121,7 +146,7 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
           prompt: JSON.stringify({
             unit: { title: active.title, objective: active.objective, skills: active.skills },
             skillProfile: await skillProfile(db, userId),
-            focusItems: await openFocus(userId),
+            focusItems: (await openFocus(userId)).map((f) => f.label),
             earlierLessons: inUnit.filter((l) => l.summary).map((l) => ({ title: l.title, summary: l.summary })),
           }),
           output: Output.object({ schema: planOutput }),
@@ -160,7 +185,9 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
             if (!stepId) return { saved: false };
             // The server's grade wins over the model's verdict for Steps it can check.
             const verdict = answered?.grade ? (answered.grade.correct ? "correct" : "incorrect") : fb.verdict;
-            await db.update(step).set({ feedback: { ...fb, verdict } }).where(eq(step.id, stepId));
+            const { focusItemIds = [], ...feedback } = fb;
+            await db.update(step).set({ feedback: { ...feedback, verdict } }).where(eq(step.id, stepId));
+            await countHits(userId, focusItemIds);
             return { saved: true, verdict };
           },
         }),

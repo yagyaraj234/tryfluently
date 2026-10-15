@@ -1,6 +1,7 @@
 import { schema, type Db } from "@impromptu/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -98,6 +99,15 @@ export function createApp(deps: Deps) {
       .get("/api/skill-profile", async (c) => c.json(await skillProfile(db, c.var.user.id)))
       .get("/api/skill-profile/history", async (c) => c.json(await skillHistory(db, c.var.user.id)))
       .get("/api/progress", async (c) => c.json(await progress(db, c.var.user, deps.now())))
+      .get("/api/focus-items", async (c) =>
+        c.json(
+          await db
+            .select()
+            .from(schema.focusItem)
+            .where(eq(schema.focusItem.userId, c.var.user.id))
+            .orderBy(asc(schema.focusItem.createdAt), asc(schema.focusItem.label)),
+        ),
+      )
   );
 }
 
