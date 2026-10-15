@@ -12,7 +12,8 @@
     "dev": "turbo run dev",
     "db:generate": "bun --cwd packages/db generate",
     "db:migrate": "bun --cwd packages/db migrate",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint"
   },
   "devDependencies": {
     "@types/bun": "^1.4.3",
