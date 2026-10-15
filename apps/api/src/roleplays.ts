@@ -1,10 +1,10 @@
 import { schema } from "@impromptu/db";
 import { zValidator } from "@hono/zod-validator";
-import { NoObjectGeneratedError, Output, type UIMessage } from "ai";
+import { NoObjectGeneratedError, Output, safeValidateUIMessages, type UIMessage } from "ai";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { generate } from "./ai";
+import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { speechSegments } from "./assessments";
 import { voiceMinutes, type RealtimeBroker } from "./realtime";
@@ -34,11 +34,28 @@ const confirmedBriefs = async ({ db }: Pick<Deps, "db">, userId: string) =>
 export async function createRoleplay(
   { db, now }: Ctx,
   userId: string,
-  { kind, tone = "standard", unitId = null, position = 0 }: { kind: RoleplayKind; tone?: Tone; unitId?: string | null; position?: number },
+  {
+    kind,
+    tone = "standard",
+    unitId = null,
+    position = 0,
+    textMode = false,
+  }: { kind: RoleplayKind; tone?: Tone; unitId?: string | null; position?: number; textMode?: boolean },
 ) {
   const [row] = await db
     .insert(lesson)
-    .values({ userId, unitId, position, kind: "roleplay", roleplayKind: kind, tone, title: titles[kind], objective: objectives[kind], startedAt: now() })
+    .values({
+      userId,
+      unitId,
+      position,
+      kind: "roleplay",
+      roleplayKind: kind,
+      tone,
+      textMode,
+      title: titles[kind],
+      objective: objectives[kind],
+      startedAt: now(),
+    })
     .returning();
   return row!;
 }
@@ -183,19 +200,42 @@ export const roleplays = (deps: Deps & { settings: { alphaLesson: number; realti
           goalId: z.string(),
           kind: z.enum(["mock_interview", "client_call"]).optional(),
           tone: z.enum(["friendly", "standard", "tough"]).optional(),
+          textMode: z.boolean().optional(),
         }),
       ),
       async (c) => {
         const userId = c.var.user.id;
-        const { goalId, kind, tone } = c.req.valid("json");
+        const { goalId, kind, tone, textMode } = c.req.valid("json");
         const [g] = await db.select({ kind: goal.kind }).from(goal).where(and(eq(goal.id, goalId), eq(goal.userId, userId)));
         if (!g) return c.json({ error: "Goal not found" }, 404);
         const fromGoal = { job_interview: "mock_interview", client_communication: "client_call" } as const;
         const chosen = kind ?? fromGoal[g.kind as keyof typeof fromGoal];
         if (!chosen) return c.json({ error: "Choose a Mock Interview or a Client Call" }, 400);
-        return c.json(await createRoleplay(deps, userId, { kind: chosen, tone }), 201);
+        return c.json(await createRoleplay(deps, userId, { kind: chosen, tone, textMode }), 201);
       },
     )
+    // The text-mode Roleplay: the same character as a chat, one message at a time, history kept on the server.
+    // Chatting before any call switches a Roleplay to text, so one at the end of a Unit can be done in text too.
+    .post("/:id/chat", zValidator("json", z.object({ message: z.unknown() })), async (c) => {
+      const userId = c.var.user.id;
+      const row = await find(c.req.param("id"), userId);
+      if (!row) return c.json({ error: "Roleplay not found" }, 404);
+      if (row.status !== "in_progress") return c.json({ error: "This Roleplay has ended" }, 409);
+      const stored = row.messages as UIMessage[];
+      if (!row.textMode && stored.length) return c.json({ error: "This Roleplay is being spoken; carry on in the call" }, 409);
+
+      const valid = await safeValidateUIMessages({ messages: [...stored, c.req.valid("json").message] });
+      if (!valid.success || valid.data.at(-1)!.role !== "user") return c.json({ error: "Expected a message from the Learner" }, 400);
+      if (!row.textMode) await db.update(lesson).set({ textMode: true }).where(eq(lesson.id, row.id));
+
+      return streamChat(deps, userId, {
+        model: deps.models.step,
+        instructions: `${roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedBriefs(deps, userId))}
+This Roleplay is a text chat: write your lines as you would say them, without stage directions.`,
+        messages: valid.data,
+        save: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
+      });
+    })
     // The browser posts its SDP offer and gets back only the SDP answer, as for a Voice Assessment.
     .post("/:id/call", async (c) => {
       const userId = c.var.user.id;
