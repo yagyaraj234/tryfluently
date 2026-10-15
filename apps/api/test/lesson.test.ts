@@ -93,10 +93,10 @@ describe("lesson chat with fillGap", () => {
 
     const calls = step.doStreamCalls;
     // Call n is made after n answers.
-    expect(toolNames(calls[0])).toEqual(["fillGap", "rewrite", "vocabCard"]);
-    expect(toolNames(calls[2])).toEqual(["fillGap", "giveFeedback", "rewrite", "vocabCard"]);
-    expect(toolNames(calls[3])).toEqual(["endLesson", "fillGap", "giveFeedback", "rewrite", "vocabCard"]);
-    expect(toolNames(calls[9])).toEqual(["endLesson", "fillGap", "giveFeedback", "rewrite", "vocabCard"]);
+    expect(toolNames(calls[0])).toEqual(["fillGap", "rewrite", "speakPrompt", "vocabCard"]);
+    expect(toolNames(calls[2])).toEqual(["fillGap", "giveFeedback", "rewrite", "speakPrompt", "vocabCard"]);
+    expect(toolNames(calls[3])).toEqual(["endLesson", "fillGap", "giveFeedback", "rewrite", "speakPrompt", "vocabCard"]);
+    expect(toolNames(calls[9])).toEqual(["endLesson", "fillGap", "giveFeedback", "rewrite", "speakPrompt", "vocabCard"]);
     expect(toolNames(calls[10])).toEqual(["endLesson", "giveFeedback"]);
     expect(calls[10]!.toolChoice).toEqual({ type: "required" });
 

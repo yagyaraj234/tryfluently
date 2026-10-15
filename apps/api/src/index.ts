@@ -4,6 +4,7 @@ import { resendMailer } from "./mailer";
 import { modelsFromSettings } from "./models";
 import { kenpathSpeech } from "./pronunciation";
 import { openaiRealtime } from "./realtime";
+import { openaiTranscriber } from "./recordings";
 
 const env = process.env as Record<string, string>;
 const required = ["DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "WEB_ORIGIN", "RESEND_API_KEY", "EMAIL_FROM", "OPENAI_API_KEY"];
@@ -22,5 +23,6 @@ export default {
     mailer: resendMailer(env.RESEND_API_KEY!, env.EMAIL_FROM!),
     speech: kenpathSpeech(env.KENPATH_BASE_URL!, env.KENPATH_API_KEY!, env.KENPATH_MODEL!),
     realtime: openaiRealtime(env.OPENAI_API_KEY!),
+    transcriber: openaiTranscriber(env.OPENAI_API_KEY!),
   }).fetch,
 };

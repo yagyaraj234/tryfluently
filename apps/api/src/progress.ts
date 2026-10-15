@@ -4,7 +4,7 @@ import { and, count, eq, isNotNull } from "drizzle-orm";
 const { lesson, step } = schema;
 
 // The local calendar day, as YYYY-MM-DD.
-const localDay = (d: Date, timeZone: string) => new Intl.DateTimeFormat("en-CA", { timeZone }).format(d);
+export const localDay = (d: Date, timeZone: string) => new Intl.DateTimeFormat("en-CA", { timeZone }).format(d);
 const dayBefore = (day: string) => new Date(Date.parse(day) - 86_400_000).toISOString().slice(0, 10);
 
 // XP and Streak are worked out from Steps and Lessons every time, never stored.

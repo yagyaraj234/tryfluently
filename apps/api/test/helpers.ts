@@ -1,12 +1,32 @@
 import type { LanguageModel } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
-import { createApp, type Mailer, type Models, type Speech } from "../src/app";
+import { createApp, type Mailer, type Models, type Settings, type Speech, type Transcriber } from "../src/app";
 import type { Realtime, RealtimeEvent, RealtimeSession } from "../src/realtime";
 import { testDb } from "./setup";
 
 export const WEB_ORIGIN = "http://localhost:5173";
 
-type Overrides = { now?: () => Date; models?: Partial<Models>; mailer?: Mailer; speech?: Speech; realtime?: Realtime };
+type Overrides = {
+  now?: () => Date;
+  models?: Partial<Models>;
+  mailer?: Mailer;
+  speech?: Speech;
+  realtime?: Realtime;
+  transcriber?: Transcriber;
+  settings?: Partial<Settings>;
+};
+
+// Transcribes each recording to the next scripted text (or a default) and records what it was sent.
+export function fakeTranscriber(...texts: string[]) {
+  const calls: Blob[] = [];
+  return {
+    calls,
+    transcribe: async (audio: Blob) => {
+      calls.push(audio);
+      return { text: texts.shift() ?? "I usually start my day with a short walk and then check my emails." };
+    },
+  };
+}
 
 // Returns fake audio and records what it was asked to say.
 export function fakeSpeech() {
@@ -73,6 +93,8 @@ export function makeApp({
   mailer = fakeMailer(),
   speech = fakeSpeech(),
   realtime = fakeRealtime(),
+  transcriber = fakeTranscriber(),
+  settings,
 }: Overrides = {}) {
   return createApp({
     db: testDb,
@@ -80,6 +102,8 @@ export function makeApp({
     mailer,
     speech,
     realtime,
+    transcriber,
+    settings,
     models: {
       step: unscripted("step"),
       brief: unscripted("brief"),
