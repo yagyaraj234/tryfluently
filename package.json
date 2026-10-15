@@ -1,0 +1,22 @@
+{
+  "name": "impromptu",
+  "private": true,
+  "packageManager": "bun@1.3.6",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "turbo run test",
+    "db:up": "docker compose up -d --wait",
+    "dev": "turbo run dev",
+    "db:generate": "bun --cwd packages/db generate",
+    "db:migrate": "bun --cwd packages/db migrate",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.3",
+    "turbo": "^2.11.8",
+    "typescript": "^7.0.2"
+  }
+}
