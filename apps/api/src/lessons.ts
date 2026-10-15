@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
+import { findRecording, recordedSecondsToday, recordingForm, timingOf, type Timing } from "./recordings";
 import { progressUnit } from "./roadmap";
 import { recordScores, skillProfile } from "./scoring";
 import { stepTools, stepTypes, takeAnswer } from "./steps";
@@ -56,9 +57,16 @@ const judgeInstructions = `You are an examiner for English as a second language.
 what the Learner was asked, what they answered and the feedback they got. Using the official CEFR descriptors, score
 0–100 only the skills (fluency, grammar, vocabulary) the Learner showed evidence of, with quotes. Rate progress on the
 Lesson objective 0–100, and write a two-sentence summary that the next Lesson can build on.
-If the Learner made the same mistake more than once, add it as a Focus Item with a short label and its kind.`;
+If the Learner made the same mistake more than once, add it as a Focus Item with a short label and its kind.
+Score fluency only from voice Steps (mode "voice"), using their timing (words per minute) and how smoothly they flow.`;
 
-export const lessons = ({ db, now, models, settings }: Deps & { settings: { alphaLesson: number } }) => {
+export const lessons = ({
+  db,
+  now,
+  models,
+  transcriber,
+  settings,
+}: Deps & { settings: { alphaLesson: number; recordingMinutesPerDay: number } }) => {
   const find = async (id: string, userId: string) =>
     (await db.select().from(lesson).where(and(eq(lesson.id, id), eq(lesson.userId, userId))))[0];
 
@@ -92,7 +100,7 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
     const at = now();
     const [steps, [u]] = await Promise.all([
       db
-        .select({ type: step.type, input: step.input, output: step.output, feedback: step.feedback })
+        .select({ type: step.type, mode: step.mode, input: step.input, output: step.output, feedback: step.feedback, timing: step.timing })
         .from(step)
         .where(eq(step.lessonId, row.id))
         .orderBy(asc(step.position)),
@@ -123,6 +131,8 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
         .insert(focusItem)
         .values(judged.focusItems.map((f) => ({ userId: row.userId, ...f, source: "lesson" as const, sourceId: row.id, createdAt: at })));
     const scores = Object.fromEntries(Object.entries(judged.skills).flatMap(([s, r]) => (r ? [[s, r.score]] : [])));
+    // Fluency is only measured from speech: a Lesson answered entirely in text leaves it alone.
+    if (!steps.some((s) => s.mode === "voice")) delete scores.fluency;
     await recordScores(db, row.userId, scores, { alpha: settings.alphaLesson, source: "lesson", sourceId: row.id, at });
     if (row.unitId) await progressUnit({ db, now, models }, row.unitId);
   }
@@ -165,6 +175,30 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
       const row = await find(c.req.param("id"), c.var.user.id);
       return row ? c.json(await withSteps(row)) : c.json({ error: "Lesson not found" }, 404);
     })
+    // Transcribes a recorded answer. The client then returns the recordingId as the Step's answer.
+    .post("/:id/recordings", zValidator("form", recordingForm), async (c) => {
+      const user = c.var.user;
+      const row = await find(c.req.param("id"), user.id);
+      if (!row) return c.json({ error: "Lesson not found" }, 404);
+      if (row.status !== "in_progress") return c.json({ error: "This Lesson has ended" }, 409);
+      if ((await recordedSecondsToday(db, user, now())) >= settings.recordingMinutesPerDay * 60)
+        return c.json({ error: "You've used today's recorded minutes. Answer in text, or come back tomorrow." }, 429);
+
+      const { audio, seconds } = c.req.valid("form");
+      let text: string;
+      try {
+        ({ text } = await transcriber.transcribe(audio));
+      } catch (e) {
+        console.error("transcription failed", e);
+        return c.json({ error: "The recording couldn't be transcribed. Try again." }, 502);
+      }
+      const recordingId = crypto.randomUUID();
+      const timing = timingOf(text, seconds);
+      await db
+        .insert(schema.aiUsage)
+        .values({ userId: user.id, kind: "recording", callId: recordingId, startedAt: now(), seconds, usage: { lessonId: row.id, text, timing } });
+      return c.json({ recordingId, text, timing }, 201);
+    })
     // One turn. The body carries the newest message: a user message, or the last assistant message with the Step answered.
     .post("/:id/chat", zValidator("json", z.object({ message: z.any() })), async (c) => {
       const userId = c.var.user.id;
@@ -172,7 +206,18 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
       if (!row) return c.json({ error: "Lesson not found" }, 404);
       if (row.status !== "in_progress") return c.json({ error: "This Lesson has ended" }, 409);
 
-      const taken = takeAnswer(row.messages as UIMessage[], c.req.valid("json").message);
+      // A recorded answer points at a recording the server transcribed; the transcript stands in as the answer.
+      const incoming = c.req.valid("json").message;
+      let voice: Timing | undefined;
+      const recorded = incoming?.parts?.find?.((p: any) => typeof p?.output?.recordingId === "string");
+      if (recorded) {
+        const recording = await findRecording(db, userId, row.id, recorded.output.recordingId);
+        if (!recording) return c.json({ error: "That recording wasn't found" }, 400);
+        recorded.output = { answer: recording.text };
+        voice = recording.timing;
+      }
+
+      const taken = takeAnswer(row.messages as UIMessage[], incoming);
       if ("error" in taken) return c.json({ error: taken.error, issues: taken.issues }, taken.status);
       const { messages, answered } = taken;
 
@@ -215,6 +260,8 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
             lessonId: row.id,
             position: before,
             type: answered.type,
+            mode: voice ? "voice" : "text",
+            timing: voice,
             input: answered.input,
             output: answered.output,
             feedback: g && { verdict: g.correct ? "correct" : "incorrect", corrected: g.expected, explanation: "" },

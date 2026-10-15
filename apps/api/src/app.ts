@@ -12,11 +12,12 @@ import type { Mailer } from "./mailer";
 import type { Models } from "./models";
 import { pronunciation, type Speech } from "./pronunciation";
 import { realtimeBroker, type Realtime } from "./realtime";
+import type { Transcriber } from "./recordings";
 import { roadmap } from "./roadmap";
 import { progress } from "./progress";
 import { skillHistory, skillProfile } from "./scoring";
 
-export type { Mailer, Models, Realtime, Speech };
+export type { Mailer, Models, Realtime, Speech, Transcriber };
 
 // DateTimeFormat throws on unknown zones and, unlike supportedValuesOf, accepts aliases like Asia/Kolkata.
 const timezone = z.string().refine((tz) => {
@@ -42,6 +43,8 @@ export const defaultSettings = {
   // Moving-average weight of a new result: new = old + α × (result − old).
   alphaAssessment: 0.5,
   alphaLesson: 0.15,
+  // Recorded answers (speakPrompt etc.) per local day.
+  recordingMinutesPerDay: 30,
 };
 export type Settings = typeof defaultSettings;
 
@@ -53,6 +56,7 @@ export type Deps = {
   mailer: Mailer;
   speech: Speech;
   realtime: Realtime;
+  transcriber: Transcriber;
   settings?: Partial<Settings>;
 };
 

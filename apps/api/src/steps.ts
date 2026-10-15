@@ -21,6 +21,11 @@ export const stepTools = {
     inputSchema: z.object({ sentence: z.string(), aim: z.string() }),
     outputSchema: textAnswer,
   }),
+  speakPrompt: tool({
+    description: "An open question the Learner answers out loud at length; they record it and you judge the transcript.",
+    inputSchema: z.object({ question: z.string(), targetSeconds: z.number().int().min(30).max(90) }),
+    outputSchema: textAnswer,
+  }),
 };
 export type StepType = keyof typeof stepTools;
 export const stepTypes = Object.keys(stepTools) as StepType[];
