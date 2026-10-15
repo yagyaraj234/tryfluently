@@ -27,3 +27,12 @@ export async function takeWrittenAssessment(app: TestApp, cookie: string, clock:
   const end = await app.request(`/api/assessments/${id}/end`, json({}, cookie));
   return { id, end };
 }
+
+export const unitsReply = (n = 8) => ({
+  units: Array.from({ length: n }, (_, i) => ({
+    title: `Unit ${i + 1}`,
+    objective: `Objective ${i + 1}`,
+    skills: i % 2 ? ["grammar"] : ["vocabulary", "fluency"],
+    endsWithRoleplay: i === n - 1,
+  })),
+});

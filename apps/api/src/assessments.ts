@@ -8,6 +8,7 @@ import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { cefrLevel, goalKind, targetLevels } from "./goals";
 import { reportEmail } from "./mailer";
+import { buildRoadmap } from "./roadmap";
 import { recordScores, scoreView } from "./scoring";
 
 const { assessment, goal, focusItem } = schema;
@@ -143,6 +144,8 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
         await tx.insert(goal).values(out.proposedGoals.map((g) => ({ userId, kind: g.kind, targetLevels: g.targetLevels, createdAt: at })));
     });
     await emailIfFirst(row, user.email, out);
+    // Goals confirmed before the Assessment were waiting for a Skill Profile. If this fails, POST /api/roadmap retries.
+    await buildRoadmap({ db, now, models }, userId);
 
     return { status: "completed" as const, report };
   }
