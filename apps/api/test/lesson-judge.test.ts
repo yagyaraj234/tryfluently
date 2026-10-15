@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { answerStep, feedback, fillGap, learnerWithRoadmap, lessonPlan } from "./fixtures";
+import { answerStep, feedback, fillGap, learnerWithRoadmap, lessonPlan, unitsReply } from "./fixtures";
 import { get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, type TestApp, type Turn } from "./helpers";
 
 const judgeReply = (objectiveProgress: number, skills: object = { grammar: { score: 62, evidence: ["She goes to work."] } }) => ({
@@ -21,7 +21,9 @@ function judgedApp(judgeReplies: unknown[]) {
   const judge = mockModel(...judgeReplies);
   // Shared with the setup, so Lesson scores land after the Assessment's.
   const clock = makeClock();
-  return { app: makeApp({ now: clock, models: { step, judge } }), plan, judge, clock };
+  // Finishing a Unit revises the Roadmap.
+  const roadmap = mockModel(unitsReply(3, "Revised"));
+  return { app: makeApp({ now: clock, models: { step, judge, roadmap } }), plan, judge, clock };
 }
 
 async function doLesson(app: TestApp, cookie: string, clock: ReturnType<typeof makeClock>) {
@@ -102,7 +104,7 @@ describe("unit progression", () => {
   });
 
   test("skipping the active Unit marks it skipped, not mastered, and activates the next one", async () => {
-    const app = makeApp({ models: { step: mockModel(lessonPlan()) } });
+    const app = makeApp({ models: { step: mockModel(lessonPlan()), roadmap: mockModel(unitsReply(3, "Revised")) } });
     const { cookie, units } = await learnerWithRoadmap();
     const inProgress = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
 
