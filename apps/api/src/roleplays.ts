@@ -7,7 +7,7 @@ import { z } from "zod";
 import { generate } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { speechSegments } from "./assessments";
-import type { RealtimeBroker } from "./realtime";
+import { voiceMinutes, type RealtimeBroker } from "./realtime";
 import { progressUnit } from "./roadmap";
 import { fluencyScore, recordScores, skillProfile, skills } from "./scoring";
 
@@ -168,7 +168,7 @@ export async function debrief({ db, now, models, settings }: Ctx & Pick<Deps, "m
   return { status: "completed" as const, debrief: debriefRecord };
 }
 
-export const roleplays = (deps: Deps & { settings: { alphaLesson: number }; broker: RealtimeBroker }) => {
+export const roleplays = (deps: Deps & { settings: { alphaLesson: number; realtimeMinutesPerDay: number }; broker: RealtimeBroker }) => {
   const { db, broker } = deps;
   const find = async (id: string, userId: string) =>
     (await db.select().from(lesson).where(and(eq(lesson.id, id), eq(lesson.userId, userId), eq(lesson.kind, "roleplay"))))[0];
@@ -205,7 +205,13 @@ export const roleplays = (deps: Deps & { settings: { alphaLesson: number }; brok
       if (!row) return c.json({ error: "Roleplay not found" }, 404);
       if (row.status !== "in_progress" || row.textMode) return c.json({ error: "Calls are only for a spoken Roleplay in progress" }, 409);
 
+      // The daily cap is enforced here, on the server: the call gets whatever is left of today's minutes.
+      const budget = await voiceMinutes(broker, c.var.user, deps.settings.realtimeMinutesPerDay);
+      if (budget.remainingSeconds <= 0)
+        return c.json({ error: "You've used today's voice minutes. Try text mode, or come back tomorrow.", ...budget }, 429);
+
       const call = await broker.start(userId, {
+        budgetSeconds: budget.remainingSeconds,
         sdp: offer,
         instructions: roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedBriefs(deps, userId)),
         purpose: "roleplay",

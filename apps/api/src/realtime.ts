@@ -1,6 +1,8 @@
 import { schema } from "@impromptu/db";
 import type { UIMessage } from "ai";
-import type { Deps } from "./app";
+import { and, eq, gte, sql } from "drizzle-orm";
+import type { Deps, Schedule } from "./app";
+import { localDay } from "./progress";
 
 export type RealtimeEvent = { type: string; [key: string]: any };
 export type RealtimeSession = Record<string, unknown>;
@@ -63,17 +65,50 @@ export type CallPurpose = "assessment" | "roleplay";
 
 // Starts and tracks Realtime calls: one live call per Learner, transcripts and voice timing collected from the
 // sideband, and an ai_usage row written when the call closes. No audio is kept.
-export function realtimeBroker({ db, now, realtime }: Pick<Deps, "db" | "now" | "realtime">) {
-  // ponytail: live calls are held in memory, so "one call per Learner" holds on a single API instance; move it to a DB lock to scale out.
-  const live = new Map<string, { sideband?: Sideband; closed: Promise<void> }>();
+const WRAP_UP_SECONDS = 60;
+const wrapUp = "\n\nAbout a minute is left. Start to wrap up now: ask no new questions, and close the conversation politely.";
 
+type Live = { sideband?: Sideband; closed: Promise<void>; purpose: CallPurpose; startedAt?: Date };
+
+export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule }) {
+  // ponytail: live calls are held in memory, so "one call per Learner" holds on a single API instance; move it to a DB lock to scale out.
+  const live = new Map<string, Live>();
+
+  // Seconds of Roleplay calls today in the Learner's timezone, a live one included. Voice Assessments don't count.
+  async function roleplaySecondsToday(user: { id: string; timezone: string }) {
+    const at = now();
+    const rows = await db
+      .select({ startedAt: schema.aiUsage.startedAt, seconds: schema.aiUsage.seconds })
+      .from(schema.aiUsage)
+      .where(
+        and(
+          eq(schema.aiUsage.userId, user.id),
+          eq(schema.aiUsage.kind, "realtime"),
+          sql`${schema.aiUsage.usage}->>'purpose' = 'roleplay'`,
+          gte(schema.aiUsage.startedAt, new Date(at.getTime() - 2 * 86_400_000)),
+        ),
+      );
+    const call = live.get(user.id);
+    if (call?.purpose === "roleplay" && call.startedAt)
+      rows.push({ startedAt: call.startedAt, seconds: (at.getTime() - call.startedAt.getTime()) / 1000 });
+    const today = localDay(at, user.timezone);
+    return rows.filter((r) => localDay(r.startedAt, user.timezone) === today).reduce((sum, r) => sum + r.seconds, 0);
+  }
+
+  // `budgetSeconds` caps the call: the agent is told to wrap up a minute before, then the call is hung up.
   async function start(
     userId: string,
-    opts: { sdp: string; instructions: string; purpose: CallPurpose; onTranscript(t: UIMessage[]): Promise<unknown> },
+    opts: {
+      sdp: string;
+      instructions: string;
+      purpose: CallPurpose;
+      budgetSeconds?: number;
+      onTranscript(t: UIMessage[]): Promise<unknown>;
+    },
   ) {
     if (live.has(userId)) return { busy: true as const };
     let closed!: () => void;
-    const entry: { sideband?: Sideband; closed: Promise<void> } = { closed: new Promise((r) => (closed = r)) };
+    const entry: Live = { closed: new Promise((r) => (closed = r)), purpose: opts.purpose };
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
 
     let call: { answer: string; callId: string };
@@ -86,6 +121,8 @@ export function realtimeBroker({ db, now, realtime }: Pick<Deps, "db" | "now" | 
     }
 
     const startedAt = now();
+    entry.startedAt = startedAt;
+    const timers: (() => void)[] = [];
     const transcript: UIMessage[] = [];
     const timing = new Map<string, { speechStartMs?: number; speechEndMs?: number }>();
     const usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
@@ -116,6 +153,7 @@ export function realtimeBroker({ db, now, realtime }: Pick<Deps, "db" | "now" | 
       async onClose() {
         if (ended) return; // hangup and the socket closing both land here
         ended = true;
+        for (const cancel of timers) cancel();
         await saving;
         await db.insert(schema.aiUsage).values({
           userId,
@@ -130,6 +168,15 @@ export function realtimeBroker({ db, now, realtime }: Pick<Deps, "db" | "now" | 
       },
     });
     entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions } });
+    if (opts.budgetSeconds !== undefined) {
+      const sideband = entry.sideband;
+      timers.push(
+        schedule(Math.max(0, opts.budgetSeconds - WRAP_UP_SECONDS) * 1000, () =>
+          sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions + wrapUp } }),
+        ),
+        schedule(opts.budgetSeconds * 1000, () => hangup(userId)),
+      );
+    }
     return { answer: call.answer };
   }
 
@@ -141,6 +188,12 @@ export function realtimeBroker({ db, now, realtime }: Pick<Deps, "db" | "now" | 
     await entry.closed;
   }
 
-  return { start, hangup };
+  return { start, hangup, roleplaySecondsToday };
 }
 export type RealtimeBroker = ReturnType<typeof realtimeBroker>;
+
+// The day's Roleplay voice budget for a free Learner.
+export async function voiceMinutes(broker: RealtimeBroker, user: { id: string; timezone: string }, limitMinutes: number) {
+  const used = await broker.roleplaySecondsToday(user);
+  return { limitMinutes, usedSeconds: Math.round(used), remainingSeconds: Math.max(0, Math.round(limitMinutes * 60 - used)) };
+}
