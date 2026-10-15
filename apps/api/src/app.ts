@@ -9,10 +9,11 @@ import { goals } from "./goals";
 import { lessons } from "./lessons";
 import type { Mailer } from "./mailer";
 import type { Models } from "./models";
+import { pronunciation, type Speech } from "./pronunciation";
 import { roadmap } from "./roadmap";
 import { skillHistory, skillProfile } from "./scoring";
 
-export type { Mailer, Models };
+export type { Mailer, Models, Speech };
 
 // DateTimeFormat throws on unknown zones and, unlike supportedValuesOf, accepts aliases like Asia/Kolkata.
 const timezone = z.string().refine((tz) => {
@@ -41,7 +42,15 @@ export const defaultSettings = {
 };
 export type Settings = typeof defaultSettings;
 
-export type Deps = { db: Db; now: () => Date; env: Env; models: Models; mailer: Mailer; settings?: Partial<Settings> };
+export type Deps = {
+  db: Db;
+  now: () => Date;
+  env: Env;
+  models: Models;
+  mailer: Mailer;
+  speech: Speech;
+  settings?: Partial<Settings>;
+};
 
 export type User = typeof schema.user.$inferSelect;
 export type AppEnv = { Variables: { user: User } };
@@ -81,6 +90,7 @@ export function createApp(deps: Deps) {
       .route("/api/assessments", assessments({ ...deps, settings }))
       .route("/api/roadmap", roadmap(deps))
       .route("/api/lessons", lessons(deps))
+      .route("/api/pronunciation", pronunciation(deps))
       .get("/api/skill-profile", async (c) => c.json(await skillProfile(db, c.var.user.id)))
       .get("/api/skill-profile/history", async (c) => c.json(await skillHistory(db, c.var.user.id)))
   );

@@ -1,4 +1,17 @@
-import { boolean, integer, jsonb, pgEnum, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  customType,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  real,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Uint8Array }>({ dataType: () => "bytea" });
 
 // Better Auth's tables. Every later table must reference user.id with onDelete: "cascade".
 export const user = pgTable("user", {
@@ -187,3 +200,17 @@ export const step = pgTable("step", {
   timing: jsonb().$type<Record<string, unknown>>(),
   answeredAt: timestamp(),
 });
+
+// Reference Pronunciation clips, shared by all Learners and cached by text and voice,
+// since Kenpath's free tier allows only 2 concurrent streams.
+export const pronunciationClip = pgTable(
+  "pronunciation_clip",
+  {
+    text: text().notNull(),
+    voice: text().notNull(),
+    audio: bytea().notNull(),
+    contentType: text().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.text, t.voice] })],
+);
