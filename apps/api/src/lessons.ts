@@ -124,7 +124,7 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
         .values(judged.focusItems.map((f) => ({ userId: row.userId, ...f, source: "lesson" as const, sourceId: row.id, createdAt: at })));
     const scores = Object.fromEntries(Object.entries(judged.skills).flatMap(([s, r]) => (r ? [[s, r.score]] : [])));
     await recordScores(db, row.userId, scores, { alpha: settings.alphaLesson, source: "lesson", sourceId: row.id, at });
-    if (row.unitId) await progressUnit({ db }, row.unitId);
+    if (row.unitId) await progressUnit({ db, now, models }, row.unitId);
   }
 
   return new Hono<AppEnv>()

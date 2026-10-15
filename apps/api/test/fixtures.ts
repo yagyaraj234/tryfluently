@@ -30,10 +30,10 @@ export async function takeWrittenAssessment(app: TestApp, cookie: string, clock:
   return { id, end };
 }
 
-export const unitsReply = (n = 8) => ({
+export const unitsReply = (n = 8, name = "Unit") => ({
   units: Array.from({ length: n }, (_, i) => ({
-    title: `Unit ${i + 1}`,
-    objective: `Objective ${i + 1}`,
+    title: `${name} ${i + 1}`,
+    objective: `${name} objective ${i + 1}`,
     skills: i % 2 ? ["grammar"] : ["vocabulary", "fluency"],
     endsWithRoleplay: i === n - 1,
   })),
@@ -41,7 +41,11 @@ export const unitsReply = (n = 8) => ({
 
 // A Learner who has taken an Assessment and confirmed a Goal, so their first Unit is active.
 // Set up with its own app, so the test's app only needs the models it scripts.
-export async function learnerWithRoadmap(clock = makeClockFn(), signUpFields: Record<string, unknown> = {}) {
+export async function learnerWithRoadmap(
+  clock = makeClockFn(),
+  signUpFields: Record<string, unknown> = {},
+  confirmEdits: Record<string, unknown> = {},
+) {
   const setupApp = makeApp({
     now: clock,
     models: {
@@ -54,7 +58,7 @@ export async function learnerWithRoadmap(clock = makeClockFn(), signUpFields: Re
   const learner = await signUp(setupApp, signUpFields);
   await takeWrittenAssessment(setupApp, learner.cookie, clock);
   const [goal] = (await (await setupApp.request("/api/goals", get(learner.cookie))).json()) as any[];
-  await setupApp.request(`/api/goals/${goal.id}/confirm`, json({}, learner.cookie));
+  await setupApp.request(`/api/goals/${goal.id}/confirm`, json(confirmEdits, learner.cookie));
   const units = (await (await setupApp.request("/api/roadmap", get(learner.cookie))).json()) as any[];
   return { ...learner, units };
 }

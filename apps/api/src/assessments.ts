@@ -9,7 +9,7 @@ import type { AppEnv, Deps } from "./app";
 import { cefrLevel, goalKind, targetLevels } from "./goals";
 import { reportEmail } from "./mailer";
 import type { RealtimeBroker } from "./realtime";
-import { buildRoadmap } from "./roadmap";
+import { buildRoadmap, reviseRoadmap } from "./roadmap";
 import { fluencyScore, recordScores, scoreView, type SpeechSegment } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
 
@@ -198,8 +198,9 @@ export const assessments = ({
         await tx.insert(goal).values(out.proposedGoals.map((g) => ({ userId, kind: g.kind, targetLevels: g.targetLevels, createdAt: at })));
     });
     await emailIfFirst(row, user.email, out);
-    // Goals confirmed before the Assessment were waiting for a Skill Profile. If this fails, POST /api/roadmap retries.
-    await buildRoadmap({ db, now, models }, userId);
+    // Goals confirmed before the Assessment were waiting for a Skill Profile (if this fails, POST /api/roadmap retries);
+    // a retake revises the Roadmap the Learner already has.
+    if ((await buildRoadmap({ db, now, models }, userId)) === "exists") await reviseRoadmap({ db, now, models }, userId);
 
     return { status: "completed" as const, report };
   }

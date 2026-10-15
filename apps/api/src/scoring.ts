@@ -3,12 +3,13 @@ import { asc, desc, eq } from "drizzle-orm";
 
 export const skills = ["fluency", "grammar", "vocabulary"] as const satisfies Skill[];
 
+export const cefrLevels = ["A1", "A2", "B1", "B2", "C1", "C2"] as const satisfies CefrLevel[];
+
 // Equal CEFR bands over 0–100: A1 0–16, A2 17–33, B1 34–50, B2 51–67, C1 68–84, C2 85–100.
 export function cefr(score: number): CefrLevel {
   const bands = [16, 33, 50, 67, 84] as const;
-  const levels = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
   const i = bands.findIndex((top) => Math.round(score) <= top);
-  return levels[i === -1 ? 5 : i]!;
+  return cefrLevels[i === -1 ? 5 : i]!;
 }
 
 export const scoreView = (score: number) => ({ score: Math.round(score), level: cefr(score) });

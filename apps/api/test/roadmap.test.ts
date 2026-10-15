@@ -30,7 +30,7 @@ describe("confirm Goals → Roadmap", () => {
     expect(units).toHaveLength(9);
     expect(units.map((u) => u.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
     expect(units.map((u) => u.status)).toEqual(["active", ...Array(8).fill("planned")]);
-    expect(units[0]).toMatchObject({ title: "Unit 1", objective: "Objective 1", skills: ["vocabulary", "fluency"], endsWithRoleplay: false });
+    expect(units[0]).toMatchObject({ title: "Unit 1", objective: "Unit objective 1", skills: ["vocabulary", "fluency"], endsWithRoleplay: false });
     expect(units[8]).toMatchObject({ endsWithRoleplay: true });
     // Built from the Goals, the Skill Profile and the weaknesses.
     const prompt = JSON.stringify(roadmapModel.doGenerateCalls[0]!.prompt);
