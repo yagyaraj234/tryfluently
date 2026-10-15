@@ -1,6 +1,6 @@
 import type { LanguageModel } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
-import { createApp, type Mailer, type Models, type Settings, type Speech, type Transcriber } from "../src/app";
+import { createApp, type Mailer, type Models, type Schedule, type Settings, type Speech, type Transcriber } from "../src/app";
 import type { Realtime, RealtimeEvent, RealtimeSession } from "../src/realtime";
 import { testDb } from "./setup";
 
@@ -12,6 +12,7 @@ type Overrides = {
   mailer?: Mailer;
   speech?: Speech;
   realtime?: Realtime;
+  schedule?: Schedule;
   transcriber?: Transcriber;
   settings?: Partial<Settings>;
 };
@@ -79,6 +80,28 @@ export function fakeMailer() {
   return { sent, send: async (email: (typeof sent)[number]) => void sent.push(email) };
 }
 
+// Timers that only go off when a test fires them, so time-based rules run on the injected clock.
+export function fakeTimers() {
+  const pending: { ms: number; fn: () => unknown; cancelled: boolean }[] = [];
+  const schedule: Schedule = (ms, fn) => {
+    const t = { ms, fn, cancelled: false };
+    pending.push(t);
+    return () => void (t.cancelled = true);
+  };
+  return {
+    schedule,
+    // Delays of the timers still waiting, in ms.
+    waiting: () => pending.filter((t) => !t.cancelled).map((t) => t.ms),
+    // Fires the waiting timer set for `ms`.
+    fire: async (ms: number) => {
+      const t = pending.find((p) => !p.cancelled && p.ms === ms);
+      if (!t) throw new Error(`no timer waiting for ${ms} ms`);
+      t.cancelled = true;
+      await t.fn();
+    },
+  };
+}
+
 // A model that fails loudly, so a test notices an AI call it didn't script.
 const unscripted = (job: string) =>
   new MockLanguageModelV4({
@@ -94,6 +117,7 @@ export function makeApp({
   speech = fakeSpeech(),
   realtime = fakeRealtime(),
   transcriber = fakeTranscriber(),
+  schedule = fakeTimers().schedule,
   settings,
 }: Overrides = {}) {
   return createApp({
@@ -103,6 +127,7 @@ export function makeApp({
     speech,
     realtime,
     transcriber,
+    schedule,
     settings,
     models: {
       step: unscripted("step"),

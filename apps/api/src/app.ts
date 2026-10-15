@@ -11,7 +11,7 @@ import { lessons } from "./lessons";
 import type { Mailer } from "./mailer";
 import type { Models } from "./models";
 import { pronunciation, type Speech } from "./pronunciation";
-import { realtimeBroker, type Realtime } from "./realtime";
+import { realtimeBroker, voiceMinutes, type Realtime } from "./realtime";
 import type { Transcriber } from "./recordings";
 import { roadmap } from "./roadmap";
 import { roleplays } from "./roleplays";
@@ -46,6 +46,8 @@ export const defaultSettings = {
   alphaLesson: 0.15,
   // Recorded answers (speakPrompt etc.) per local day.
   recordingMinutesPerDay: 30,
+  // Roleplay voice calls per local day; the Voice Assessment doesn't count.
+  realtimeMinutesPerDay: 15,
 };
 export type Settings = typeof defaultSettings;
 
@@ -58,7 +60,15 @@ export type Deps = {
   speech: Speech;
   realtime: Realtime;
   transcriber: Transcriber;
+  // Runs `fn` after `ms` and returns a cancel; injected so tests fire timers on the test clock.
+  schedule?: Schedule;
   settings?: Partial<Settings>;
+};
+
+export type Schedule = (ms: number, fn: () => unknown) => () => void;
+const setTimer: Schedule = (ms, fn) => {
+  const t = setTimeout(fn, ms);
+  return () => clearTimeout(t);
 };
 
 export type User = typeof schema.user.$inferSelect;
@@ -67,7 +77,7 @@ export type AppEnv = { Variables: { user: User } };
 export function createApp(deps: Deps) {
   const { db, env } = deps;
   const settings = { ...defaultSettings, ...deps.settings };
-  const broker = realtimeBroker(deps);
+  const broker = realtimeBroker({ ...deps, schedule: deps.schedule ?? setTimer });
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
@@ -104,6 +114,7 @@ export function createApp(deps: Deps) {
       .route("/api/pronunciation", pronunciation(deps))
       .get("/api/skill-profile", async (c) => c.json(await skillProfile(db, c.var.user.id)))
       .get("/api/skill-profile/history", async (c) => c.json(await skillHistory(db, c.var.user.id)))
+      .get("/api/voice-minutes", async (c) => c.json(await voiceMinutes(broker, c.var.user, settings.realtimeMinutesPerDay)))
       .get("/api/progress", async (c) => c.json(await progress(db, c.var.user, deps.now())))
       .get("/api/focus-items", async (c) =>
         c.json(
