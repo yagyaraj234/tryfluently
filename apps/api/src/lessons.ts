@@ -6,7 +6,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
-import { skillProfile } from "./scoring";
+import { progressUnit } from "./roadmap";
+import { recordScores, skillProfile } from "./scoring";
 
 const { lesson, step, unit, goal, focusItem } = schema;
 
@@ -67,10 +68,24 @@ one-sentence explanation. Then call exactly one Step tool for the next Step, ada
 fillGap answers are already graded on the server: use its verdict. Keep any text short.
 Once the objective has been practised enough, call endLesson.`;
 
-const isPendingStep = (p: UIMessage["parts"][number]): p is ToolUIPart =>
+const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
+
+// What the judge returns after each Lesson: only the skills it saw evidence for are scored.
+const judgeOutput = z.object({
+  skills: z.object({ fluency: skillResult, grammar: skillResult, vocabulary: skillResult }).partial(),
+  objectiveProgress: z.number().int().min(0).max(100),
+  summary: z.string(),
+});
+
+const judgeInstructions = `You are an examiner for English as a second language. Judge one finished Lesson from its Steps:
+what the Learner was asked, what they answered and the feedback they got. Using the official CEFR descriptors, score
+0–100 only the skills (fluency, grammar, vocabulary) the Learner showed evidence of, with quotes. Rate progress on the
+Lesson objective 0–100, and write a two-sentence summary that the next Lesson can build on.`;
+
+const isPendingStep =(p: UIMessage["parts"][number]): p is ToolUIPart =>
   stepTypes.includes(p.type.replace(/^tool-/, "") as StepType) && "state" in p && p.state === "input-available";
 
-export const lessons = ({ db, now, models }: Deps) => {
+export const lessons = ({ db, now, models, settings }: Deps & { settings: { alphaLesson: number } }) => {
   const find = async (id: string, userId: string) =>
     (await db.select().from(lesson).where(and(eq(lesson.id, id), eq(lesson.userId, userId))))[0];
 
@@ -84,8 +99,40 @@ export const lessons = ({ db, now, models }: Deps) => {
       (f) => f.label,
     );
 
-  async function completeLesson(id: string) {
-    await db.update(lesson).set({ status: "completed", completedAt: now() }).where(eq(lesson.id, id));
+  // Runs the judge once, stores its verdict, moves the practised skills and checks the Unit's progress.
+  async function completeLesson(row: typeof lesson.$inferSelect) {
+    const at = now();
+    const [steps, [u]] = await Promise.all([
+      db
+        .select({ type: step.type, input: step.input, output: step.output, feedback: step.feedback })
+        .from(step)
+        .where(eq(step.lessonId, row.id))
+        .orderBy(asc(step.position)),
+      row.unitId ? db.select({ objective: unit.objective, skills: unit.skills }).from(unit).where(eq(unit.id, row.unitId)) : [],
+    ]);
+
+    let judged: z.infer<typeof judgeOutput> | undefined;
+    try {
+      ({ output: judged } = await generate({ db, now }, row.userId, {
+        model: models.judge,
+        instructions: judgeInstructions,
+        prompt: JSON.stringify({ lesson: { objective: row.objective }, unit: u, steps }),
+        output: Output.object({ schema: judgeOutput }),
+      }));
+    } catch (e) {
+      // The Lesson still counts as done; it just doesn't move the Skill Profile or the Unit.
+      if (!NoObjectGeneratedError.isInstance(e)) throw e;
+      console.error("lesson judge failed", e);
+    }
+
+    await db
+      .update(lesson)
+      .set({ status: "completed", completedAt: at, objectiveProgress: judged?.objectiveProgress, summary: judged?.summary })
+      .where(eq(lesson.id, row.id));
+    if (!judged) return;
+    const scores = Object.fromEntries(Object.entries(judged.skills).flatMap(([s, r]) => (r ? [[s, r.score]] : [])));
+    await recordScores(db, row.userId, scores, { alpha: settings.alphaLesson, source: "lesson", sourceId: row.id, at });
+    if (row.unitId) await progressUnit({ db }, row.unitId);
   }
 
   return new Hono<AppEnv>()
@@ -173,7 +220,7 @@ export const lessons = ({ db, now, models }: Deps) => {
           description: "End the Lesson.",
           inputSchema: z.object({}),
           execute: async () => {
-            await completeLesson(row.id);
+            await completeLesson(row);
             return { ended: true };
           },
         }),
