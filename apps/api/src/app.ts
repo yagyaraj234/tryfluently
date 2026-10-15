@@ -4,8 +4,10 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
+import { assessments } from "./assessments";
 import { goals } from "./goals";
 import type { Models } from "./models";
+import { skillHistory, skillProfile } from "./scoring";
 
 export type { Models };
 
@@ -29,13 +31,21 @@ export type Env = {
   COOKIE_DOMAIN?: string;
 };
 
-export type Deps = { db: Db; now: () => Date; env: Env; models: Models };
+export const defaultSettings = {
+  // Moving-average weight of a new result: new = old + α × (result − old).
+  alphaAssessment: 0.5,
+  alphaLesson: 0.15,
+};
+export type Settings = typeof defaultSettings;
+
+export type Deps = { db: Db; now: () => Date; env: Env; models: Models; settings?: Partial<Settings> };
 
 export type User = typeof schema.user.$inferSelect;
 export type AppEnv = { Variables: { user: User } };
 
 export function createApp(deps: Deps) {
   const { db, env } = deps;
+  const settings = { ...defaultSettings, ...deps.settings };
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
@@ -65,6 +75,9 @@ export function createApp(deps: Deps) {
       })
       .get("/api/me", (c) => c.json(c.var.user))
       .route("/api/goals", goals(deps))
+      .route("/api/assessments", assessments({ ...deps, settings }))
+      .get("/api/skill-profile", async (c) => c.json(await skillProfile(db, c.var.user.id)))
+      .get("/api/skill-profile/history", async (c) => c.json(await skillHistory(db, c.var.user.id)))
   );
 }
 

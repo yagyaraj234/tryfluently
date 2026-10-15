@@ -1,5 +1,5 @@
 import type { LanguageModel } from "ai";
-import { MockLanguageModelV4 } from "ai/test";
+import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
 import { createApp, type Models } from "../src/app";
 import { testDb } from "./setup";
 
@@ -54,6 +54,37 @@ export function mockModel(...replies: unknown[]): LanguageModel & MockLanguageMo
     })),
   });
 }
+
+// Scripts a chat model that streams each reply in order, one per call.
+export function mockChat(...replies: string[]): LanguageModel & MockLanguageModelV4 {
+  return new MockLanguageModelV4({
+    doStream: replies.map((text) => ({
+      stream: convertArrayToReadableStream([
+        { type: "stream-start" as const, warnings: [] },
+        { type: "response-metadata" as const, id: `resp-${crypto.randomUUID()}` },
+        { type: "text-start" as const, id: "t" },
+        { type: "text-delta" as const, id: "t", delta: text },
+        { type: "text-end" as const, id: "t" },
+        { type: "finish" as const, finishReason: { unified: "stop" as const, raw: "stop" }, usage },
+      ]),
+    })),
+  });
+}
+
+// A clock tests can move forward, passed in as the app's `now`.
+export function makeClock(start = "2026-10-15T09:00:00Z") {
+  let t = new Date(start).getTime();
+  const now = () => new Date(t);
+  now.advance = ({ days = 0, minutes = 0, seconds = 0 }) => {
+    t += (days * 86_400 + minutes * 60 + seconds) * 1000;
+  };
+  now.set = (iso: string) => {
+    t = new Date(iso).getTime();
+  };
+  return now;
+}
+
+export const userMessage = (text: string) => ({ id: crypto.randomUUID(), role: "user", parts: [{ type: "text", text }] });
 
 export const uniqueEmail = () => `learner-${crypto.randomUUID()}@example.com`;
 

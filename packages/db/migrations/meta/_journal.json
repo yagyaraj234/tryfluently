@@ -15,6 +15,13 @@
       "when": 1792080140975,
       "tag": "0001_goals",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792080376629,
+      "tag": "0002_assessment",
+      "breakpoints": true
     }
   ]
 }
