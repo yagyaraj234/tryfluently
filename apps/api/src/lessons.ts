@@ -22,6 +22,16 @@ export const stepTools = {
     inputSchema: z.object({ sentence: z.string(), answer: z.string(), choices: z.array(z.string()).optional() }),
     outputSchema: textAnswer,
   }),
+  vocabCard: tool({
+    description: "Teach a word: show it with its meaning and an example, then the Learner writes their own sentence using it.",
+    inputSchema: z.object({ word: z.string(), meaning: z.string(), example: z.string() }),
+    outputSchema: textAnswer,
+  }),
+  rewrite: tool({
+    description: "A flawed or plain sentence and what to aim for; the Learner writes an improved version.",
+    inputSchema: z.object({ sentence: z.string(), aim: z.string() }),
+    outputSchema: textAnswer,
+  }),
 };
 type StepType = keyof typeof stepTools;
 const stepTypes = Object.keys(stepTools) as StepType[];

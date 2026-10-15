@@ -92,10 +92,10 @@ describe("lesson chat with fillGap", () => {
 
     const calls = step.doStreamCalls;
     // Call n is made after n answers.
-    expect(toolNames(calls[0])).toEqual(["fillGap"]);
-    expect(toolNames(calls[2])).toEqual(["fillGap", "giveFeedback"]);
-    expect(toolNames(calls[3])).toEqual(["endLesson", "fillGap", "giveFeedback"]);
-    expect(toolNames(calls[9])).toEqual(["endLesson", "fillGap", "giveFeedback"]);
+    expect(toolNames(calls[0])).toEqual(["fillGap", "rewrite", "vocabCard"]);
+    expect(toolNames(calls[2])).toEqual(["fillGap", "giveFeedback", "rewrite", "vocabCard"]);
+    expect(toolNames(calls[3])).toEqual(["endLesson", "fillGap", "giveFeedback", "rewrite", "vocabCard"]);
+    expect(toolNames(calls[9])).toEqual(["endLesson", "fillGap", "giveFeedback", "rewrite", "vocabCard"]);
     expect(toolNames(calls[10])).toEqual(["endLesson", "giveFeedback"]);
     expect(calls[10]!.toolChoice).toEqual({ type: "required" });
 
@@ -158,5 +158,66 @@ describe("lesson chat with fillGap", () => {
 
     expect((await app.request(`/api/lessons/${lesson.id}`, get(ravi.cookie))).status).toBe(404);
     expect((await app.request(`/api/lessons/${lesson.id}/chat`, json({ message: userMessage("hi") }, ravi.cookie))).status).toBe(404);
+  });
+});
+
+const vocabCard = {
+  tool: "vocabCard",
+  input: { word: "deadline", meaning: "the time by which something must be done", example: "The deadline for the report is Friday." },
+};
+const rewrite = {
+  tool: "rewrite",
+  input: { sentence: "I am very very happy with the result.", aim: "Sound more natural by replacing 'very very'." },
+};
+
+describe("vocabCard and rewrite Steps", () => {
+  test.each([
+    ["vocabCard", vocabCard, "We missed the deadline because the API was late.", "almost"],
+    ["rewrite", rewrite, "I'm delighted with the result.", "correct"],
+  ] as const)("a %s Step round-trips: the Learner's sentence gets giveFeedback and a stored Step", async (type, stepCall, answer, verdict) => {
+    const judged = { tool: "giveFeedback", input: { verdict, corrected: answer, explanation: "Nice and natural." } };
+    const { app, step } = lessonApp([[stepCall], [judged, fillGap()]]);
+    const { cookie } = await learnerWithRoadmap();
+    const { lesson } = await startLesson(app, cookie);
+
+    const pending = (await lessonOf(app, cookie, lesson.id)).messages.at(-1).parts.find((p: any) => p.type === `tool-${type}`);
+    expect(pending).toMatchObject({ state: "input-available", input: stepCall.input });
+
+    expect((await answerStep(app, cookie, lesson.id, { answer })).status).toBe(200);
+    const { steps } = await lessonOf(app, cookie, lesson.id);
+    expect(steps).toEqual([
+      expect.objectContaining({
+        type,
+        mode: "text",
+        input: stepCall.input,
+        output: { answer },
+        // No server grade: the model's verdict stands.
+        feedback: { verdict, corrected: answer, explanation: "Nice and natural." },
+      }),
+    ]);
+    // The model judged the Learner's own words.
+    expect(JSON.stringify(step.doStreamCalls[1]!.prompt)).toContain(answer);
+  });
+
+  test.each([
+    ["vocabCard", vocabCard],
+    ["rewrite", rewrite],
+  ] as const)("a malformed %s answer is rejected and no Step is stored", async (_type, stepCall) => {
+    const { app } = lessonApp([[stepCall]]);
+    const { cookie } = await learnerWithRoadmap();
+    const { lesson } = await startLesson(app, cookie);
+
+    expect((await answerStep(app, cookie, lesson.id, { answer: "   " })).status).toBe(400);
+    expect((await answerStep(app, cookie, lesson.id, { sentence: "I'm delighted." })).status).toBe(400);
+    expect((await lessonOf(app, cookie, lesson.id)).steps).toEqual([]);
+  });
+
+  test("a Step the model calls with missing fields is never put to the Learner", async () => {
+    const { app } = lessonApp([[{ tool: "vocabCard", input: { word: "deadline" } }]]);
+    const { cookie } = await learnerWithRoadmap();
+    const { lesson } = await startLesson(app, cookie);
+
+    const part = (await lessonOf(app, cookie, lesson.id)).messages.at(-1).parts.find((p: any) => p.type === "tool-vocabCard");
+    expect(part.state).not.toBe("input-available");
   });
 });
