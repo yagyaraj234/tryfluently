@@ -1,6 +1,6 @@
 import { schema } from "@impromptu/db";
 import { zValidator } from "@hono/zod-validator";
-import { NoObjectGeneratedError, Output, safeValidateUIMessages, tool, type ToolUIPart, type UIMessage } from "ai";
+import { NoObjectGeneratedError, Output, safeValidateUIMessages, tool, type UIMessage } from "ai";
 import { and, asc, count, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -8,48 +8,18 @@ import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { progressUnit } from "./roadmap";
 import { recordScores, skillProfile } from "./scoring";
+import { stepTools, stepTypes, takeAnswer } from "./steps";
 
 const { lesson, step, unit, goal, focusItem } = schema;
 
 const MIN_STEPS = 3;
 const MAX_STEPS = 10;
 
-const textAnswer = z.object({ answer: z.string().trim().min(1).max(2000) });
-
-// Step tools have no `execute`: the client renders them and returns the Learner's answer as the tool output.
-export const stepTools = {
-  fillGap: tool({
-    description: "A sentence with one gap (___) for the Learner to fill. Graded on the server by exact match.",
-    inputSchema: z.object({ sentence: z.string(), answer: z.string(), choices: z.array(z.string()).optional() }),
-    outputSchema: textAnswer,
-  }),
-  vocabCard: tool({
-    description: "Teach a word: show it with its meaning and an example, then the Learner writes their own sentence using it.",
-    inputSchema: z.object({ word: z.string(), meaning: z.string(), example: z.string() }),
-    outputSchema: textAnswer,
-  }),
-  rewrite: tool({
-    description: "A flawed or plain sentence and what to aim for; the Learner writes an improved version.",
-    inputSchema: z.object({ sentence: z.string(), aim: z.string() }),
-    outputSchema: textAnswer,
-  }),
-};
-type StepType = keyof typeof stepTools;
-const stepTypes = Object.keys(stepTools) as StepType[];
-
 const feedbackInput = z.object({
   verdict: z.enum(["correct", "almost", "incorrect"]),
   corrected: z.string(),
   explanation: z.string(),
 });
-
-const normalise = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
-
-// Steps the server can check itself; the rest are judged by the model through giveFeedback.
-function grade(type: StepType, input: any, output: z.infer<typeof textAnswer>) {
-  if (type === "fillGap") return { correct: normalise(output.answer) === normalise(input.answer), expected: input.answer as string };
-  return null;
-}
 
 const planOutput = z.object({ title: z.string(), objective: z.string() });
 
@@ -81,9 +51,6 @@ const judgeInstructions = `You are an examiner for English as a second language.
 what the Learner was asked, what they answered and the feedback they got. Using the official CEFR descriptors, score
 0–100 only the skills (fluency, grammar, vocabulary) the Learner showed evidence of, with quotes. Rate progress on the
 Lesson objective 0–100, and write a two-sentence summary that the next Lesson can build on.`;
-
-const isPendingStep = (p: UIMessage["parts"][number]): p is ToolUIPart =>
-  stepTypes.includes(p.type.replace(/^tool-/, "") as StepType) && "state" in p && p.state === "input-available";
 
 export const lessons = ({ db, now, models, settings }: Deps & { settings: { alphaLesson: number } }) => {
   const find = async (id: string, userId: string) =>
@@ -180,28 +147,9 @@ export const lessons = ({ db, now, models, settings }: Deps & { settings: { alph
       if (!row) return c.json({ error: "Lesson not found" }, 404);
       if (row.status !== "in_progress") return c.json({ error: "This Lesson has ended" }, 409);
 
-      const stored = row.messages as UIMessage[];
-      const incoming = c.req.valid("json").message;
-      const last = stored.at(-1);
-      const pending = last?.role === "assistant" ? last.parts.find(isPendingStep) : undefined;
-
-      let messages: UIMessage[];
-      let answered: { type: StepType; input: any; output: z.infer<typeof textAnswer>; grade: ReturnType<typeof grade> } | undefined;
-      if (pending) {
-        if (incoming?.role !== "assistant" || incoming.id !== last!.id) return c.json({ error: "Answer the current Step first" }, 409);
-        // Only the answer is taken from the client; the Step itself comes from what the server stored.
-        const sent = incoming.parts?.find?.((p: any) => p.toolCallId === pending.toolCallId);
-        const type = pending.type.replace(/^tool-/, "") as StepType;
-        const output = textAnswer.safeParse(sent?.output);
-        if (!output.success) return c.json({ error: "That answer isn't valid", issues: output.error.issues }, 400);
-        const g = grade(type, pending.input, output.data);
-        answered = { type, input: pending.input, output: output.data, grade: g };
-        const done = { ...pending, state: "output-available", output: { ...output.data, ...(g && { grade: g }) } };
-        messages = [...stored.slice(0, -1), { ...last!, parts: last!.parts.map((p) => (p === pending ? done : p)) } as UIMessage];
-      } else {
-        if (incoming?.role !== "user") return c.json({ error: "Expected a message from the Learner" }, 400);
-        messages = [...stored, incoming];
-      }
+      const taken = takeAnswer(row.messages as UIMessage[], c.req.valid("json").message);
+      if ("error" in taken) return c.json({ error: taken.error, issues: taken.issues }, taken.status);
+      const { messages, answered } = taken;
 
       const tools = {
         ...stepTools,
