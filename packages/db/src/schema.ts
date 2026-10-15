@@ -142,3 +142,48 @@ export const unit = pgTable("unit", {
   status: unitStatus().notNull().default("planned"),
   createdAt: timestamp().notNull(),
 });
+
+export const lessonKind = pgEnum("lesson_kind", ["practice", "roleplay"]);
+export const lessonStatus = pgEnum("lesson_status", ["in_progress", "completed", "abandoned"]);
+export const roleplayKind = pgEnum("roleplay_kind", ["mock_interview", "client_call"]);
+export const tone = pgEnum("tone", ["friendly", "standard", "tough"]);
+
+export const lesson = pgTable("lesson", {
+  id: id(),
+  userId: learner(),
+  unitId: text().references(() => unit.id, { onDelete: "cascade" }),
+  position: integer().notNull(),
+  kind: lessonKind().notNull(),
+  title: text().notNull(),
+  objective: text().notNull(),
+  roleplayKind: roleplayKind(),
+  tone: tone(),
+  status: lessonStatus().notNull().default("in_progress"),
+  objectiveProgress: integer(),
+  summary: text(),
+  textMode: boolean().notNull().default(false),
+  // UI messages of the Lesson chat, so it can resume; checked against the tool schemas in the API.
+  messages: jsonb().$type<unknown[]>().notNull().default([]),
+  debrief: jsonb().$type<Record<string, unknown>>(),
+  startedAt: timestamp().notNull(),
+  completedAt: timestamp(),
+});
+
+export const stepType = pgEnum("step_type", ["vocabCard", "fillGap", "rewrite", "speakPrompt", "roleplayTurn"]);
+export const stepMode = pgEnum("step_mode", ["voice", "text"]);
+
+export const step = pgTable("step", {
+  id: id(),
+  userId: learner(),
+  lessonId: text()
+    .notNull()
+    .references(() => lesson.id, { onDelete: "cascade" }),
+  position: integer().notNull(),
+  type: stepType().notNull(),
+  mode: stepMode().notNull().default("text"),
+  input: jsonb().$type<Record<string, unknown>>().notNull(),
+  output: jsonb().$type<Record<string, unknown>>(),
+  feedback: jsonb().$type<{ verdict: "correct" | "almost" | "incorrect"; corrected: string; explanation: string }>(),
+  timing: jsonb().$type<Record<string, unknown>>(),
+  answeredAt: timestamp(),
+});
