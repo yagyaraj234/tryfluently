@@ -8,8 +8,9 @@ import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { cefrLevel, goalKind, targetLevels } from "./goals";
 import { reportEmail } from "./mailer";
+import type { RealtimeBroker } from "./realtime";
 import { buildRoadmap } from "./roadmap";
-import { recordScores, scoreView } from "./scoring";
+import { fluencyScore, recordScores, scoreView, type SpeechSegment } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
 
 const { assessment, goal, focusItem } = schema;
@@ -51,7 +52,8 @@ Make questions easier or harder depending on how they answer. Ask one question a
 const itemTools = { fillGap: stepTools.fillGap, rewrite: stepTools.rewrite };
 const MAX_ITEMS = 4;
 
-const instructions = (briefs: string[], minutes: number, items: number) =>
+// `items` is the count of structured items answered so far; a Voice Assessment has none.
+const instructions = (briefs: string[], minutes: number, items?: number) =>
   `You are Impromptu, an English coach, running an Assessment of the Learner's English.
 ${phases.replace(
   "{goals}",
@@ -59,12 +61,17 @@ ${phases.replace(
     ? `go deeper into their situation. What you know about them:\n${briefs.join("\n\n")}`
     : "ask what they're preparing for (a job interview, client work or general fluency).",
 )}
-During phases 2–4, also give 3–4 structured items, one at a time, using the fillGap and rewrite tools, pitched at the
-level they're showing. Don't tell them whether they got an item right. ${items} answered so far.
-${minutes.toFixed(0)} of 10 minutes have passed.`;
+${
+  items === undefined
+    ? ""
+    : `During phases 2–4, also give 3–4 structured items, one at a time, using the fillGap and rewrite tools, pitched at the
+level they're showing. Don't tell them whether they got an item right. ${items} answered so far.\n`
+}${minutes.toFixed(0)} of 10 minutes have passed.`;
 
-const reportInstructions = `You are an examiner for English as a second language. Read the Assessment transcript
-and assess the Learner (the "Learner" lines only) against the official CEFR descriptors for grammar and vocabulary.
+const reportInstructions = (mode: Row["mode"]) => `You are an examiner for English as a second language. Read the Assessment transcript
+and assess the Learner (the "Learner" lines only) against the official CEFR descriptors for grammar and vocabulary${
+  mode === "voice" ? ", and score fluency on how coherent and connected their speech is (speed and pauses are measured separately)" : ""
+}.
 Score each skill 0–100 with quotes as evidence. Give exactly 3 strengths and 3–5 weaknesses; each weakness quotes
 what the Learner said and gives a better version. Propose Goals and Target Levels, and preview the first Unit.`;
 
@@ -83,9 +90,34 @@ const textOf = (messages: UIMessage[]) =>
 
 type Row = typeof assessment.$inferSelect;
 
-export const assessments = ({ db, now, models, mailer, env, settings }: Deps & { settings: { alphaAssessment: number } }) => {
+// The Learner's spoken stretches, from the voice timing kept on a Voice Assessment's transcript.
+const speechSegments = (transcript: UIMessage[]): SpeechSegment[] =>
+  transcript.flatMap((m) => {
+    const t = m.metadata as { speechStartMs?: number; speechEndMs?: number } | undefined;
+    if (m.role !== "user" || t?.speechStartMs === undefined || t.speechEndMs === undefined) return [];
+    const words = m.parts.flatMap((p) => (p.type === "text" ? p.text.split(/\s+/).filter(Boolean) : [])).length;
+    return [{ words, startMs: t.speechStartMs, endMs: t.speechEndMs }];
+  });
+
+export const assessments = ({
+  db,
+  now,
+  models,
+  mailer,
+  env,
+  settings,
+  broker,
+}: Deps & { settings: { alphaAssessment: number }; broker: RealtimeBroker }) => {
   const find = async (id: string, userId: string) =>
     (await db.select().from(assessment).where(and(eq(assessment.id, id), eq(assessment.userId, userId))))[0];
+
+  const briefsOf = async (userId: string) =>
+    (
+      await db
+        .select({ brief: goal.brief })
+        .from(goal)
+        .where(and(eq(goal.userId, userId), eq(goal.status, "confirmed")))
+    ).flatMap((g) => (g.brief ? [g.brief] : []));
 
   // Sends the Learner's first-ever completed Report, once. emailed_at is claimed before sending,
   // and released if sending fails so a later Report can try again.
@@ -111,6 +143,11 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
 
   // Ends an attempt. Under 4 minutes it's discarded; otherwise the Report is written, partial if the Learner left early.
   async function finish(row: Row, user: { id: string; email: string }, { partial }: { partial: boolean }) {
+    if (row.mode === "voice") {
+      // Hang up first, so the transcript holds everything that was said.
+      await broker.hangup(user.id);
+      row = (await find(row.id, user.id))!;
+    }
     const at = now();
     if (at.getTime() - row.startedAt.getTime() < MIN_MINUTES * 60_000) {
       await db.update(assessment).set({ status: "discarded", endedAt: at }).where(eq(assessment.id, row.id));
@@ -121,7 +158,7 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
     try {
       ({ output: out } = await generate({ db, now }, user.id, {
         model: models.report,
-        instructions: reportInstructions,
+        instructions: reportInstructions(row.mode),
         prompt: textOf(row.transcript as UIMessage[]),
         output: Output.object({ schema: reportOutput }),
       }));
@@ -130,13 +167,15 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
       throw e;
     }
 
-    // A Written Assessment doesn't measure fluency, whatever the model says.
+    // Only a Voice Assessment measures fluency; a Written one ignores whatever the model says about it.
     const { grammar, vocabulary } = out.skills;
+    const spoken = row.mode === "voice" ? out.skills.fluency : undefined;
+    const fluency = spoken ? fluencyScore(speechSegments(row.transcript as UIMessage[]), spoken.score) : null;
     const report = {
       ...out,
       partial,
       skills: {
-        fluency: null,
+        fluency: fluency === null ? null : { ...scoreView(fluency), evidence: spoken!.evidence },
         grammar: { ...scoreView(grammar.score), evidence: grammar.evidence },
         vocabulary: { ...scoreView(vocabulary.score), evidence: vocabulary.evidence },
       },
@@ -148,7 +187,7 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
       await recordScores(
         tx,
         userId,
-        { grammar: grammar.score, vocabulary: vocabulary.score },
+        { grammar: grammar.score, vocabulary: vocabulary.score, ...(fluency !== null && { fluency }) },
         { alpha: settings.alphaAssessment, source: "assessment", sourceId: row.id, at },
       );
       await tx.insert(focusItem).values(
@@ -169,7 +208,7 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
     .get("/", async (c) =>
       c.json(await db.select().from(assessment).where(eq(assessment.userId, c.var.user.id)).orderBy(asc(assessment.startedAt))),
     )
-    .post("/", zValidator("json", z.object({ mode: z.literal("written") })), async (c) => {
+    .post("/", zValidator("json", z.object({ mode: z.enum(["written", "voice"]) })), async (c) => {
       const user = c.var.user;
 
       // An attempt left open (closed tab, lost connection) is wrapped up as if the Learner left.
@@ -207,6 +246,7 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
       const row = await find(c.req.param("id"), userId);
       if (!row) return c.json({ error: "Assessment not found" }, 404);
       if (row.status !== "in_progress") return c.json({ error: "This Assessment has ended" }, 409);
+      if (row.mode !== "written") return c.json({ error: "A Voice Assessment runs over its call, not the chat" }, 409);
 
       const taken = takeAnswer(row.transcript as UIMessage[], c.req.valid("json").message);
       if ("error" in taken) return c.json({ error: taken.error, issues: taken.issues }, taken.status);
@@ -214,20 +254,35 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
       if (!valid.success) return c.json({ error: valid.error.message }, 400);
       const items = answeredSteps(valid.data).length;
 
-      const briefs = await db
-        .select({ brief: goal.brief })
-        .from(goal)
-        .where(and(eq(goal.userId, userId), eq(goal.status, "confirmed")));
       const minutes = (now().getTime() - row.startedAt.getTime()) / 60_000;
 
       return streamChat({ db, now }, userId, {
         model: models.step,
-        instructions: instructions(briefs.flatMap((g) => (g.brief ? [g.brief] : [])), minutes, items),
+        instructions: instructions(await briefsOf(userId), minutes, items),
         messages: valid.data,
         tools: itemTools,
         activeTools: items < MAX_ITEMS ? ["fillGap", "rewrite"] : [],
         save: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
       });
+    })
+    // The browser posts its SDP offer and gets back only the SDP answer; the OpenAI key never leaves the server.
+    .post("/:id/call", async (c) => {
+      const userId = c.var.user.id;
+      const offer = await c.req.text();
+      if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
+      const row = await find(c.req.param("id"), userId);
+      if (!row) return c.json({ error: "Assessment not found" }, 404);
+      if (row.mode !== "voice" || row.status !== "in_progress")
+        return c.json({ error: "Calls are only for a Voice Assessment in progress" }, 409);
+
+      const call = await broker.start(userId, {
+        sdp: offer,
+        instructions: instructions(await briefsOf(userId), 0),
+        purpose: "assessment",
+        onTranscript: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
+      });
+      if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
+      return c.body(call.answer, 201, { "content-type": "application/sdp" });
     })
     .post("/:id/end", zValidator("json", z.object({ left: z.boolean().optional() })), async (c) => {
       const row = await find(c.req.param("id"), c.var.user.id);
