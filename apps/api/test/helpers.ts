@@ -78,6 +78,34 @@ export function mockChat(...replies: string[]): LanguageModel & MockLanguageMode
   });
 }
 
+export type Turn = (string | { tool: string; input: object })[];
+
+// Scripts a chat model turn by turn; each turn streams text and/or tool calls.
+export function mockTurns(...turns: Turn[]): LanguageModel & MockLanguageModelV4 {
+  return new MockLanguageModelV4({
+    doStream: turns.map((parts) => ({
+      stream: convertArrayToReadableStream([
+        { type: "stream-start" as const, warnings: [] },
+        { type: "response-metadata" as const, id: `resp-${crypto.randomUUID()}` },
+        ...parts.flatMap((p, i): any[] =>
+          typeof p === "string"
+            ? [
+                { type: "text-start" as const, id: `t${i}` },
+                { type: "text-delta" as const, id: `t${i}`, delta: p },
+                { type: "text-end" as const, id: `t${i}` },
+              ]
+            : [{ type: "tool-call" as const, toolCallId: `call-${crypto.randomUUID()}`, toolName: p.tool, input: JSON.stringify(p.input) }],
+        ),
+        {
+          type: "finish" as const,
+          finishReason: { unified: parts.some((p) => typeof p !== "string") ? ("tool-calls" as const) : ("stop" as const), raw: "x" },
+          usage,
+        },
+      ]),
+    })),
+  });
+}
+
 // A clock tests can move forward, passed in as the app's `now`.
 export function makeClock(start = "2026-10-15T09:00:00Z") {
   let t = new Date(start).getTime();
