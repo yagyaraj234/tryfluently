@@ -27,7 +27,7 @@ export const goals = (deps: Deps) => {
   return (
   new Hono<AppEnv>()
     .get("/", async (c) => {
-      const rows = await db.select().from(goal).where(eq(goal.userId, c.var.user.id)).orderBy(asc(goal.createdAt));
+      const rows = await db.select().from(goal).where(eq(goal.userId, c.var.user.id)).orderBy(asc(goal.createdAt), asc(goal.id));
       return c.json(rows.map(view));
     })
     .post(

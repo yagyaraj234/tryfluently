@@ -64,6 +64,9 @@ export async function streamChat(
       originalMessages: messages,
       generateMessageId: () => crypto.randomUUID(),
       onEnd: async ({ messages }) => {
+        // A server tool that throws (e.g. giveFeedback's database write) only reaches the model as a tool error.
+        for (const s of await result.steps)
+          for (const part of s.content) if (part.type === "tool-error") console.error(`tool ${part.toolName} failed`, part.error);
         await save(messages);
         await logTextUsage(ctx, userId, { ...call, id: (await result.response).id, usage: await result.totalUsage });
       },

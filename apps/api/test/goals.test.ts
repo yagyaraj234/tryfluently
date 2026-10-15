@@ -20,15 +20,16 @@ describe("goals", () => {
 
     const list = await app.request("/api/goals", get(cookie));
     expect(list.status).toBe(200);
-    const goals = (await list.json()) as any[];
+    // Both are created at the same frozen test time, so their order isn't part of the check.
+    const goals = ((await list.json()) as any[]).sort((a, b) => a.kind.localeCompare(b.kind));
     expect(goals).toHaveLength(2);
-    expect(goals[0]).toMatchObject({
+    expect(goals[0]).toMatchObject({ kind: "general_fluency", status: "proposed" });
+    expect(goals[1]).toMatchObject({
       kind: "job_interview",
       status: "proposed",
       targetLevels: { fluency: "C1", grammar: "B2", vocabulary: "C1" },
       brief: null,
     });
-    expect(goals[1]).toMatchObject({ kind: "general_fluency", status: "proposed" });
   });
 
   test("a Learner only sees their own Goals", async () => {
