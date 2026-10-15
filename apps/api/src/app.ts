@@ -6,10 +6,11 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import { assessments } from "./assessments";
 import { goals } from "./goals";
+import type { Mailer } from "./mailer";
 import type { Models } from "./models";
 import { skillHistory, skillProfile } from "./scoring";
 
-export type { Models };
+export type { Mailer, Models };
 
 // DateTimeFormat throws on unknown zones and, unlike supportedValuesOf, accepts aliases like Asia/Kolkata.
 const timezone = z.string().refine((tz) => {
@@ -38,7 +39,7 @@ export const defaultSettings = {
 };
 export type Settings = typeof defaultSettings;
 
-export type Deps = { db: Db; now: () => Date; env: Env; models: Models; settings?: Partial<Settings> };
+export type Deps = { db: Db; now: () => Date; env: Env; models: Models; mailer: Mailer; settings?: Partial<Settings> };
 
 export type User = typeof schema.user.$inferSelect;
 export type AppEnv = { Variables: { user: User } };

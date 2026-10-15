@@ -1,11 +1,17 @@
 import type { LanguageModel } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
-import { createApp, type Models } from "../src/app";
+import { createApp, type Mailer, type Models } from "../src/app";
 import { testDb } from "./setup";
 
 export const WEB_ORIGIN = "http://localhost:5173";
 
-type Overrides = { now?: () => Date; models?: Partial<Models> };
+type Overrides = { now?: () => Date; models?: Partial<Models>; mailer?: Mailer };
+
+// Records emails instead of sending them.
+export function fakeMailer() {
+  const sent: Parameters<Mailer["send"]>[0][] = [];
+  return { sent, send: async (email: (typeof sent)[number]) => void sent.push(email) };
+}
 
 // A model that fails loudly, so a test notices an AI call it didn't script.
 const unscripted = (job: string) =>
@@ -15,10 +21,11 @@ const unscripted = (job: string) =>
     },
   });
 
-export function makeApp({ now = () => new Date("2026-10-15T09:00:00Z"), models = {} }: Overrides = {}) {
+export function makeApp({ now = () => new Date("2026-10-15T09:00:00Z"), models = {}, mailer = fakeMailer() }: Overrides = {}) {
   return createApp({
     db: testDb,
     now,
+    mailer,
     models: {
       step: unscripted("step"),
       brief: unscripted("brief"),

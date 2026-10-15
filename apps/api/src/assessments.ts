@@ -1,15 +1,19 @@
 import { schema } from "@impromptu/db";
 import { zValidator } from "@hono/zod-validator";
 import { NoObjectGeneratedError, Output, safeValidateUIMessages, type UIMessage } from "ai";
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { cefrLevel, goalKind, targetLevels } from "./goals";
+import { reportEmail } from "./mailer";
 import { recordScores, scoreView } from "./scoring";
 
 const { assessment, goal, focusItem } = schema;
+
+const MIN_MINUTES = 4;
+const RETAKE_DAYS = 7;
 
 const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
 
@@ -61,15 +65,118 @@ const textOf = (messages: UIMessage[]) =>
     .map((m) => `${m.role === "user" ? "Learner" : "Coach"}: ${m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" ")}`)
     .join("\n");
 
-export const assessments = ({ db, now, models, settings }: Deps & { settings: { alphaAssessment: number } }) => {
+type Row = typeof assessment.$inferSelect;
+
+export const assessments = ({ db, now, models, mailer, env, settings }: Deps & { settings: { alphaAssessment: number } }) => {
   const find = async (id: string, userId: string) =>
     (await db.select().from(assessment).where(and(eq(assessment.id, id), eq(assessment.userId, userId))))[0];
 
+  // Sends the Learner's first-ever completed Report, once. emailed_at is claimed before sending,
+  // and released if sending fails so a later Report can try again.
+  async function emailIfFirst(row: Row, to: string, report: z.infer<typeof reportOutput>) {
+    const [claimed] = await db
+      .update(assessment)
+      .set({ emailedAt: now() })
+      .where(
+        and(
+          eq(assessment.id, row.id),
+          sql`not exists (select 1 from ${assessment} where ${assessment.userId} = ${row.userId} and ${assessment.emailedAt} is not null)`,
+        ),
+      )
+      .returning({ id: assessment.id });
+    if (!claimed) return;
+    try {
+      await mailer.send(reportEmail(to, report, env.WEB_ORIGIN));
+    } catch (e) {
+      console.error("first-Report email failed", e);
+      await db.update(assessment).set({ emailedAt: null }).where(eq(assessment.id, row.id));
+    }
+  }
+
+  // Ends an attempt. Under 4 minutes it's discarded; otherwise the Report is written, partial if the Learner left early.
+  async function finish(row: Row, user: { id: string; email: string }, { partial }: { partial: boolean }) {
+    const at = now();
+    if (at.getTime() - row.startedAt.getTime() < MIN_MINUTES * 60_000) {
+      await db.update(assessment).set({ status: "discarded", endedAt: at }).where(eq(assessment.id, row.id));
+      return { status: "discarded" as const };
+    }
+
+    let out: z.infer<typeof reportOutput>;
+    try {
+      ({ output: out } = await generate({ db, now }, user.id, {
+        model: models.report,
+        instructions: reportInstructions,
+        prompt: textOf(row.transcript as UIMessage[]),
+        output: Output.object({ schema: reportOutput }),
+      }));
+    } catch (e) {
+      if (NoObjectGeneratedError.isInstance(e)) return { status: "failed" as const };
+      throw e;
+    }
+
+    // A Written Assessment doesn't measure fluency, whatever the model says.
+    const { grammar, vocabulary } = out.skills;
+    const report = {
+      ...out,
+      partial,
+      skills: {
+        fluency: null,
+        grammar: { ...scoreView(grammar.score), evidence: grammar.evidence },
+        vocabulary: { ...scoreView(vocabulary.score), evidence: vocabulary.evidence },
+      },
+    };
+    const userId = user.id;
+
+    await db.transaction(async (tx) => {
+      await tx.update(assessment).set({ status: "completed", endedAt: at, report }).where(eq(assessment.id, row.id));
+      await recordScores(
+        tx,
+        userId,
+        { grammar: grammar.score, vocabulary: vocabulary.score },
+        { alpha: settings.alphaAssessment, source: "assessment", sourceId: row.id, at },
+      );
+      await tx.insert(focusItem).values(
+        out.weaknesses.map((w) => ({ userId, label: w.label, kind: w.kind, source: "assessment" as const, sourceId: row.id, createdAt: at })),
+      );
+      const hasGoals = (await tx.select({ id: goal.id }).from(goal).where(eq(goal.userId, userId)).limit(1)).length > 0;
+      if (!hasGoals && out.proposedGoals.length)
+        await tx.insert(goal).values(out.proposedGoals.map((g) => ({ userId, kind: g.kind, targetLevels: g.targetLevels, createdAt: at })));
+    });
+    await emailIfFirst(row, user.email, out);
+
+    return { status: "completed" as const, report };
+  }
+
   return new Hono<AppEnv>()
+    .get("/", async (c) =>
+      c.json(await db.select().from(assessment).where(eq(assessment.userId, c.var.user.id)).orderBy(asc(assessment.startedAt))),
+    )
     .post("/", zValidator("json", z.object({ mode: z.literal("written") })), async (c) => {
+      const user = c.var.user;
+
+      // An attempt left open (closed tab, lost connection) is wrapped up as if the Learner left.
+      const open = await db
+        .select()
+        .from(assessment)
+        .where(and(eq(assessment.userId, user.id), eq(assessment.status, "in_progress")));
+      for (const row of open) {
+        if ((await finish(row, user, { partial: true })).status === "failed")
+          return c.json({ error: "Your previous Assessment couldn't be finished. Try again." }, 502);
+      }
+
+      const [last] = await db
+        .select({ endedAt: assessment.endedAt })
+        .from(assessment)
+        .where(and(eq(assessment.userId, user.id), eq(assessment.status, "completed")))
+        .orderBy(desc(assessment.endedAt))
+        .limit(1);
+      const nextAllowedAt = last?.endedAt && new Date(last.endedAt.getTime() + RETAKE_DAYS * 86_400_000);
+      if (nextAllowedAt && now() < nextAllowedAt)
+        return c.json({ error: "You can retake the Assessment once a week.", nextAllowedAt }, 429);
+
       const [row] = await db
         .insert(assessment)
-        .values({ userId: c.var.user.id, mode: c.req.valid("json").mode, startedAt: now() })
+        .values({ userId: user.id, mode: c.req.valid("json").mode, startedAt: now() })
         .returning();
       return c.json(row!, 201);
     })
@@ -99,53 +206,13 @@ export const assessments = ({ db, now, models, settings }: Deps & { settings: { 
         save: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
       });
     })
-    .post("/:id/end", async (c) => {
-      const userId = c.var.user.id;
-      const row = await find(c.req.param("id"), userId);
+    .post("/:id/end", zValidator("json", z.object({ left: z.boolean().optional() })), async (c) => {
+      const row = await find(c.req.param("id"), c.var.user.id);
       if (!row) return c.json({ error: "Assessment not found" }, 404);
       if (row.status !== "in_progress") return c.json({ error: "This Assessment has ended" }, 409);
 
-      let out: z.infer<typeof reportOutput>;
-      try {
-        ({ output: out } = await generate({ db, now }, userId, {
-          model: models.report,
-          instructions: reportInstructions,
-          prompt: textOf(row.transcript as UIMessage[]),
-          output: Output.object({ schema: reportOutput }),
-        }));
-      } catch (e) {
-        if (NoObjectGeneratedError.isInstance(e)) return c.json({ error: "The Report couldn't be generated. Try again." }, 502);
-        throw e;
-      }
-
-      // A Written Assessment doesn't measure fluency, whatever the model says.
-      const { grammar, vocabulary } = out.skills;
-      const report = {
-        ...out,
-        skills: {
-          fluency: null,
-          grammar: { ...scoreView(grammar.score), evidence: grammar.evidence },
-          vocabulary: { ...scoreView(vocabulary.score), evidence: vocabulary.evidence },
-        },
-      };
-      const at = now();
-
-      await db.transaction(async (tx) => {
-        await tx.update(assessment).set({ status: "completed", endedAt: at, report }).where(eq(assessment.id, row.id));
-        await recordScores(
-          tx,
-          userId,
-          { grammar: grammar.score, vocabulary: vocabulary.score },
-          { alpha: settings.alphaAssessment, source: "assessment", sourceId: row.id, at },
-        );
-        await tx.insert(focusItem).values(
-          out.weaknesses.map((w) => ({ userId, label: w.label, kind: w.kind, source: "assessment" as const, sourceId: row.id, createdAt: at })),
-        );
-        const hasGoals = (await tx.select({ id: goal.id }).from(goal).where(eq(goal.userId, userId)).limit(1)).length > 0;
-        if (!hasGoals && out.proposedGoals.length)
-          await tx.insert(goal).values(out.proposedGoals.map((g) => ({ userId, kind: g.kind, targetLevels: g.targetLevels, createdAt: at })));
-      });
-
-      return c.json(report);
+      const result = await finish(row, c.var.user, { partial: c.req.valid("json").left ?? false });
+      if (result.status === "failed") return c.json({ error: "The Report couldn't be generated. Try again." }, 502);
+      return c.json(result);
     });
 };
