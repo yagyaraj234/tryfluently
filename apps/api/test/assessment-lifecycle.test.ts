@@ -1,0 +1,162 @@
+import { describe, expect, test } from "bun:test";
+import { reportReply, takeWrittenAssessment } from "./fixtures";
+import { fakeMailer, get, json, makeApp, makeClock, mockChat, mockModel, signUp, userMessage, WEB_ORIGIN, type TestApp } from "./helpers";
+
+const start = async (app: TestApp, cookie: string) => app.request("/api/assessments", json({ mode: "written" }, cookie));
+
+async function startAndChat(app: TestApp, cookie: string) {
+  const { id } = (await (await start(app, cookie)).json()) as { id: string };
+  await (await app.request(`/api/assessments/${id}/chat`, json({ message: userMessage("Hi") }, cookie))).text();
+  return id;
+}
+
+const read = async (app: TestApp, cookie: string, id: string) =>
+  (await (await app.request(`/api/assessments/${id}`, get(cookie))).json()) as any;
+
+const setup = (reports: unknown[] = [], mailer = fakeMailer()) => {
+  const clock = makeClock();
+  const app = makeApp({
+    now: clock,
+    mailer,
+    models: { step: mockChat(...Array(5).fill("Hello!")), report: mockModel(...reports) },
+  });
+  return { app, clock, mailer };
+};
+
+describe("assessment lifecycle", () => {
+  test("an attempt ended under 4 minutes is discarded without a Report and doesn't block a new one", async () => {
+    const { app, clock } = setup();
+    const { cookie } = await signUp(app);
+    const id = await startAndChat(app, cookie);
+
+    clock.advance({ minutes: 3, seconds: 59 });
+    const end = await app.request(`/api/assessments/${id}/end`, json({}, cookie));
+    expect(end.status).toBe(200);
+    expect(await end.json()).toMatchObject({ status: "discarded" });
+    expect(await read(app, cookie, id)).toMatchObject({ status: "discarded", report: null });
+    expect(await (await app.request("/api/skill-profile", get(cookie))).json()).toMatchObject({ grammar: null });
+
+    expect((await start(app, cookie)).status).toBe(201);
+  });
+
+  test("an attempt the Learner leaves at 4 minutes produces a partial Report and counts as completed", async () => {
+    const { app, clock } = setup([reportReply()]);
+    const { cookie } = await signUp(app);
+    const id = await startAndChat(app, cookie);
+
+    clock.advance({ minutes: 4 });
+    const end = await app.request(`/api/assessments/${id}/end`, json({ left: true }, cookie));
+    expect(end.status).toBe(200);
+    expect(await read(app, cookie, id)).toMatchObject({ status: "completed", report: { partial: true } });
+  });
+
+  test("an attempt that runs its course gives a full Report", async () => {
+    const { app, clock } = setup([reportReply()]);
+    const { cookie } = await signUp(app);
+    const { id } = await takeWrittenAssessment(app, cookie, clock);
+
+    expect(await read(app, cookie, id)).toMatchObject({ status: "completed", report: { partial: false } });
+  });
+
+  test("an attempt left open is wrapped up when the Learner starts again: partial Report if it ran 4+ minutes", async () => {
+    const { app, clock } = setup([reportReply()]);
+    const { cookie } = await signUp(app);
+    const abandoned = await startAndChat(app, cookie);
+    clock.advance({ minutes: 6 });
+
+    // The abandoned attempt now counts as completed, so the new one hits the weekly limit.
+    expect((await start(app, cookie)).status).toBe(429);
+    expect(await read(app, cookie, abandoned)).toMatchObject({ status: "completed", report: { partial: true } });
+  });
+
+  test("an attempt left open under 4 minutes is discarded when the Learner starts again", async () => {
+    const { app, clock } = setup();
+    const { cookie } = await signUp(app);
+    const abandoned = await startAndChat(app, cookie);
+    clock.advance({ minutes: 2 });
+
+    expect((await start(app, cookie)).status).toBe(201);
+    expect(await read(app, cookie, abandoned)).toMatchObject({ status: "discarded" });
+  });
+
+  test("a retake within 7 days of the last completed Assessment is refused; day 7 is allowed", async () => {
+    const { app, clock } = setup([reportReply()]);
+    const { cookie } = await signUp(app);
+    await takeWrittenAssessment(app, cookie, clock); // completed at 09:10
+
+    clock.advance({ days: 6, minutes: 59 * 24 });
+    const refused = await start(app, cookie);
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({ nextAllowedAt: "2026-10-22T09:10:00.000Z" });
+
+    clock.set("2026-10-22T09:10:00Z");
+    expect((await start(app, cookie)).status).toBe(201);
+  });
+
+  test("a retake keeps earlier Reports readable", async () => {
+    const second = { ...reportReply(), overallLevel: "B2" };
+    const { app, clock } = setup([reportReply(), second]);
+    const { cookie } = await signUp(app);
+    const first = await takeWrittenAssessment(app, cookie, clock);
+    clock.advance({ days: 7 });
+    await takeWrittenAssessment(app, cookie, clock);
+
+    const list = (await (await app.request("/api/assessments", get(cookie))).json()) as any[];
+    expect(list.map((a) => a.report.overallLevel)).toEqual(["B1", "B2"]);
+    expect(await read(app, cookie, first.id)).toMatchObject({ report: { overallLevel: "B1" } });
+  });
+});
+
+describe("first-Report email", () => {
+  test("the first completed Report is emailed once with a link to the first Lesson; later Reports send nothing", async () => {
+    const { app, clock, mailer } = setup([reportReply(), reportReply()]);
+    const { cookie } = await signUp(app);
+    const me = (await (await app.request("/api/me", get(cookie))).json()) as any;
+
+    const first = await takeWrittenAssessment(app, cookie, clock);
+    expect(mailer.sent).toHaveLength(1);
+    expect(mailer.sent[0]).toMatchObject({ to: me.email, subject: expect.stringContaining("Assessment Report") });
+    expect(mailer.sent[0]!.html).toContain(`${WEB_ORIGIN}/learn`);
+    expect(mailer.sent[0]!.html).toContain("Past simple vs present perfect");
+    expect((await read(app, cookie, first.id)).emailedAt).not.toBeNull();
+
+    clock.advance({ days: 7 });
+    await takeWrittenAssessment(app, cookie, clock);
+    expect(mailer.sent).toHaveLength(1);
+  });
+
+  test("a discarded attempt sends nothing; the first completed one after it is emailed", async () => {
+    const { app, clock, mailer } = setup([reportReply()]);
+    const { cookie } = await signUp(app);
+    const id = await startAndChat(app, cookie);
+    clock.advance({ minutes: 1 });
+    await app.request(`/api/assessments/${id}/end`, json({}, cookie));
+    expect(mailer.sent).toHaveLength(0);
+
+    await takeWrittenAssessment(app, cookie, clock);
+    expect(mailer.sent).toHaveLength(1);
+  });
+
+  test("an email that fails to send doesn't lose the Report, and is tried again next time", async () => {
+    let fail = true;
+    const sent: unknown[] = [];
+    const mailer = {
+      send: async (e: unknown) => {
+        if (fail) throw new Error("Resend is down");
+        sent.push(e);
+      },
+    };
+    const clock = makeClock();
+    const app = makeApp({ now: clock, mailer, models: { step: mockChat("Hi", "Hi"), report: mockModel(reportReply(), reportReply()) } });
+    const { cookie } = await signUp(app);
+
+    const { id, end } = await takeWrittenAssessment(app, cookie, clock);
+    expect(end.status).toBe(200);
+    expect(await read(app, cookie, id)).toMatchObject({ status: "completed", emailedAt: null });
+
+    fail = false;
+    clock.advance({ days: 7 });
+    await takeWrittenAssessment(app, cookie, clock);
+    expect(sent).toHaveLength(1);
+  });
+});
