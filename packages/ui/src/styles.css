@@ -122,10 +122,9 @@
   }
 }
 
-/* 3px violet ring outside the outline. */
+/* 3px violet ring just outside the 2px ink outline. */
 @utility focus-ring {
   outline: 3px solid var(--primary);
-  outline-offset: 2px;
 }
 
 @layer base {

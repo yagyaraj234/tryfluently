@@ -1,4 +1,4 @@
-export { Heading, type HeadingProps } from "./Heading.tsx";
-export { Screen, type ScreenProps } from "./Screen.tsx";
-export { Text, type TextProps, type TextSize } from "./Text.tsx";
-export { UIProvider } from "./UIProvider.tsx";
+export { Heading, type HeadingProps } from "./Heading";
+export { Screen, type ScreenProps } from "./Screen";
+export { Text, type TextProps, type TextSize } from "./Text";
+export { UIProvider } from "./UIProvider";

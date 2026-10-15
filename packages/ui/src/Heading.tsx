@@ -1,8 +1,8 @@
 import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
-import { textSize, type TextSize } from "./Text.tsx";
+import { textSizeClasses, type TextSize } from "./Text";
 
-const heading = cva("text-balance text-ink", { variants: { size: textSize } });
+const heading = cva("text-balance text-ink", { variants: { size: textSizeClasses } });
 
 const defaultSize = { 1: "page", 2: "heading", 3: "title" } as const;
 

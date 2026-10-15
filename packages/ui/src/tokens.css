@@ -202,7 +202,7 @@
 :root,
 .surface-quiet {
   --surface: var(--paper);
-  --card-shadow: none;
+  --card-shadow: 0 0 #0000; /* not `none`: it has to stay valid inside a box-shadow list */
 }
 
 .surface-loud {

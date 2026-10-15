@@ -1,7 +1,7 @@
 import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 
-export const textSize = {
+export const textSizeClasses = {
   label: "text-label uppercase",
   caption: "text-caption",
   body: "text-body",
@@ -11,11 +11,11 @@ export const textSize = {
   hero: "text-hero",
 };
 
-export type TextSize = keyof typeof textSize;
+export type TextSize = keyof typeof textSizeClasses;
 
 const text = cva("", {
   variants: {
-    size: textSize,
+    size: textSizeClasses,
     tone: { ink: "text-ink", muted: "text-muted" },
     tabular: { true: "tabular-nums" },
   },
