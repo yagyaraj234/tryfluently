@@ -4,9 +4,9 @@ import { useRender } from "@base-ui/react/use-render";
 import type { Icon } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import type { ComponentProps, ReactElement } from "react";
-import { pressable } from "./Button";
+import { pressableClasses } from "./Button";
 
-const iconButton = cva(`${pressable} size-target bg-paper text-title text-ink`);
+const iconButton = cva(`${pressableClasses} size-target bg-paper text-title text-ink`);
 
 export type IconButtonProps = Omit<ComponentProps<"button">, "className" | "style" | "children" | "aria-label"> & {
   icon: Icon;
