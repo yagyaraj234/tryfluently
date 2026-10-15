@@ -10,6 +10,7 @@ import { lessons } from "./lessons";
 import type { Mailer } from "./mailer";
 import type { Models } from "./models";
 import { roadmap } from "./roadmap";
+import { progress } from "./progress";
 import { skillHistory, skillProfile } from "./scoring";
 
 export type { Mailer, Models };
@@ -83,6 +84,7 @@ export function createApp(deps: Deps) {
       .route("/api/lessons", lessons(deps))
       .get("/api/skill-profile", async (c) => c.json(await skillProfile(db, c.var.user.id)))
       .get("/api/skill-profile/history", async (c) => c.json(await skillHistory(db, c.var.user.id)))
+      .get("/api/progress", async (c) => c.json(await progress(db, c.var.user, deps.now())))
   );
 }
 
