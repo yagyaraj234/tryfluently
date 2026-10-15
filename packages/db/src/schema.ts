@@ -1,4 +1,4 @@
-import { boolean, jsonb, pgEnum, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgEnum, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
 
 // Better Auth's tables. Every later table must reference user.id with onDelete: "cascade".
 export const user = pgTable("user", {
@@ -79,4 +79,51 @@ export const aiUsage = pgTable("ai_usage", {
   startedAt: timestamp().notNull(),
   seconds: real().notNull().default(0),
   usage: jsonb().$type<Record<string, unknown>>(),
+});
+
+export const assessmentMode = pgEnum("assessment_mode", ["voice", "written"]);
+export const assessmentStatus = pgEnum("assessment_status", ["in_progress", "completed", "discarded"]);
+
+export const assessment = pgTable("assessment", {
+  id: id(),
+  userId: learner(),
+  mode: assessmentMode().notNull(),
+  status: assessmentStatus().notNull().default("in_progress"),
+  startedAt: timestamp().notNull(),
+  endedAt: timestamp(),
+  // UI messages of the conversation; checked against zod in the API.
+  transcript: jsonb().$type<unknown[]>().notNull().default([]),
+  report: jsonb().$type<Record<string, unknown>>(),
+  emailedAt: timestamp(),
+});
+
+export const skill = pgEnum("skill", ["fluency", "grammar", "vocabulary"]);
+export const scoreSource = pgEnum("score_source", ["assessment", "lesson"]);
+
+// Append-only. The Skill Profile is the latest row per skill.
+export const skillScore = pgTable("skill_score", {
+  id: id(),
+  userId: learner(),
+  skill: skill().notNull(),
+  score: real().notNull(),
+  source: scoreSource().notNull(),
+  sourceId: text().notNull(),
+  createdAt: timestamp().notNull(),
+});
+
+export const focusKind = pgEnum("focus_kind", ["grammar", "vocabulary", "phrase"]);
+export const focusSource = pgEnum("focus_source", ["assessment", "debrief", "lesson"]);
+export const focusStatus = pgEnum("focus_status", ["open", "closed"]);
+
+export const focusItem = pgTable("focus_item", {
+  id: id(),
+  userId: learner(),
+  label: text().notNull(),
+  kind: focusKind().notNull(),
+  source: focusSource().notNull(),
+  sourceId: text().notNull(),
+  hits: integer().notNull().default(0),
+  status: focusStatus().notNull().default("open"),
+  createdAt: timestamp().notNull(),
+  closedAt: timestamp(),
 });

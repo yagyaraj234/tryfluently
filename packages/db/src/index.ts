@@ -12,3 +12,6 @@ export type Db = ReturnType<typeof createDb>;
 
 export const migrate = (db: Db) =>
   runMigrations(db, { migrationsFolder: new URL("../migrations", import.meta.url).pathname });
+// A transaction works anywhere the db does.
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0] | Db;
+export type { CefrLevel, Skill } from "./schema";
