@@ -127,3 +127,18 @@ export const focusItem = pgTable("focus_item", {
   createdAt: timestamp().notNull(),
   closedAt: timestamp(),
 });
+
+export const unitStatus = pgEnum("unit_status", ["planned", "active", "mastered", "skipped"]);
+
+// The Roadmap is a Learner's Units ordered by position; there's no roadmap table.
+export const unit = pgTable("unit", {
+  id: id(),
+  userId: learner(),
+  position: integer().notNull(),
+  title: text().notNull(),
+  objective: text().notNull(),
+  skills: jsonb().$type<Skill[]>().notNull(),
+  endsWithRoleplay: boolean().notNull().default(false),
+  status: unitStatus().notNull().default("planned"),
+  createdAt: timestamp().notNull(),
+});
