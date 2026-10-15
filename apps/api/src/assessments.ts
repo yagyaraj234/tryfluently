@@ -10,6 +10,7 @@ import { cefrLevel, goalKind, targetLevels } from "./goals";
 import { reportEmail } from "./mailer";
 import { buildRoadmap } from "./roadmap";
 import { recordScores, scoreView } from "./scoring";
+import { answeredSteps, stepTools, takeAnswer } from "./steps";
 
 const { assessment, goal, focusItem } = schema;
 
@@ -46,7 +47,11 @@ const phases = `Run the Assessment in five phases within 10 minutes:
 5. Wrap-up: thank them and close.
 Make questions easier or harder depending on how they answer. Ask one question at a time. Don't correct them; just listen.`;
 
-const instructions = (briefs: string[], minutes: number) =>
+// Structured items reuse the Lesson Step tools. The model is asked for 3–4; the server stops offering them after 4.
+const itemTools = { fillGap: stepTools.fillGap, rewrite: stepTools.rewrite };
+const MAX_ITEMS = 4;
+
+const instructions = (briefs: string[], minutes: number, items: number) =>
   `You are Impromptu, an English coach, running an Assessment of the Learner's English.
 ${phases.replace(
   "{goals}",
@@ -54,6 +59,8 @@ ${phases.replace(
     ? `go deeper into their situation. What you know about them:\n${briefs.join("\n\n")}`
     : "ask what they're preparing for (a job interview, client work or general fluency).",
 )}
+During phases 2–4, also give 3–4 structured items, one at a time, using the fillGap and rewrite tools, pitched at the
+level they're showing. Don't tell them whether they got an item right. ${items} answered so far.
 ${minutes.toFixed(0)} of 10 minutes have passed.`;
 
 const reportInstructions = `You are an examiner for English as a second language. Read the Assessment transcript
@@ -61,9 +68,17 @@ and assess the Learner (the "Learner" lines only) against the official CEFR desc
 Score each skill 0–100 with quotes as evidence. Give exactly 3 strengths and 3–5 weaknesses; each weakness quotes
 what the Learner said and gives a better version. Propose Goals and Target Levels, and preview the first Unit.`;
 
+// The transcript as the report model reads it, structured items and the Learner's answers (with grades) included.
 const textOf = (messages: UIMessage[]) =>
   messages
-    .map((m) => `${m.role === "user" ? "Learner" : "Coach"}: ${m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" ")}`)
+    .flatMap((m) =>
+      m.parts.flatMap((p: any) => {
+        if (p.type === "text") return [`${m.role === "user" ? "Learner" : "Coach"}: ${p.text}`];
+        if (p.state !== "output-available" || !(p.type.replace(/^tool-/, "") in itemTools)) return [];
+        const graded = p.output.grade ? ` (${p.output.grade.correct ? "correct" : `incorrect, expected "${p.output.grade.expected}"`})` : "";
+        return [`Item (${p.type.replace(/^tool-/, "")}): ${JSON.stringify(p.input)}\nLearner's answer: "${p.output.answer}"${graded}`];
+      }),
+    )
     .join("\n");
 
 type Row = typeof assessment.$inferSelect;
@@ -193,8 +208,11 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
       if (!row) return c.json({ error: "Assessment not found" }, 404);
       if (row.status !== "in_progress") return c.json({ error: "This Assessment has ended" }, 409);
 
-      const valid = await safeValidateUIMessages({ messages: [...row.transcript, c.req.valid("json").message] });
+      const taken = takeAnswer(row.transcript as UIMessage[], c.req.valid("json").message);
+      if ("error" in taken) return c.json({ error: taken.error, issues: taken.issues }, taken.status);
+      const valid = await safeValidateUIMessages({ messages: taken.messages, tools: itemTools });
       if (!valid.success) return c.json({ error: valid.error.message }, 400);
+      const items = answeredSteps(valid.data).length;
 
       const briefs = await db
         .select({ brief: goal.brief })
@@ -204,8 +222,10 @@ export const assessments = ({ db, now, models, mailer, env, settings }: Deps & {
 
       return streamChat({ db, now }, userId, {
         model: models.step,
-        instructions: instructions(briefs.flatMap((g) => (g.brief ? [g.brief] : [])), minutes),
+        instructions: instructions(briefs.flatMap((g) => (g.brief ? [g.brief] : [])), minutes, items),
         messages: valid.data,
+        tools: itemTools,
+        activeTools: items < MAX_ITEMS ? ["fillGap", "rewrite"] : [],
         save: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
       });
     })

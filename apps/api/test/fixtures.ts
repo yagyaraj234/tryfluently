@@ -75,17 +75,17 @@ export const feedback = (verdict = "correct", corrected = "She goes to work ever
   input: { verdict, corrected, explanation: "Use -s with he, she and it in present simple." },
 });
 
-// Answers the Step waiting in the Lesson's last message, the way the web client returns a tool output.
-export async function answerStep(app: TestApp, cookie: string, lessonId: string, output: unknown) {
-  const lesson = (await (await app.request(`/api/lessons/${lessonId}`, get(cookie))).json()) as any;
-  const last = lesson.messages.at(-1);
+// Answers the Step waiting in a Lesson's (or Assessment's) last message, the way the web client returns a tool output.
+export async function answerStep(app: TestApp, cookie: string, id: string, output: unknown, base: "lessons" | "assessments" = "lessons") {
+  const body = (await (await app.request(`/api/${base}/${id}`, get(cookie))).json()) as any;
+  const last = (body.messages ?? body.transcript).at(-1);
   const message = {
     ...last,
     parts: last.parts.map((p: any) =>
       p.type.startsWith("tool-") && p.state === "input-available" ? { ...p, state: "output-available", output } : p,
     ),
   };
-  const res = await app.request(`/api/lessons/${lessonId}/chat`, json({ message }, cookie));
+  const res = await app.request(`/api/${base}/${id}/chat`, json({ message }, cookie));
   if (res.ok) await res.text();
   return res;
 }
