@@ -1,27 +1,50 @@
+import { Progress } from "@base-ui/react/progress";
 import { cva } from "class-variance-authority";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "./Button";
+import { Card } from "./Card";
 import { ChoiceChips } from "./ChoiceChips";
 import { Heading } from "./Heading";
+import { labelledBarParts } from "./ProgressBar";
 import { Text } from "./Text";
 import { TextArea } from "./TextArea";
 import { TextField } from "./TextField";
+import { VerdictTag, type VerdictTagProps } from "./VerdictTag";
 
-// The parts every Step shares. Props use the backend's Step tool input names (`sentence`, `choices`, `aim`).
+// The Step parts shared by the Lesson player and the Written Assessment.
+// Step props use the backend's Step tool input names, so apps pass `{...step.input}` straight through.
+
+const header = cva("flex flex-col gap-3");
+const bar = cva("flex flex-col gap-2");
+const label = cva("text-label uppercase text-ink");
 
 export type StepHeaderProps = {
-  /** For example "Rewrite · Step 4 of ~7". */
-  label: string;
+  /** The kind of Step, for example "Rewrite". */
+  type: string;
   question: string;
+  /**
+   * Where the Step sits in a Lesson, shown as "Rewrite · Step 4 of ~7" with a progress bar.
+   * Lessons adapt, so `total` reads as an estimate. Without it only the type is shown.
+   */
+  progress?: { position: number; total: number };
 };
 
-/** The label and question at the top of every Step. */
-export function StepHeader({ label, question }: StepHeaderProps) {
+/** The top of every Step: its type (and in a Lesson, its position and progress), then the question. */
+export function StepHeader({ type, question, progress }: StepHeaderProps) {
   return (
-    <div className="flex flex-col gap-2">
-      <Text size="label" tone="muted">
-        {label}
-      </Text>
+    <div className={header()}>
+      {progress ? (
+        <Progress.Root value={progress.position - 1} max={progress.total} className={bar()}>
+          <Progress.Label className={label()}>{`${type} · Step ${progress.position} of ~${progress.total}`}</Progress.Label>
+          <Progress.Track className={labelledBarParts.track()}>
+            <Progress.Indicator className={labelledBarParts.indicator()} />
+          </Progress.Track>
+        </Progress.Root>
+      ) : (
+        <Text size="label" tone="muted">
+          {type}
+        </Text>
+      )}
       <Heading level={2} size="title">
         {question}
       </Heading>
@@ -29,91 +52,168 @@ export function StepHeader({ label, question }: StepHeaderProps) {
   );
 }
 
-type AnswerProps = {
+const form = cva("flex flex-col gap-4");
+const stack = cva("flex flex-col gap-6");
+const quote = cva("rounded-md bg-subtle px-4 py-3 text-body text-ink");
+
+/** What every Step's answer shares. */
+type Answerable = {
+  /** Called with the Learner's answer, trimmed and never empty. */
+  onAnswer: (answer: string) => void;
+  /** While the answer is being sent, so it can't be sent twice. */
+  pending?: boolean;
   /** The Learner's answer once it's been sent. The Step then shows it read-only, without a verdict. */
   answered?: string;
-  /** While the answer is being sent. */
-  pending?: boolean;
-  onAnswer: (answer: string) => void;
 };
 
-/** The answer form: an input and the send button, which waits for a non-empty answer. */
-function AnswerForm({ value, pending, onAnswer, children }: { value: string; pending?: boolean; onAnswer: (a: string) => void; children: ReactNode }) {
-  function submit(event: FormEvent<HTMLFormElement>) {
+// The answer so far, and a submit handler that sends it trimmed, once, and never empty.
+function useAnswer({ onAnswer, pending }: Answerable) {
+  const [answer, setAnswer] = useState("");
+  const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (value.trim() && !pending) onAnswer(value.trim());
-  }
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      {children}
-      <Button type="submit" disabled={pending || !value.trim()}>
-        Send answer
-      </Button>
-    </form>
-  );
+    if (!pending && answer.trim()) onAnswer(answer.trim());
+  };
+  return { answer, setAnswer, submit };
 }
 
-const step = cva("flex flex-col gap-5");
-const gap = cva("inline-block min-w-14 rounded-sm border-b-2 border-line bg-subtle px-2 text-center text-ink");
-
-export type FillGapStepProps = AnswerProps & {
-  label: string;
-  /** The sentence, with the gap written as `___`. */
-  sentence: string;
-  /** Shown as chips to pick from; without them the Learner types the missing words. */
-  choices?: string[];
-};
-
-/** A sentence with one gap. It never shows whether the answer is right; the app decides what follows. */
-export function FillGapStep({ label, sentence, choices, answered, pending, onAnswer }: FillGapStepProps) {
-  const [value, setValue] = useState("");
-  const [before, after] = sentence.split(/_{2,}/);
-  const filled = answered ?? value;
+function SendButton({ pending, answer }: { pending?: boolean; answer: string }) {
   return (
-    <div className={step()}>
-      <StepHeader label={label} question="Complete the sentence." />
-      <p className="text-title text-ink">
-        {before}
-        <mark className={gap()}>{filled || <span className="sr-only">blank</span>}</mark>
-        {after}
-      </p>
-      {answered === undefined && (
-        <AnswerForm value={value} pending={pending} onAnswer={onAnswer}>
-          {choices?.length ? (
-            <ChoiceChips label="Choices" options={choices.map((c) => ({ value: c, label: c }))} value={value || null} onValueChange={setValue} />
-          ) : (
-            <TextField label="Your answer" value={value} onValueChange={setValue} autoComplete="off" />
-          )}
-        </AnswerForm>
-      )}
+    <div>
+      <Button type="submit" disabled={pending || !answer.trim()}>
+        Send answer
+      </Button>
     </div>
   );
 }
 
-const quote = cva("rounded-md bg-subtle px-4 py-3 text-body text-ink");
-
-export type RewriteStepProps = AnswerProps & {
-  label: string;
-  /** The sentence to improve. */
-  sentence: string;
-  /** What to aim for, shown as the question. */
-  aim: string;
+export type AnswerBoxProps = Answerable & {
+  /** @default "Your answer" */
+  label?: string;
 };
 
-/** A sentence to rewrite: the original quoted, then the Learner's version. */
-export function RewriteStep({ label, sentence, aim, answered, pending, onAnswer }: RewriteStepProps) {
-  const [value, setValue] = useState("");
+/** A written answer and its send button. Steps use it, and so can any Step answered in text. */
+export function AnswerBox({ label = "Your answer", ...props }: AnswerBoxProps) {
+  const { answer, setAnswer, submit } = useAnswer(props);
+  if (props.answered !== undefined) return <Text>{props.answered}</Text>;
   return (
-    <div className={step()}>
-      <StepHeader label={label} question={aim} />
+    <form className={form()} onSubmit={submit}>
+      <TextArea label={label} value={answer} onValueChange={setAnswer} maxLength={2000} />
+      <SendButton pending={props.pending} answer={answer} />
+    </form>
+  );
+}
+
+export type RewriteStepProps = Answerable & {
+  /** The sentence to improve. */
+  sentence: string;
+};
+
+/** A rewrite Step: the original sentence quoted, then the Learner's version. Its aim is the StepHeader question. */
+export function RewriteStep({ sentence, onAnswer, pending, answered }: RewriteStepProps) {
+  return (
+    <div className={stack()}>
       <blockquote className={quote()}>{sentence}</blockquote>
-      {answered === undefined ? (
-        <AnswerForm value={value} pending={pending} onAnswer={onAnswer}>
-          <TextArea label="Your version" value={value} onValueChange={setValue} rows={3} />
-        </AnswerForm>
-      ) : (
-        <Text>{answered}</Text>
+      <AnswerBox label="Your version" onAnswer={onAnswer} pending={pending} answered={answered} />
+    </div>
+  );
+}
+
+const word = cva("flex flex-col gap-2");
+
+export type VocabCardStepProps = Answerable & {
+  word: string;
+  meaning: string;
+  /** An example sentence using the word. */
+  example: string;
+};
+
+/** A vocabCard Step: the word on a card with its meaning and an example, then the Learner's own sentence. */
+export function VocabCardStep({ word: w, meaning, example, onAnswer, pending, answered }: VocabCardStepProps) {
+  return (
+    <div className={stack()}>
+      <Card>
+        <div className={word()}>
+          <Heading level={3} size="heading">
+            {w}
+          </Heading>
+          <Text>{meaning}</Text>
+          <Text tone="muted">{example}</Text>
+        </div>
+      </Card>
+      <AnswerBox label="Your sentence" onAnswer={onAnswer} pending={pending} answered={answered} />
+    </div>
+  );
+}
+
+const sentenceText = cva("text-title text-ink");
+const gap = cva("inline-block min-w-14 rounded-sm border-b-2 border-line bg-subtle px-2 text-center text-ink");
+
+export type FillGapStepProps = Answerable & {
+  /** The sentence, with the gap written as ___. */
+  sentence: string;
+  /** Large chips to pick from. Without them the Learner types the missing words. */
+  choices?: string[];
+};
+
+/** A fillGap Step: the sentence with the gap as a slot that shows the Learner's answer. It never shows the answer key. */
+export function FillGapStep({ sentence, choices, ...props }: FillGapStepProps) {
+  const { answer, setAnswer, submit } = useAnswer(props);
+  const [before, after = ""] = sentence.split(/_{2,}/, 2);
+  const filled = (props.answered ?? answer).trim();
+  return (
+    <form className={form()} onSubmit={submit}>
+      <p className={sentenceText()}>
+        {before}
+        <mark className={gap()}>{filled || <span className="sr-only">blank</span>}</mark>
+        {after}
+      </p>
+      {props.answered === undefined && (
+        <>
+          {choices?.length ? (
+            <ChoiceChips
+              label="Pick the missing words"
+              options={choices.map((c) => ({ value: c, label: c }))}
+              value={answer || null}
+              onValueChange={setAnswer}
+            />
+          ) : (
+            <TextField label="Your answer" value={answer} onValueChange={setAnswer} maxLength={2000} autoComplete="off" />
+          )}
+          <SendButton pending={props.pending} answer={answer} />
+        </>
       )}
+    </form>
+  );
+}
+
+const panel = cva("flex flex-col items-start gap-3 rounded-md border-2 border-line p-5 text-ink", {
+  variants: {
+    verdict: { correct: "bg-correct-tint", almost: "bg-almost-tint", incorrect: "bg-incorrect-tint" },
+  },
+});
+const corrected = cva("text-body font-bold");
+
+export type StepFeedbackProps = {
+  verdict: VerdictTagProps["verdict"];
+  /** The Learner's answer, to compare with the corrected version. */
+  answer?: string;
+  corrected: string;
+  /** One sentence on why. Left out when empty. */
+  explanation: string;
+  onNext: () => void;
+  /** @default "Next step" */
+  nextLabel?: string;
+};
+
+/** The feedback on an answered Step: the verdict as a word on its tint, the corrected version and why. */
+export function StepFeedback({ verdict, answer, corrected: fixed, explanation, onNext, nextLabel = "Next step" }: StepFeedbackProps) {
+  return (
+    <div role="status" className={panel({ verdict })}>
+      <VerdictTag verdict={verdict} />
+      {answer && <Text tone="muted">{`You wrote: ${answer}`}</Text>}
+      <strong className={corrected()}>{fixed}</strong>
+      {explanation && <Text size="caption">{explanation}</Text>}
+      <Button onClick={onNext}>{nextLabel}</Button>
     </div>
   );
 }

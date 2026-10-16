@@ -54,7 +54,7 @@ test("answering a Step adds { answer } to the last assistant message and sends i
   const step = chat.messages.at(-1).parts.find((p) => p.type === "tool-fillGap");
   assert.equal(step.state, "input-available");
 
-  answerStep(chat.addToolOutput, step, "have worked");
+  await answerStep(chat, step, "have worked");
   await until(() => server.sent.length === 2 && chat.status === "ready");
 
   const { message } = server.sent[1].body;
@@ -72,4 +72,27 @@ test("a chat resumes from the stored messages", () => {
     chat.messages.map((m) => m.id),
     ["u1", "a1"],
   );
+});
+
+test("a recorded answer goes back as { recordingId }", async () => {
+  const server = fakeServer([{ type: "start", messageId: "a1" }]);
+  const pending = { type: "tool-vocabCard", toolCallId: "call-2", state: "input-available", input: { word: "deadline" } };
+  const chat = new Chat(chatOptions("/api/lessons/1/chat", [{ id: "a1", role: "assistant", parts: [pending] }], server.fetch));
+  await answerStep(chat, pending, { recordingId: "r1" });
+  assert.deepEqual(server.sent[0].body.message.parts[0].output, { recordingId: "r1" });
+});
+
+test("a finished turn isn't sent again on its own, even when every tool in it has its output", async () => {
+  // The end of a Lesson: giveFeedback and endLesson both run on the server.
+  const server = fakeServer([
+    { type: "start", messageId: "a2" },
+    { type: "tool-input-available", toolCallId: "fb", toolName: "giveFeedback", input: {} },
+    { type: "tool-output-available", toolCallId: "fb", output: { saved: true } },
+    { type: "tool-input-available", toolCallId: "end", toolName: "endLesson", input: {} },
+    { type: "tool-output-available", toolCallId: "end", output: { ended: true } },
+  ]);
+  const chat = new Chat(chatOptions("/api/lessons/1/chat", [], server.fetch));
+  await chat.sendMessage({ text: "Let's start." });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(server.sent.length, 1);
 });

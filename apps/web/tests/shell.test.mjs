@@ -16,6 +16,7 @@ before(async () => {
       if (/progress=broken/.test(req.headers.cookie)) return json(500, { error: "Internal Server Error" });
       return json(200, { xp: 340, streak: 12 });
     }
+    if (req.url === "/api/lessons/1") return json(200, { id: "1", kind: "practice", status: "in_progress", messages: [], steps: [] });
     json(404, { error: "Not found" });
   });
 });
@@ -47,7 +48,7 @@ test("only the current destination is marked", async () => {
 });
 
 test("destinations later tickets fill render a placeholder in the shell", async () => {
-  for (const [path, title] of [["/roadmap", "Roadmap"], ["/progress", "Progress"], ["/settings", "Settings"]]) {
+  for (const [path, title] of [["/progress", "Progress"], ["/settings", "Settings"]]) {
     assert.match(await page(path), new RegExp(`<h1[^>]*>${title}</h1>`));
   }
 });

@@ -1,6 +1,6 @@
 import { schema } from "@impromptu/db";
 import { NoObjectGeneratedError, Output } from "ai";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate } from "./ai";
@@ -170,7 +170,27 @@ export async function progressUnit(deps: Ctx, id: string) {
 
 export const roadmap = (deps: Deps) =>
   new Hono<AppEnv>()
-    .get("/", async (c) => c.json(await deps.db.select().from(unit).where(eq(unit.userId, c.var.user.id)).orderBy(asc(unit.position))))
+    // Every Unit in order, each with its Lessons (without their chat), so Home, the Roadmap and a Unit share one call.
+    .get("/", async (c) => {
+      const userId = c.var.user.id;
+      const [units, lessons] = await Promise.all([
+        deps.db.select().from(unit).where(eq(unit.userId, userId)).orderBy(asc(unit.position)),
+        deps.db
+          .select({
+            unitId: lesson.unitId,
+            id: lesson.id,
+            position: lesson.position,
+            kind: lesson.kind,
+            title: lesson.title,
+            status: lesson.status,
+            objectiveProgress: lesson.objectiveProgress,
+          })
+          .from(lesson)
+          .where(and(eq(lesson.userId, userId), isNotNull(lesson.unitId)))
+          .orderBy(asc(lesson.position)),
+      ]);
+      return c.json(units.map((u) => ({ ...u, lessons: lessons.filter((l) => l.unitId === u.id).map(({ unitId: _, ...l }) => l) })));
+    })
     .post("/units/:id/skip", async (c) => {
       const [row] = await deps.db
         .select()

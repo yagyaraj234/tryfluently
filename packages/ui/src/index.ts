@@ -2,7 +2,22 @@ export { AppShell, type AppShellDestination, type AppShellProps } from "./AppShe
 export { Button, type ButtonProps } from "./Button";
 export { Card, type CardProps } from "./Card";
 export { CefrScale, type CefrScaleProps } from "./CefrScale";
-export { ChatTurn, FillGapStep, RewriteStep, StepHeader, type ChatTurnProps, type FillGapStepProps, type RewriteStepProps, type StepHeaderProps } from "./Steps";
+export {
+  AnswerBox,
+  ChatTurn,
+  FillGapStep,
+  RewriteStep,
+  StepFeedback,
+  StepHeader,
+  VocabCardStep,
+  type AnswerBoxProps,
+  type ChatTurnProps,
+  type FillGapStepProps,
+  type RewriteStepProps,
+  type StepFeedbackProps,
+  type StepHeaderProps,
+  type VocabCardStepProps,
+} from "./Steps";
 export { Chip, type ChipProps } from "./Chip";
 export { ChoiceChips, type ChoiceChipsProps } from "./ChoiceChips";
 export { Cluster, type ClusterProps } from "./Cluster";
@@ -13,6 +28,7 @@ export { FocusItemCard, type FocusItemCardProps } from "./FocusItemCard";
 export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { LiveBar, type LiveBarProps } from "./LiveBar";
+export { LessonComplete, type LessonCompleteProps } from "./LessonComplete";
 export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Meter, type MeterProps } from "./Meter";
 export { Notice, type NoticeProps } from "./Notice";
@@ -29,6 +45,7 @@ export { SkillBar, type CefrLevel, type Skill, type SkillBarProps } from "./Skil
 export { Spinner, type SpinnerProps } from "./Spinner";
 export { Split, type SplitProps } from "./Split";
 export { Stack, type Gap, type StackProps } from "./Stack";
+export { StreakCard, type StreakCardProps } from "./StreakCard";
 export { StreakChip, type StreakChipProps } from "./StreakChip";
 export { Switch, type SwitchProps } from "./Switch";
 export { Text, type TextProps, type TextSize } from "./Text";
@@ -38,5 +55,6 @@ export { TextLink, type TextLinkProps } from "./TextLink";
 export { toastManager } from "./Toast";
 export { type ChoiceOption } from "./Field";
 export { UIProvider } from "./UIProvider";
+export { UnitCard, UnitStatusTag, type UnitCardProps, type UnitStatus, type UnitStatusTagProps } from "./UnitCard";
 export { VerdictTag, type VerdictTagProps } from "./VerdictTag";
 export { XpChip, type XpChipProps } from "./XpChip";

@@ -11,6 +11,18 @@ export const progressQuery = queryOptions({
   },
 });
 
+/** Every Unit in order, each with its Lessons. Empty when the Roadmap hasn't been built. */
+export const roadmapQuery = queryOptions({
+  queryKey: ["roadmap"],
+  queryFn: async () => {
+    const response = await api().api.roadmap.$get();
+    if (!response.ok) throw new Error(`Couldn't load your Roadmap (${response.status})`);
+    return response.json();
+  },
+});
+
+export type Unit = Awaited<ReturnType<NonNullable<typeof roadmapQuery.queryFn>>>[number];
+
 async function json<T>(request: Promise<{ ok: boolean; status: number; json(): Promise<T> }>, what: string) {
   const response = await request;
   if (!response.ok) throw new Error(`Couldn't load your ${what} (${response.status})`);
