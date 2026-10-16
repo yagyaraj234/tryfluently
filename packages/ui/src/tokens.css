@@ -134,6 +134,7 @@
   --ease-press: ease-out;
   --ease-ui: cubic-bezier(0.2, 0, 0, 1);
   --duration-pulse: 1.6s;
+  --duration-spin: 0.8s; /* one turn of a Spinner */
 
   /* Layers. */
   --layer-sticky: 10;
