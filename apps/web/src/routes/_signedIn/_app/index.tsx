@@ -76,7 +76,12 @@ function Home() {
       <Stack gap={6}>
         <Heading level={1}>Home</Heading>
         <Split
-          main={main}
+          main={
+            <Stack gap={6}>
+              {main}
+              <PractiseRoleplay />
+            </Stack>
+          }
           side={
             progress && (
               <Stack>
@@ -113,6 +118,22 @@ function TodaysLesson({ unit }: { unit: Unit }) {
         ) : (
           <Button onClick={() => next.mutate()}>Start your next Lesson</Button>
         )}
+      </Stack>
+    </Card>
+  );
+}
+
+/** A Roleplay can be played any time, not only when a Unit ends with one. */
+function PractiseRoleplay() {
+  return (
+    <Card>
+      <Stack gap={3} align="start">
+        <Text size="label">Roleplay</Text>
+        <Heading level={2}>Practise a Mock Interview or a Client Call</Heading>
+        <Text>Your coach stays in character for one of your Goals, and you get a Debrief at the end.</Text>
+        <Button variant="secondary" render={<Link to="/roleplays/new" />}>
+          Start a Roleplay
+        </Button>
       </Stack>
     </Card>
   );

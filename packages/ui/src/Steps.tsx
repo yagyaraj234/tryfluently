@@ -226,14 +226,16 @@ const turn = cva("max-w-prose text-body text-ink", {
 
 export type ChatTurnProps = {
   from: "coach" | "learner";
+  /** Who is speaking, for screen readers: the character in a Roleplay, for example "Interviewer". @default "Coach" or "You" */
+  name?: string;
   children: ReactNode;
 };
 
 /** One line of a written conversation with the coach. Place turns in a Stack; the Learner's sit on the right. */
-export function ChatTurn({ from, children }: ChatTurnProps) {
+export function ChatTurn({ from, name = from === "coach" ? "Coach" : "You", children }: ChatTurnProps) {
   return (
     <p className={turn({ from })}>
-      <span className="sr-only">{from === "coach" ? "Coach: " : "You: "}</span>
+      <span className="sr-only">{`${name}: `}</span>
       {children}
     </p>
   );

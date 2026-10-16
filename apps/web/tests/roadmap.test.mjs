@@ -78,6 +78,10 @@ test("Home offers to start the next Lesson when none is in progress", async () =
   assert.equal(linkTo(html, "/lessons/[^\"]+"), undefined);
 });
 
+test("Home offers a Roleplay any time", async () => {
+  assert.match(text(linkTo(await page("/"), "/roleplays/new")), /Start a Roleplay/);
+});
+
 test("the Roadmap lists every Unit as a link, with its status as a word", async () => {
   const html = await page("/roadmap");
   const statuses = ["Mastered", "Skipped", "Active", "Planned"];

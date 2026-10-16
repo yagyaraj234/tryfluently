@@ -5,7 +5,7 @@ import { labelledBarParts } from "./ProgressBar";
 export type Skill = "fluency" | "grammar" | "vocabulary";
 export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
-const skillNames: Record<Skill, string> = { fluency: "Fluency", grammar: "Grammar", vocabulary: "Vocabulary" };
+export const skillNames: Record<Skill, string> = { fluency: "Fluency", grammar: "Grammar", vocabulary: "Vocabulary" };
 
 const indicator = cva("block h-full motion-safe:transition-all motion-safe:duration-ui motion-safe:ease-ui", {
   variants: {
