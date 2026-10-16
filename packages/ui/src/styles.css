@@ -107,6 +107,9 @@
   --transition-duration-ui: var(--duration-ui);
   --ease-press: var(--ease-press);
   --ease-ui: var(--ease-ui);
+  /* Loading animations. Tailwind still defines the spin and pulse keyframes; components run them under motion-safe. */
+  --animate-spin: spin var(--duration-spin) linear infinite;
+  --animate-pulse: pulse var(--duration-pulse) ease-in-out infinite;
   --z-index-sticky: var(--layer-sticky);
   --z-index-overlay: var(--layer-overlay);
   --z-index-toast: var(--layer-toast);
