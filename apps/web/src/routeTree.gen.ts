@@ -9,50 +9,154 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as SignedInRouteImport } from './routes/_signedIn'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SignedInIndexRouteImport } from './routes/_signedIn/index'
+import { Route as ApiSplatRouteImport } from './routes/api/$'
+import { Route as SignedInGoalsIndexRouteImport } from './routes/_signedIn/goals/index'
+import { Route as SignedInGoalsConfirmRouteImport } from './routes/_signedIn/goals/confirm'
 
-const IndexRoute = IndexRouteImport.update({
+const SignedInRoute = SignedInRouteImport.update({
+  id: '/_signedIn',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignedInIndexRoute = SignedInIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => SignedInRoute,
+} as any)
+const ApiSplatRoute = ApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SignedInGoalsIndexRoute = SignedInGoalsIndexRouteImport.update({
+  id: '/goals/',
+  path: '/goals/',
+  getParentRoute: () => SignedInRoute,
+} as any)
+const SignedInGoalsConfirmRoute = SignedInGoalsConfirmRouteImport.update({
+  id: '/goals/confirm',
+  path: '/goals/confirm',
+  getParentRoute: () => SignedInRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof SignedInIndexRoute
+  '/sign-in': typeof SignInRoute
+  '/api/$': typeof ApiSplatRoute
+  '/goals/confirm': typeof SignedInGoalsConfirmRoute
+  '/goals/': typeof SignedInGoalsIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/sign-in': typeof SignInRoute
+  '/api/$': typeof ApiSplatRoute
+  '/': typeof SignedInIndexRoute
+  '/goals/confirm': typeof SignedInGoalsConfirmRoute
+  '/goals': typeof SignedInGoalsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_signedIn': typeof SignedInRouteWithChildren
+  '/sign-in': typeof SignInRoute
+  '/api/$': typeof ApiSplatRoute
+  '/_signedIn/': typeof SignedInIndexRoute
+  '/_signedIn/goals/confirm': typeof SignedInGoalsConfirmRoute
+  '/_signedIn/goals/': typeof SignedInGoalsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/sign-in' | '/api/$' | '/goals/confirm' | '/goals/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/sign-in' | '/api/$' | '/' | '/goals/confirm' | '/goals'
+  id:
+    | '__root__'
+    | '/_signedIn'
+    | '/sign-in'
+    | '/api/$'
+    | '/_signedIn/'
+    | '/_signedIn/goals/confirm'
+    | '/_signedIn/goals/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  SignedInRoute: typeof SignedInRouteWithChildren
+  SignInRoute: typeof SignInRoute
+  ApiSplatRoute: typeof ApiSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_signedIn': {
+      id: '/_signedIn'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof SignedInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_signedIn/': {
+      id: '/_signedIn/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof SignedInIndexRouteImport
+      parentRoute: typeof SignedInRoute
+    }
+    '/api/$': {
+      id: '/api/$'
+      path: '/api/$'
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_signedIn/goals/': {
+      id: '/_signedIn/goals/'
+      path: '/goals'
+      fullPath: '/goals/'
+      preLoaderRoute: typeof SignedInGoalsIndexRouteImport
+      parentRoute: typeof SignedInRoute
+    }
+    '/_signedIn/goals/confirm': {
+      id: '/_signedIn/goals/confirm'
+      path: '/goals/confirm'
+      fullPath: '/goals/confirm'
+      preLoaderRoute: typeof SignedInGoalsConfirmRouteImport
+      parentRoute: typeof SignedInRoute
     }
   }
 }
 
+interface SignedInRouteChildren {
+  SignedInIndexRoute: typeof SignedInIndexRoute
+  SignedInGoalsConfirmRoute: typeof SignedInGoalsConfirmRoute
+  SignedInGoalsIndexRoute: typeof SignedInGoalsIndexRoute
+}
+
+const SignedInRouteChildren: SignedInRouteChildren = {
+  SignedInIndexRoute: SignedInIndexRoute,
+  SignedInGoalsConfirmRoute: SignedInGoalsConfirmRoute,
+  SignedInGoalsIndexRoute: SignedInGoalsIndexRoute,
+}
+
+const SignedInRouteWithChildren = SignedInRoute._addFileChildren(
+  SignedInRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  SignedInRoute: SignedInRouteWithChildren,
+  SignInRoute: SignInRoute,
+  ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
