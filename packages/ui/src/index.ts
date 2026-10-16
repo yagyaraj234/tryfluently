@@ -9,6 +9,7 @@ export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Meter, type MeterProps } from "./Meter";
+export { Notice, type NoticeProps } from "./Notice";
 export { ProgressBar, type ProgressBarProps } from "./ProgressBar";
 export { Screen, type ScreenProps } from "./Screen";
 export { Select, type SelectProps } from "./Select";
