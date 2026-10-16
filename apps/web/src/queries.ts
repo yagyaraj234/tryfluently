@@ -10,3 +10,31 @@ export const progressQuery = queryOptions({
     return response.json();
   },
 });
+
+async function json<T>(request: Promise<{ ok: boolean; status: number; json(): Promise<T> }>, what: string) {
+  const response = await request;
+  if (!response.ok) throw new Error(`Couldn't load your ${what} (${response.status})`);
+  return response.json();
+}
+
+/** The latest score and CEFR Level per skill; `null` for a skill not measured yet. */
+export const skillProfileQuery = queryOptions({
+  queryKey: ["skill-profile"],
+  queryFn: () => json(api().api["skill-profile"].$get(), "Skill Profile"),
+});
+
+/** Every score change, oldest first, from an Assessment or a Lesson. */
+export const skillHistoryQuery = queryOptions({
+  queryKey: ["skill-profile", "history"],
+  queryFn: () => json(api().api["skill-profile"].history.$get(), "score history"),
+});
+
+export const focusItemsQuery = queryOptions({
+  queryKey: ["focus-items"],
+  queryFn: () => json(api().api["focus-items"].$get(), "Focus Items"),
+});
+
+export const assessmentsQuery = queryOptions({
+  queryKey: ["assessments"],
+  queryFn: () => json(api().api.assessments.$get(), "Assessments"),
+});

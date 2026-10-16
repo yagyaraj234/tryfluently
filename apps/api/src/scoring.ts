@@ -33,6 +33,7 @@ export async function skillProfile(db: Db, userId: string) {
   >;
 }
 
+// Every score change, oldest first, rounded and labelled with its CEFR Level like the Skill Profile.
 export const skillHistory = (db: Db, userId: string) =>
   db
     .select({
@@ -44,7 +45,8 @@ export const skillHistory = (db: Db, userId: string) =>
     })
     .from(schema.skillScore)
     .where(eq(schema.skillScore.userId, userId))
-    .orderBy(asc(schema.skillScore.createdAt), asc(schema.skillScore.skill));
+    .orderBy(asc(schema.skillScore.createdAt), asc(schema.skillScore.skill))
+    .then((rows) => rows.map((row) => ({ ...row, ...scoreView(row.score) })));
 
 // Appends one skill_score row per measured skill, moving each score toward the new result:
 // new = old + α × (result − old). A skill's first measurement is taken as is.
