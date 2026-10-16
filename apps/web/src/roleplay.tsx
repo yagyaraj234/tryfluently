@@ -6,8 +6,7 @@ import { useState } from "react";
 import { api } from "./api";
 import { progressQuery, roadmapQuery } from "./queries";
 
-// What text and voice Roleplays share: names, the bar at the top, ending through /end and the wait for the Debrief.
-// #95's voice Roleplay uses these too.
+// What text and voice Roleplays share: names, ending through /end and the wait for the Debrief.
 
 export type RoleplayKind = "mock_interview" | "client_call";
 export type Tone = "friendly" | "standard" | "tough";
@@ -76,7 +75,7 @@ export function RoleplayEnding({ ending, end }: ReturnType<typeof useRoleplayEnd
   return <LoadingState title="Writing your Debrief…" description="Your coach is reading the whole conversation. This takes up to a minute." />;
 }
 
-/** The top of a Roleplay in text: its kind and tone, and End. #95 shows the LiveBar instead while a call is live. */
+/** The top of a Roleplay in text: its kind and tone, and End. A voice Roleplay has the LiveBar instead. */
 export function RoleplayBar({ roleplay, onEnd, disabled }: { roleplay: Roleplay; onEnd: () => void; disabled?: boolean }) {
   return (
     <Cluster justify="between">

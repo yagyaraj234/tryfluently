@@ -51,6 +51,15 @@ describe("ErrorState", () => {
     expect(screen.getByRole("button", { name: "Retry the Report" })).toBeTruthy();
   });
 
+  test("can offer another way forward beside the retry, such as typing instead", () => {
+    const onType = mock();
+    render(<ErrorState title="Allow your microphone" onRetry={() => {}} action={<Button onClick={onType}>Type instead</Button>} />);
+    const buttons = screen.getAllByRole("button").map((b) => b.textContent);
+    expect(buttons).toEqual(["Try again", "Type instead"]);
+    fireEvent.click(screen.getByRole("button", { name: "Type instead" }));
+    expect(onType).toHaveBeenCalledTimes(1);
+  });
+
   test("needs onRetry", () => {
     // @ts-expect-error a retry is required
     <ErrorState title="x" />;

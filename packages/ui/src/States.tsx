@@ -2,6 +2,7 @@ import type { Icon } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 import { Button } from "./Button";
+import { Cluster } from "./Cluster";
 import { Heading } from "./Heading";
 import { spinner } from "./Spinner";
 import { Text } from "./Text";
@@ -58,19 +59,24 @@ export type ErrorStateProps = {
   description?: string;
   onRetry: () => void;
   retryLabel?: string;
+  /** Another way forward, after the retry, for example "Type instead" when the microphone is blocked. */
+  action?: ReactNode;
 };
 
 /** Something failed to load or save; the Learner can try again. */
-export function ErrorState({ title = "Something went wrong", description, onRetry, retryLabel = "Try again" }: ErrorStateProps) {
+export function ErrorState({ title = "Something went wrong", description, onRetry, retryLabel = "Try again", action }: ErrorStateProps) {
   return (
     <div role="alert" className={state()}>
       <Heading level={2} size="title">
         {title}
       </Heading>
       {description && <Text tone="muted">{description}</Text>}
-      <Button variant="secondary" onClick={onRetry}>
-        {retryLabel}
-      </Button>
+      <Cluster gap={3} justify="center">
+        <Button variant="secondary" onClick={onRetry}>
+          {retryLabel}
+        </Button>
+        {action}
+      </Cluster>
     </div>
   );
 }
