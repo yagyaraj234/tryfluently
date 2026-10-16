@@ -145,6 +145,7 @@
   --breakpoint-desktop: 64rem;
   --width-content: 40rem;
   --width-prose: 65ch;
+  --width-sidebar: 15rem;
 }
 
 /* Dark values, repeated so that an explicit data-theme wins in either direction. */

@@ -1,6 +1,6 @@
 import { cva } from "class-variance-authority";
 
-const spinner = cva(
+export const spinner = cva(
   "inline-block size-6 shrink-0 rounded-pill border-2 border-line border-t-primary motion-safe:animate-spin",
 );
 const hidden = cva("sr-only");
