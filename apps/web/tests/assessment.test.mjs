@@ -140,8 +140,13 @@ test("a finished Assessment goes to its Report", async () => {
   assert.equal(new URL(response.headers.get("location"), web.url).pathname, "/assessments/done/report");
 });
 
-test("a Voice Assessment uses the same route", async () => {
-  assert.match(text(await page("/assessments/voice")), /Voice Assessment/);
+test("a Voice Assessment uses the same route and opens on the live bar, connecting, with mute and End", async () => {
+  const html = await page("/assessments/voice");
+  const shown = text(html);
+  assert.match(shown, /Connecting… Voice Assessment/);
+  assert.match(html, /<button[^>]*aria-label="Mute"[^>]*aria-pressed="false"/);
+  assert.match(html, /<button[^>]*>End<\/button>/);
+  assert.doesNotMatch(shown, /coming soon/i);
 });
 
 test("the Report shows the overall level, each skill, strengths, weaknesses and the first Unit", async () => {
