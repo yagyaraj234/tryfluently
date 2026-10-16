@@ -1,7 +1,10 @@
 export { Button, type ButtonProps } from "./Button";
+export { Dialog, type DialogProps } from "./Dialog";
 export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
+export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Screen, type ScreenProps } from "./Screen";
+export { Sheet, type SheetProps } from "./Sheet";
 export { Text, type TextProps, type TextSize } from "./Text";
 export { TextLink, type TextLinkProps } from "./TextLink";
 export { UIProvider } from "./UIProvider";

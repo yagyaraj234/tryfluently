@@ -8,6 +8,7 @@
 @theme {
   --*: initial;
   --breakpoint-desktop: 64rem;
+  --inset-0: 0; /* pins overlays to the viewport edges (inset-0); not a spacing step */
 }
 
 /*
@@ -28,6 +29,7 @@
   --background-color-primary: var(--primary);
   --background-color-primary-soft: var(--primary-soft);
   --background-color-live: var(--live);
+  --background-color-scrim: var(--scrim);
   --background-color-correct-tint: var(--correct-tint);
   --background-color-almost-tint: var(--almost-tint);
   --background-color-incorrect-tint: var(--incorrect-tint);
