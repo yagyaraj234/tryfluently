@@ -43,7 +43,7 @@ function AssessmentReport() {
               <Text size="label">Your Assessment Report</Text>
               <Heading level={1}>Your English level</Heading>
               <Text size="hero">{report.overallLevel}</Text>
-              <CefrScale level={report.overallLevel} />
+              <CefrScale label="Overall CEFR Level" level={report.overallLevel} />
               {report.partial && (
                 <Notice tone="info">
                   This Report is partial: you left before the end, so it's based on less of your English than usual.

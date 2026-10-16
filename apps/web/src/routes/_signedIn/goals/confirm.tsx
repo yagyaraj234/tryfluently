@@ -1,4 +1,4 @@
-import { Button, Card, Cluster, Container, EmptyState, ErrorState, Heading, LoadingState, Notice, Screen, Select, Stack, Text, cefrLevels, type CefrLevel } from "@impromptu/ui";
+import { Button, Card, Cluster, Container, EmptyState, ErrorState, Heading, LoadingState, Notice, Screen, Select, Stack, Text, type CefrLevel } from "@impromptu/ui";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "../../../api";
@@ -18,7 +18,7 @@ const skills = [
   { skill: "grammar", label: "Grammar" },
   { skill: "vocabulary", label: "Vocabulary" },
 ] as const;
-const levelOptions = cefrLevels.map((l) => ({ value: l, label: l }));
+const levelOptions = (["A1", "A2", "B1", "B2", "C1", "C2"] as const).map((l) => ({ value: l, label: l }));
 
 type TargetLevels = Partial<Record<(typeof skills)[number]["skill"], CefrLevel>>;
 

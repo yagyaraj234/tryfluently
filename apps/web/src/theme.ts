@@ -11,3 +11,9 @@ const parse = (value: string | undefined) => (value === "light" || value === "da
 export const dataTheme = createIsomorphicFn()
   .server(() => parse(getCookie(themeCookie)))
   .client(() => parse(document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1]));
+
+/** Saves the theme for a year (System clears the cookie). Call `router.invalidate()` after, so `<html>` picks it up. */
+export function saveTheme(theme: Theme) {
+  document.cookie =
+    theme === "system" ? `${themeCookie}=; path=/; max-age=0` : `${themeCookie}=${theme}; path=/; max-age=31536000; samesite=lax`;
+}
