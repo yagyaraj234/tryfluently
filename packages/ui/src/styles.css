@@ -106,6 +106,7 @@
   --translate-press: var(--press-offset);
   --min-height-target: var(--size-target);
   --size-target: var(--size-target);
+  --size-record: var(--size-record);
   --transition-duration-press: var(--duration-press);
   --transition-duration-ui: var(--duration-ui);
   --ease-press: var(--ease-press);
