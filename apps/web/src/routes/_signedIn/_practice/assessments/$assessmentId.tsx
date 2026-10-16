@@ -4,7 +4,10 @@ import {
   ChatTurn,
   Cluster,
   EmptyState,
+  ErrorState,
   FillGapStep,
+  Heading,
+  LiveBar,
   Notice,
   RewriteStep,
   Spinner,
@@ -14,9 +17,10 @@ import {
 } from "@impromptu/ui";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { UIMessage } from "ai";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../../../../api";
-import { AssessmentEnding, Discarded, LeaveDialog, TimeLeft, useAssessmentSession, type Assessment } from "../../../../assessment";
+import { AssessmentEnding, Discarded, LeaveDialog, LIMIT_MS, TimeLeft, useAssessmentSession, type Assessment } from "../../../../assessment";
+import { useRealtimeCall } from "../../../../call";
 import { answerStep, chatOptions } from "../../../../chat";
 
 export const Route = createFileRoute("/_signedIn/_practice/assessments/$assessmentId")({
@@ -31,17 +35,93 @@ export const Route = createFileRoute("/_signedIn/_practice/assessments/$assessme
   component: AssessmentScreen,
 });
 
-/** One route for both modes: the Written Assessment here, the Voice Assessment from #93. */
+/** One route for both modes: the Written and the Voice Assessment. */
 function AssessmentScreen() {
   const assessment = Route.useLoaderData();
   if (!assessment) return <EmptyState title="We couldn't find that Assessment" description="It may belong to another account." />;
   if (assessment.status === "discarded") return <Discarded />;
-  return assessment.mode === "written" ? <WrittenAssessment assessment={assessment} /> : <VoiceAssessment />;
+  return assessment.mode === "written" ? <WrittenAssessment assessment={assessment} /> : <VoiceAssessment assessment={assessment} />;
 }
 
-// A placeholder until #93 builds it with useAssessmentSession, AssessmentEnding and LeaveDialog.
-function VoiceAssessment() {
-  return <EmptyState title="Voice Assessment" description="The Voice Assessment is coming soon." />;
+// A live call with the coach. Ending it (End, 10:00, leaving, or a dropped call) goes through /end, which hangs it up.
+function VoiceAssessment({ assessment }: { assessment: Assessment }) {
+  const session = useAssessmentSession(assessment);
+  const [dropped, setDropped] = useState(false);
+  const running = session.ending === "running";
+  const call = useRealtimeCall(`/api/assessments/${assessment.id}/call`, {
+    // The API can't rejoin a call, so a dropped one ends the Assessment with what was said so far.
+    onDropped: () => {
+      if (!running) return;
+      setDropped(true);
+      void session.finish();
+    },
+  });
+
+  // Mute while /end hangs up the call and writes the Report; let go of the call once that's done.
+  const { mute, hangUp } = call;
+  useEffect(() => {
+    if (session.ending === "ending") mute(true);
+    else if (session.ending !== "running") hangUp();
+  }, [session.ending, mute, hangUp]);
+
+  if (!running)
+    return (
+      <Stack gap={6}>
+        {dropped && <Notice tone="info">Your call dropped, so the Assessment ended there.</Notice>}
+        <AssessmentEnding session={session} />
+      </Stack>
+    );
+
+  let screen;
+  if (call.status === "microphone")
+    screen = (
+      <ErrorState
+        title="Allow your microphone"
+        description="The Voice Assessment needs your microphone. Allow it for Impromptu in your browser's site settings, or connect one, then try again."
+        onRetry={call.retry}
+      />
+    );
+  else if (call.status === "failed")
+    screen =
+      call.response?.status === 409 ? (
+        <ErrorState
+          title="You're already in a voice call"
+          description="You can have one live call at a time. End the call in your other tab or window, then try again. A call that was cut off clears within a minute."
+          onRetry={call.retry}
+        />
+      ) : (
+        <ErrorState title="We couldn't connect your call" description="Check your connection and try again." onRetry={call.retry} />
+      );
+  else
+    screen = (
+      <Stack gap={6}>
+        <LiveBar
+          state={call.status === "live" || call.status === "reconnecting" ? call.status : "connecting"}
+          title="Voice Assessment"
+          elapsed={session.left === undefined ? undefined : LIMIT_MS - session.left}
+          left={session.left}
+          muted={call.muted}
+          onMutedChange={call.mute}
+          onEnd={() => void session.finish()}
+        />
+        <Stack gap={3}>
+          <Heading level={1} size="title">
+            Talk with your coach
+          </Heading>
+          <Text>
+            Your coach starts the conversation. Speak as you would on a call, and interrupt whenever you like. Stay at least 4 minutes
+            so it counts.
+          </Text>
+        </Stack>
+      </Stack>
+    );
+
+  return (
+    <>
+      {screen}
+      <LeaveDialog session={session} />
+    </>
+  );
 }
 
 type ItemPart = { type: "tool-fillGap" | "tool-rewrite"; toolCallId: string; state: string; input?: any; output?: { answer: string } };

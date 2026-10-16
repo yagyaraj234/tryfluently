@@ -12,6 +12,7 @@ export { EmptyState, ErrorState, LoadingState, type EmptyStateProps, type ErrorS
 export { FocusItemCard, type FocusItemCardProps } from "./FocusItemCard";
 export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
+export { LiveBar, type LiveBarProps } from "./LiveBar";
 export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Meter, type MeterProps } from "./Meter";
 export { Notice, type NoticeProps } from "./Notice";
