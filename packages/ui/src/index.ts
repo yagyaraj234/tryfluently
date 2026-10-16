@@ -9,6 +9,7 @@ export { Dialog, type DialogProps } from "./Dialog";
 export { EmptyState, ErrorState, LoadingState, type EmptyStateProps, type ErrorStateProps, type LoadingStateProps } from "./States";
 export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
+export { LessonComplete, type LessonCompleteProps } from "./LessonComplete";
 export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Meter, type MeterProps } from "./Meter";
 export { OfflineBanner } from "./OfflineBanner";
@@ -18,6 +19,20 @@ export { Screen, type ScreenProps } from "./Screen";
 export { Select, type SelectProps } from "./Select";
 export { Sheet, type SheetProps } from "./Sheet";
 export { Skeleton, type SkeletonProps } from "./Skeleton";
+export {
+  AnswerBox,
+  FillGapStep,
+  RewriteStep,
+  StepFeedback,
+  StepHeader,
+  VocabCardStep,
+  type AnswerBoxProps,
+  type FillGapStepProps,
+  type RewriteStepProps,
+  type StepFeedbackProps,
+  type StepHeaderProps,
+  type VocabCardStepProps,
+} from "./Steps";
 export { Spinner, type SpinnerProps } from "./Spinner";
 export { Split, type SplitProps } from "./Split";
 export { Stack, type Gap, type StackProps } from "./Stack";
