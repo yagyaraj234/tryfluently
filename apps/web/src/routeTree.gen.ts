@@ -12,12 +12,19 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignedInRouteImport } from './routes/_signedIn'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
-import { Route as SignedInIndexRouteImport } from './routes/_signedIn/index'
+import { Route as SignedInAppRouteImport } from './routes/_signedIn/_app'
+import { Route as SignedInPracticeRouteImport } from './routes/_signedIn/_practice'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
-import { Route as SignedInAssessmentsAssessmentIdRouteImport } from './routes/_signedIn/assessments/$assessmentId'
+import { Route as SignedInAppIndexRouteImport } from './routes/_signedIn/_app/index'
+import { Route as SignedInAppProgressRouteImport } from './routes/_signedIn/_app/progress'
+import { Route as SignedInAppRoadmapRouteImport } from './routes/_signedIn/_app/roadmap'
+import { Route as SignedInAppSettingsRouteImport } from './routes/_signedIn/_app/settings'
 import { Route as SignedInAssessmentsNewRouteImport } from './routes/_signedIn/assessments/new'
 import { Route as SignedInGoalsIndexRouteImport } from './routes/_signedIn/goals/index'
 import { Route as SignedInGoalsConfirmRouteImport } from './routes/_signedIn/goals/confirm'
+import { Route as SignedInPracticeAssessmentsAssessmentIdRouteImport } from './routes/_signedIn/_practice/assessments/$assessmentId'
+import { Route as SignedInPracticeLessonsLessonIdRouteImport } from './routes/_signedIn/_practice/lessons/$lessonId'
+import { Route as SignedInPracticeRoleplaysRoleplayIdRouteImport } from './routes/_signedIn/_practice/roleplays/$roleplayId'
 
 const SignedInRoute = SignedInRouteImport.update({
   id: '/_signedIn',
@@ -33,9 +40,12 @@ const SignUpRoute = SignUpRouteImport.update({
   path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignedInIndexRoute = SignedInIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const SignedInAppRoute = SignedInAppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => SignedInRoute,
+} as any)
+const SignedInPracticeRoute = SignedInPracticeRouteImport.update({
+  id: '/_practice',
   getParentRoute: () => SignedInRoute,
 } as any)
 const ApiSplatRoute = ApiSplatRouteImport.update({
@@ -43,12 +53,26 @@ const ApiSplatRoute = ApiSplatRouteImport.update({
   path: '/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignedInAssessmentsAssessmentIdRoute =
-  SignedInAssessmentsAssessmentIdRouteImport.update({
-    id: '/assessments/$assessmentId',
-    path: '/assessments/$assessmentId',
-    getParentRoute: () => SignedInRoute,
-  } as any)
+const SignedInAppIndexRoute = SignedInAppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SignedInAppRoute,
+} as any)
+const SignedInAppProgressRoute = SignedInAppProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => SignedInAppRoute,
+} as any)
+const SignedInAppRoadmapRoute = SignedInAppRoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
+  getParentRoute: () => SignedInAppRoute,
+} as any)
+const SignedInAppSettingsRoute = SignedInAppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => SignedInAppRoute,
+} as any)
 const SignedInAssessmentsNewRoute = SignedInAssessmentsNewRouteImport.update({
   id: '/assessments/new',
   path: '/assessments/new',
@@ -64,38 +88,73 @@ const SignedInGoalsConfirmRoute = SignedInGoalsConfirmRouteImport.update({
   path: '/goals/confirm',
   getParentRoute: () => SignedInRoute,
 } as any)
+const SignedInPracticeAssessmentsAssessmentIdRoute =
+  SignedInPracticeAssessmentsAssessmentIdRouteImport.update({
+    id: '/assessments/$assessmentId',
+    path: '/assessments/$assessmentId',
+    getParentRoute: () => SignedInPracticeRoute,
+  } as any)
+const SignedInPracticeLessonsLessonIdRoute =
+  SignedInPracticeLessonsLessonIdRouteImport.update({
+    id: '/lessons/$lessonId',
+    path: '/lessons/$lessonId',
+    getParentRoute: () => SignedInPracticeRoute,
+  } as any)
+const SignedInPracticeRoleplaysRoleplayIdRoute =
+  SignedInPracticeRoleplaysRoleplayIdRouteImport.update({
+    id: '/roleplays/$roleplayId',
+    path: '/roleplays/$roleplayId',
+    getParentRoute: () => SignedInPracticeRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof SignedInIndexRoute
+  '/': typeof SignedInAppIndexRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/api/$': typeof ApiSplatRoute
-  '/assessments/$assessmentId': typeof SignedInAssessmentsAssessmentIdRoute
+  '/progress': typeof SignedInAppProgressRoute
+  '/roadmap': typeof SignedInAppRoadmapRoute
+  '/settings': typeof SignedInAppSettingsRoute
   '/assessments/new': typeof SignedInAssessmentsNewRoute
   '/goals/confirm': typeof SignedInGoalsConfirmRoute
   '/goals/': typeof SignedInGoalsIndexRoute
+  '/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
+  '/lessons/$lessonId': typeof SignedInPracticeLessonsLessonIdRoute
+  '/roleplays/$roleplayId': typeof SignedInPracticeRoleplaysRoleplayIdRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof SignedInAppIndexRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/api/$': typeof ApiSplatRoute
-  '/': typeof SignedInIndexRoute
-  '/assessments/$assessmentId': typeof SignedInAssessmentsAssessmentIdRoute
+  '/progress': typeof SignedInAppProgressRoute
+  '/roadmap': typeof SignedInAppRoadmapRoute
+  '/settings': typeof SignedInAppSettingsRoute
   '/assessments/new': typeof SignedInAssessmentsNewRoute
   '/goals/confirm': typeof SignedInGoalsConfirmRoute
   '/goals': typeof SignedInGoalsIndexRoute
+  '/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
+  '/lessons/$lessonId': typeof SignedInPracticeLessonsLessonIdRoute
+  '/roleplays/$roleplayId': typeof SignedInPracticeRoleplaysRoleplayIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_signedIn': typeof SignedInRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/_signedIn/_app': typeof SignedInAppRouteWithChildren
+  '/_signedIn/_practice': typeof SignedInPracticeRouteWithChildren
   '/api/$': typeof ApiSplatRoute
-  '/_signedIn/': typeof SignedInIndexRoute
-  '/_signedIn/assessments/$assessmentId': typeof SignedInAssessmentsAssessmentIdRoute
+  '/_signedIn/_app/progress': typeof SignedInAppProgressRoute
+  '/_signedIn/_app/roadmap': typeof SignedInAppRoadmapRoute
+  '/_signedIn/_app/settings': typeof SignedInAppSettingsRoute
   '/_signedIn/assessments/new': typeof SignedInAssessmentsNewRoute
   '/_signedIn/goals/confirm': typeof SignedInGoalsConfirmRoute
+  '/_signedIn/_app/': typeof SignedInAppIndexRoute
   '/_signedIn/goals/': typeof SignedInGoalsIndexRoute
+  '/_signedIn/_practice/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
+  '/_signedIn/_practice/lessons/$lessonId': typeof SignedInPracticeLessonsLessonIdRoute
+  '/_signedIn/_practice/roleplays/$roleplayId': typeof SignedInPracticeRoleplaysRoleplayIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -104,31 +163,48 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/api/$'
-    | '/assessments/$assessmentId'
+    | '/progress'
+    | '/roadmap'
+    | '/settings'
     | '/assessments/new'
     | '/goals/confirm'
     | '/goals/'
+    | '/assessments/$assessmentId'
+    | '/lessons/$lessonId'
+    | '/roleplays/$roleplayId'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/sign-in'
     | '/sign-up'
     | '/api/$'
-    | '/'
-    | '/assessments/$assessmentId'
+    | '/progress'
+    | '/roadmap'
+    | '/settings'
     | '/assessments/new'
     | '/goals/confirm'
     | '/goals'
+    | '/assessments/$assessmentId'
+    | '/lessons/$lessonId'
+    | '/roleplays/$roleplayId'
   id:
     | '__root__'
     | '/_signedIn'
     | '/sign-in'
     | '/sign-up'
+    | '/_signedIn/_app'
+    | '/_signedIn/_practice'
     | '/api/$'
-    | '/_signedIn/'
-    | '/_signedIn/assessments/$assessmentId'
+    | '/_signedIn/_app/progress'
+    | '/_signedIn/_app/roadmap'
+    | '/_signedIn/_app/settings'
     | '/_signedIn/assessments/new'
     | '/_signedIn/goals/confirm'
+    | '/_signedIn/_app/'
     | '/_signedIn/goals/'
+    | '/_signedIn/_practice/assessments/$assessmentId'
+    | '/_signedIn/_practice/lessons/$lessonId'
+    | '/_signedIn/_practice/roleplays/$roleplayId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -161,11 +237,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_signedIn/': {
-      id: '/_signedIn/'
-      path: '/'
+    '/_signedIn/_app': {
+      id: '/_signedIn/_app'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof SignedInIndexRouteImport
+      preLoaderRoute: typeof SignedInAppRouteImport
+      parentRoute: typeof SignedInRoute
+    }
+    '/_signedIn/_practice': {
+      id: '/_signedIn/_practice'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof SignedInPracticeRouteImport
       parentRoute: typeof SignedInRoute
     }
     '/api/$': {
@@ -175,12 +258,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_signedIn/assessments/$assessmentId': {
-      id: '/_signedIn/assessments/$assessmentId'
-      path: '/assessments/$assessmentId'
-      fullPath: '/assessments/$assessmentId'
-      preLoaderRoute: typeof SignedInAssessmentsAssessmentIdRouteImport
-      parentRoute: typeof SignedInRoute
+    '/_signedIn/_app/': {
+      id: '/_signedIn/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof SignedInAppIndexRouteImport
+      parentRoute: typeof SignedInAppRoute
+    }
+    '/_signedIn/_app/progress': {
+      id: '/_signedIn/_app/progress'
+      path: '/progress'
+      fullPath: '/progress'
+      preLoaderRoute: typeof SignedInAppProgressRouteImport
+      parentRoute: typeof SignedInAppRoute
+    }
+    '/_signedIn/_app/roadmap': {
+      id: '/_signedIn/_app/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof SignedInAppRoadmapRouteImport
+      parentRoute: typeof SignedInAppRoute
+    }
+    '/_signedIn/_app/settings': {
+      id: '/_signedIn/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SignedInAppSettingsRouteImport
+      parentRoute: typeof SignedInAppRoute
     }
     '/_signedIn/assessments/new': {
       id: '/_signedIn/assessments/new'
@@ -203,20 +307,76 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignedInGoalsConfirmRouteImport
       parentRoute: typeof SignedInRoute
     }
+    '/_signedIn/_practice/assessments/$assessmentId': {
+      id: '/_signedIn/_practice/assessments/$assessmentId'
+      path: '/assessments/$assessmentId'
+      fullPath: '/assessments/$assessmentId'
+      preLoaderRoute: typeof SignedInPracticeAssessmentsAssessmentIdRouteImport
+      parentRoute: typeof SignedInPracticeRoute
+    }
+    '/_signedIn/_practice/lessons/$lessonId': {
+      id: '/_signedIn/_practice/lessons/$lessonId'
+      path: '/lessons/$lessonId'
+      fullPath: '/lessons/$lessonId'
+      preLoaderRoute: typeof SignedInPracticeLessonsLessonIdRouteImport
+      parentRoute: typeof SignedInPracticeRoute
+    }
+    '/_signedIn/_practice/roleplays/$roleplayId': {
+      id: '/_signedIn/_practice/roleplays/$roleplayId'
+      path: '/roleplays/$roleplayId'
+      fullPath: '/roleplays/$roleplayId'
+      preLoaderRoute: typeof SignedInPracticeRoleplaysRoleplayIdRouteImport
+      parentRoute: typeof SignedInPracticeRoute
+    }
   }
 }
 
+interface SignedInAppRouteChildren {
+  SignedInAppProgressRoute: typeof SignedInAppProgressRoute
+  SignedInAppRoadmapRoute: typeof SignedInAppRoadmapRoute
+  SignedInAppSettingsRoute: typeof SignedInAppSettingsRoute
+  SignedInAppIndexRoute: typeof SignedInAppIndexRoute
+}
+
+const SignedInAppRouteChildren: SignedInAppRouteChildren = {
+  SignedInAppProgressRoute: SignedInAppProgressRoute,
+  SignedInAppRoadmapRoute: SignedInAppRoadmapRoute,
+  SignedInAppSettingsRoute: SignedInAppSettingsRoute,
+  SignedInAppIndexRoute: SignedInAppIndexRoute,
+}
+
+const SignedInAppRouteWithChildren = SignedInAppRoute._addFileChildren(
+  SignedInAppRouteChildren,
+)
+
+interface SignedInPracticeRouteChildren {
+  SignedInPracticeAssessmentsAssessmentIdRoute: typeof SignedInPracticeAssessmentsAssessmentIdRoute
+  SignedInPracticeLessonsLessonIdRoute: typeof SignedInPracticeLessonsLessonIdRoute
+  SignedInPracticeRoleplaysRoleplayIdRoute: typeof SignedInPracticeRoleplaysRoleplayIdRoute
+}
+
+const SignedInPracticeRouteChildren: SignedInPracticeRouteChildren = {
+  SignedInPracticeAssessmentsAssessmentIdRoute:
+    SignedInPracticeAssessmentsAssessmentIdRoute,
+  SignedInPracticeLessonsLessonIdRoute: SignedInPracticeLessonsLessonIdRoute,
+  SignedInPracticeRoleplaysRoleplayIdRoute:
+    SignedInPracticeRoleplaysRoleplayIdRoute,
+}
+
+const SignedInPracticeRouteWithChildren =
+  SignedInPracticeRoute._addFileChildren(SignedInPracticeRouteChildren)
+
 interface SignedInRouteChildren {
-  SignedInIndexRoute: typeof SignedInIndexRoute
-  SignedInAssessmentsAssessmentIdRoute: typeof SignedInAssessmentsAssessmentIdRoute
+  SignedInAppRoute: typeof SignedInAppRouteWithChildren
+  SignedInPracticeRoute: typeof SignedInPracticeRouteWithChildren
   SignedInAssessmentsNewRoute: typeof SignedInAssessmentsNewRoute
   SignedInGoalsConfirmRoute: typeof SignedInGoalsConfirmRoute
   SignedInGoalsIndexRoute: typeof SignedInGoalsIndexRoute
 }
 
 const SignedInRouteChildren: SignedInRouteChildren = {
-  SignedInIndexRoute: SignedInIndexRoute,
-  SignedInAssessmentsAssessmentIdRoute: SignedInAssessmentsAssessmentIdRoute,
+  SignedInAppRoute: SignedInAppRouteWithChildren,
+  SignedInPracticeRoute: SignedInPracticeRouteWithChildren,
   SignedInAssessmentsNewRoute: SignedInAssessmentsNewRoute,
   SignedInGoalsConfirmRoute: SignedInGoalsConfirmRoute,
   SignedInGoalsIndexRoute: SignedInGoalsIndexRoute,

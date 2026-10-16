@@ -117,6 +117,7 @@
   --z-index-toast: var(--layer-toast);
   --container-content: var(--width-content);
   --container-prose: var(--width-prose);
+  --container-sidebar: var(--width-sidebar);
 }
 
 @custom-variant dark {
@@ -129,6 +130,9 @@
     @slot;
   }
 }
+
+/* The current page in a navigation (router links set aria-current="page"). */
+@custom-variant current (&[aria-current="page"]);
 
 /* 3px violet ring just outside the 2px ink outline. */
 @utility focus-ring {
