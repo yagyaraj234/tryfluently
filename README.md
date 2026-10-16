@@ -35,7 +35,10 @@ bun run --filter @impromptu/web test
 - `src/routes/api/$.ts` is the `/api/*` pass-through.
 - `src/api.ts` exports `api()`, the typed Hono client for `@impromptu/api`. During server rendering it
   calls the API directly with the Learner's `cookie` header.
-- `src/auth.ts` exports `authClient`, Better Auth on the web origin.
+- `src/auth.ts` exports `authClient`, Better Auth on the web origin, plus `signUp` (sends the browser's
+  timezone) and `signInWithGoogle`. `GET /api/auth/providers` says whether Google is configured.
+- `src/AuthScreen.tsx` is the shared sign-in / sign-up screen. `/goals` sets Goals with Goal Context, and
+  `/assessments/new` starts a Voice or Written Assessment (and shows the retake lock).
 - `src/routes/_signedIn.tsx` guards every route inside `src/routes/_signedIn/`: no session redirects to
   `/sign-in`. Home sends Learners who haven't finished onboarding on to set or confirm their Goals.
 - `src/theme.ts` reads the Light/Dark/System `theme` cookie, rendered as `data-theme` on `<html>`.

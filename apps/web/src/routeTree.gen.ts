@@ -11,8 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignedInRouteImport } from './routes/_signedIn'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignedInIndexRouteImport } from './routes/_signedIn/index'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
+import { Route as SignedInAssessmentsAssessmentIdRouteImport } from './routes/_signedIn/assessments/$assessmentId'
+import { Route as SignedInAssessmentsNewRouteImport } from './routes/_signedIn/assessments/new'
 import { Route as SignedInGoalsIndexRouteImport } from './routes/_signedIn/goals/index'
 import { Route as SignedInGoalsConfirmRouteImport } from './routes/_signedIn/goals/confirm'
 
@@ -25,6 +28,11 @@ const SignInRoute = SignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignedInIndexRoute = SignedInIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -34,6 +42,17 @@ const ApiSplatRoute = ApiSplatRouteImport.update({
   id: '/api/$',
   path: '/api/$',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SignedInAssessmentsAssessmentIdRoute =
+  SignedInAssessmentsAssessmentIdRouteImport.update({
+    id: '/assessments/$assessmentId',
+    path: '/assessments/$assessmentId',
+    getParentRoute: () => SignedInRoute,
+  } as any)
+const SignedInAssessmentsNewRoute = SignedInAssessmentsNewRouteImport.update({
+  id: '/assessments/new',
+  path: '/assessments/new',
+  getParentRoute: () => SignedInRoute,
 } as any)
 const SignedInGoalsIndexRoute = SignedInGoalsIndexRouteImport.update({
   id: '/goals/',
@@ -49,14 +68,20 @@ const SignedInGoalsConfirmRoute = SignedInGoalsConfirmRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof SignedInIndexRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/api/$': typeof ApiSplatRoute
+  '/assessments/$assessmentId': typeof SignedInAssessmentsAssessmentIdRoute
+  '/assessments/new': typeof SignedInAssessmentsNewRoute
   '/goals/confirm': typeof SignedInGoalsConfirmRoute
   '/goals/': typeof SignedInGoalsIndexRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/api/$': typeof ApiSplatRoute
   '/': typeof SignedInIndexRoute
+  '/assessments/$assessmentId': typeof SignedInAssessmentsAssessmentIdRoute
+  '/assessments/new': typeof SignedInAssessmentsNewRoute
   '/goals/confirm': typeof SignedInGoalsConfirmRoute
   '/goals': typeof SignedInGoalsIndexRoute
 }
@@ -64,22 +89,44 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_signedIn': typeof SignedInRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/api/$': typeof ApiSplatRoute
   '/_signedIn/': typeof SignedInIndexRoute
+  '/_signedIn/assessments/$assessmentId': typeof SignedInAssessmentsAssessmentIdRoute
+  '/_signedIn/assessments/new': typeof SignedInAssessmentsNewRoute
   '/_signedIn/goals/confirm': typeof SignedInGoalsConfirmRoute
   '/_signedIn/goals/': typeof SignedInGoalsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in' | '/api/$' | '/goals/confirm' | '/goals/'
+  fullPaths:
+    | '/'
+    | '/sign-in'
+    | '/sign-up'
+    | '/api/$'
+    | '/assessments/$assessmentId'
+    | '/assessments/new'
+    | '/goals/confirm'
+    | '/goals/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/sign-in' | '/api/$' | '/' | '/goals/confirm' | '/goals'
+  to:
+    | '/sign-in'
+    | '/sign-up'
+    | '/api/$'
+    | '/'
+    | '/assessments/$assessmentId'
+    | '/assessments/new'
+    | '/goals/confirm'
+    | '/goals'
   id:
     | '__root__'
     | '/_signedIn'
     | '/sign-in'
+    | '/sign-up'
     | '/api/$'
     | '/_signedIn/'
+    | '/_signedIn/assessments/$assessmentId'
+    | '/_signedIn/assessments/new'
     | '/_signedIn/goals/confirm'
     | '/_signedIn/goals/'
   fileRoutesById: FileRoutesById
@@ -87,6 +134,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   SignedInRoute: typeof SignedInRouteWithChildren
   SignInRoute: typeof SignInRoute
+  SignUpRoute: typeof SignUpRoute
   ApiSplatRoute: typeof ApiSplatRoute
 }
 
@@ -106,6 +154,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_signedIn/': {
       id: '/_signedIn/'
       path: '/'
@@ -119,6 +174,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/$'
       preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_signedIn/assessments/$assessmentId': {
+      id: '/_signedIn/assessments/$assessmentId'
+      path: '/assessments/$assessmentId'
+      fullPath: '/assessments/$assessmentId'
+      preLoaderRoute: typeof SignedInAssessmentsAssessmentIdRouteImport
+      parentRoute: typeof SignedInRoute
+    }
+    '/_signedIn/assessments/new': {
+      id: '/_signedIn/assessments/new'
+      path: '/assessments/new'
+      fullPath: '/assessments/new'
+      preLoaderRoute: typeof SignedInAssessmentsNewRouteImport
+      parentRoute: typeof SignedInRoute
     }
     '/_signedIn/goals/': {
       id: '/_signedIn/goals/'
@@ -139,12 +208,16 @@ declare module '@tanstack/react-router' {
 
 interface SignedInRouteChildren {
   SignedInIndexRoute: typeof SignedInIndexRoute
+  SignedInAssessmentsAssessmentIdRoute: typeof SignedInAssessmentsAssessmentIdRoute
+  SignedInAssessmentsNewRoute: typeof SignedInAssessmentsNewRoute
   SignedInGoalsConfirmRoute: typeof SignedInGoalsConfirmRoute
   SignedInGoalsIndexRoute: typeof SignedInGoalsIndexRoute
 }
 
 const SignedInRouteChildren: SignedInRouteChildren = {
   SignedInIndexRoute: SignedInIndexRoute,
+  SignedInAssessmentsAssessmentIdRoute: SignedInAssessmentsAssessmentIdRoute,
+  SignedInAssessmentsNewRoute: SignedInAssessmentsNewRoute,
   SignedInGoalsConfirmRoute: SignedInGoalsConfirmRoute,
   SignedInGoalsIndexRoute: SignedInGoalsIndexRoute,
 }
@@ -156,6 +229,7 @@ const SignedInRouteWithChildren = SignedInRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   SignedInRoute: SignedInRouteWithChildren,
   SignInRoute: SignInRoute,
+  SignUpRoute: SignUpRoute,
   ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport
