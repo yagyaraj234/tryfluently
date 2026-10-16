@@ -53,6 +53,7 @@
   --border-color-line: var(--line);
   --border-color-primary: var(--primary);
   --border-color-live: var(--live);
+  --outline-color-line: var(--line);
 
   /* Type roles. */
   --text-label: var(--text-label);

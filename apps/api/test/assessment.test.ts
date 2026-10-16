@@ -154,7 +154,10 @@ describe("skill profile", () => {
     });
 
     const history = (await (await app.request("/api/skill-profile/history", get(cookie))).json()) as any[];
-    expect(history.filter((h) => h.skill === "grammar").map((h) => h.score)).toEqual([42, 51]);
+    expect(history.filter((h) => h.skill === "grammar").map((h) => [h.score, h.level])).toEqual([
+      [42, "B1"],
+      [51, "B2"],
+    ]);
     expect(history.map((h) => h.source)).toEqual(["assessment", "assessment", "assessment", "assessment"]);
   });
 });

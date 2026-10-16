@@ -9,7 +9,7 @@ before(async () => {
   web = await startWeb((req, res) => {
     const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
-    if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
+    if (req.url === "/api/me") return json(200, { id: "1", name: "Asha", timezone: "UTC" });
     if (req.url === "/api/goals") return json(200, [{ status: "confirmed" }]);
     if (req.url === "/api/assessments") return json(200, [{ status: "completed" }]);
     if (req.url === "/api/progress") {
