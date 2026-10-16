@@ -39,6 +39,12 @@ describe("auth", () => {
     expect(res.status).toBe(400);
   });
 
+  test("the sign-in page learns whether Google is offered, without a session", async () => {
+    const providers = async (app: ReturnType<typeof makeApp>) => (await app.request("/api/auth/providers")).json();
+    expect(await providers(makeApp())).toEqual({ google: false });
+    expect(await providers(makeApp({ env: { GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" } }))).toEqual({ google: true });
+  });
+
   test("app routes return 401 without a session", async () => {
     const res = await makeApp().request("/api/me");
     expect(res.status).toBe(401);

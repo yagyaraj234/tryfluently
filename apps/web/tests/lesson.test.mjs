@@ -68,14 +68,14 @@ test("a vocabCard Step shows the word, meaning and example, and asks for the Lea
   const html = await page("/lessons/vocab");
   const t = text(html);
   assert.match(t, /New word · Step 1 of ~5/);
-  assert.match(html, /<h2[^>]*>deadline<\/h2>/);
+  assert.match(html, /<h3[^>]*>deadline<\/h3>/);
   assert.match(t, /the time by which something must be done/);
   assert.match(t, /Your sentence/);
 });
 
 test("a rewrite Step asks the aim and quotes the sentence to improve", async () => {
   const html = await page("/lessons/rewrite");
-  assert.match(html, /<h1[^>]*>Sound more natural by replacing &#x27;very very&#x27;\.<\/h1>/);
+  assert.match(html, /<h2[^>]*>Sound more natural by replacing &#x27;very very&#x27;\.<\/h2>/);
   assert.match(html, /<blockquote[^>]*>I am very very happy with the result\.<\/blockquote>/);
 });
 

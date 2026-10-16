@@ -21,7 +21,7 @@ import { createFileRoute, Link, redirect, useRouter, type ErrorComponentProps } 
 import type { ToolUIPart, UIMessage } from "ai";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../../../api";
-import { answerStep, chatTransport } from "../../../../chat";
+import { answerStep, chatOptions } from "../../../../chat";
 import { lessonRoute, useNextLesson } from "../../../../lessons";
 import { progressQuery, roadmapQuery } from "../../../../queries";
 
@@ -96,7 +96,8 @@ const EXPECTED_STEPS = 5;
 
 function Header({ step, position }: { step: ToolUIPart; position: number }) {
   const k = stepKinds[stepName(step)]!;
-  return <StepHeader type={k.type} position={position} total={Math.max(EXPECTED_STEPS, position + 1)} question={k.question(step.input)} />;
+  const progress = { position, total: Math.max(EXPECTED_STEPS, position + 1) };
+  return <StepHeader type={k.type} progress={progress} question={k.question(step.input)} />;
 }
 
 // ---- Reading the chat --------------------------------------------------------------------------------------------
@@ -131,11 +132,7 @@ const NUDGE_LIMIT = 2;
 function Player({ lesson }: { lesson: Lesson }) {
   const queryClient = useQueryClient();
   const [xpBefore] = useState(() => queryClient.getQueryData(progressQuery.queryKey)?.xp);
-  const chat = useChat({
-    id: lesson.id,
-    messages: lesson.messages,
-    transport: chatTransport(`/api/lessons/${lesson.id}/chat`),
-  });
+  const chat = useChat({ id: lesson.id, ...chatOptions(`/api/lessons/${lesson.id}/chat`, lesson.messages) });
   const { steps, pending, ended, feedbackFor } = read(chat.messages);
   const busy = chat.status === "submitted" || chat.status === "streaming";
 

@@ -1,7 +1,7 @@
 import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 
-const screen = cva("min-h-dvh bg-surface px-4 text-ink", {
+const screen = cva("min-h-dvh bg-surface px-4 py-10 text-ink", {
   variants: {
     surface: { loud: "surface-loud", quiet: "surface-quiet" },
   },
