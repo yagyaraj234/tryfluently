@@ -1,6 +1,8 @@
 export { AppShell, type AppShellDestination, type AppShellProps } from "./AppShell";
 export { Button, type ButtonProps } from "./Button";
 export { Card, type CardProps } from "./Card";
+export { CefrScale, ReportStrengths, ReportWeakness, SkillBar, cefrLevels, type CefrLevel, type CefrScaleProps, type ReportStrengthsProps, type ReportWeaknessProps, type Skill, type SkillBarProps } from "./Report";
+export { ChatTurn, FillGapStep, RewriteStep, StepHeader, type ChatTurnProps, type FillGapStepProps, type RewriteStepProps, type StepHeaderProps } from "./Steps";
 export { Chip, type ChipProps } from "./Chip";
 export { ChoiceChips, type ChoiceChipsProps } from "./ChoiceChips";
 export { Cluster, type ClusterProps } from "./Cluster";

@@ -11,12 +11,14 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@ai-sdk/react": "4.0.145",
     "@impromptu/ui": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@tanstack/react-query": "^5.104.3",
     "@tanstack/react-router": "^1.170.44",
     "@tanstack/react-router-ssr-query": "^1.167.3",
     "@tanstack/react-start": "^1.169.2",
+    "ai": "7.0.141",
     "better-auth": "^1.7.10",
     "hono": "^4.13.13",
     "react": "^19.3.1",
