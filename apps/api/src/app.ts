@@ -97,6 +97,8 @@ export function createApp(deps: Deps) {
   return (
     new Hono<AppEnv>()
       .use("/api/*", cors({ origin: env.WEB_ORIGIN, credentials: true }))
+      // Better Auth has no endpoint for this; sign-in shows the Google button only when it's configured.
+      .get("/api/auth/providers", (c) => c.json({ google: Boolean(env.GOOGLE_CLIENT_ID) }))
       .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
       // Registered after the auth handler, so it guards every other /api route.
       .use("/api/*", async (c, next) => {

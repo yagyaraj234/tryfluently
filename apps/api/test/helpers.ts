@@ -1,6 +1,6 @@
 import type { LanguageModel } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
-import { createApp, type Mailer, type Models, type Schedule, type Settings, type Speech, type Transcriber } from "../src/app";
+import { createApp, type Env, type Mailer, type Models, type Schedule, type Settings, type Speech, type Transcriber } from "../src/app";
 import type { Realtime, RealtimeEvent, RealtimeSession } from "../src/realtime";
 import { testDb } from "./setup";
 
@@ -8,6 +8,7 @@ export const WEB_ORIGIN = "http://localhost:5173";
 
 type Overrides = {
   now?: () => Date;
+  env?: Partial<Env>;
   models?: Partial<Models>;
   mailer?: Mailer;
   speech?: Speech;
@@ -119,6 +120,7 @@ export function makeApp({
   transcriber = fakeTranscriber(),
   schedule = fakeTimers().schedule,
   settings,
+  env,
 }: Overrides = {}) {
   return createApp({
     db: testDb,
@@ -141,6 +143,7 @@ export function makeApp({
       BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
       BETTER_AUTH_URL: "http://localhost:3000",
       WEB_ORIGIN,
+      ...env,
     },
   });
 }
