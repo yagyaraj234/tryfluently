@@ -50,3 +50,10 @@ export const assessmentsQuery = queryOptions({
   queryKey: ["assessments"],
   queryFn: () => json(api().api.assessments.$get(), "Assessments"),
 });
+
+/** Today's Roleplay voice budget: `limitMinutes`, `usedSeconds` and `remainingSeconds` (a live call included). */
+export const voiceMinutesQuery = queryOptions({
+  queryKey: ["voice-minutes"],
+  queryFn: () => json(api().api["voice-minutes"].$get(), "voice minutes"),
+  staleTime: 0,
+});

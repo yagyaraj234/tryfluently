@@ -22,7 +22,7 @@ const lessons = {
   speak: lesson("speak", { messages: [user("Let's start."), { id: "a1", role: "assistant", parts: [step("speakPrompt", speakPrompt)] }] }),
   rewrite: lesson("rewrite", { messages: [user("Let's start."), { id: "a1", role: "assistant", parts: [step("rewrite", rewrite)] }] }),
   done: lesson("done", { status: "completed" }),
-  roleplay: lesson("roleplay", { kind: "roleplay" }),
+  roleplay: lesson("roleplay", { kind: "roleplay", roleplayKind: "mock_interview", tone: "standard" }),
 };
 
 let web;
@@ -111,7 +111,7 @@ test("a Roleplay Lesson opens on the Roleplay screen", async () => {
   const response = await get("/lessons/roleplay");
   assert.equal(response.status, 307);
   assert.equal(new URL(response.headers.get("location"), web.url).pathname, "/roleplays/roleplay");
-  assert.match(text(await page("/roleplays/roleplay")), /Roleplay/);
+  assert.match(text(await page("/roleplays/roleplay")), /Mock Interview · Standard/);
 });
 
 test("closing the Lesson goes back to Home", async () => {
