@@ -72,6 +72,22 @@ describe("lesson judge", () => {
   });
 });
 
+describe("roadmap lessons", () => {
+  test("each Unit on the Roadmap lists its Lessons in order, with their status and objective progress", async () => {
+    const { app, clock } = judgedApp([judgeReply(65), judgeReply(50)]);
+    const { cookie } = await learnerWithRoadmap(clock);
+    const done = await doLesson(app, cookie, clock);
+    const open = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
+
+    const [first, second] = await roadmapOf(app, cookie);
+    expect(first.lessons).toEqual([
+      { id: done.id, position: 0, kind: "practice", title: "Lesson 1", status: "completed", objectiveProgress: 65 },
+      { id: open.id, position: 1, kind: "practice", title: "Lesson 2", status: "in_progress", objectiveProgress: null },
+    ]);
+    expect(second.lessons).toEqual([]);
+  });
+});
+
 describe("unit progression", () => {
   test("80+ in two Lessons in a row masters the Unit and activates the next one", async () => {
     const { app, clock } = judgedApp([judgeReply(85), judgeReply(80)]);

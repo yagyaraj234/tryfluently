@@ -47,7 +47,7 @@ test("only the current destination is marked", async () => {
 });
 
 test("destinations later tickets fill render a placeholder in the shell", async () => {
-  for (const [path, title] of [["/roadmap", "Roadmap"], ["/progress", "Progress"], ["/settings", "Settings"]]) {
+  for (const [path, title] of [["/progress", "Progress"], ["/settings", "Settings"]]) {
     assert.match(await page(path), new RegExp(`<h1[^>]*>${title}</h1>`));
   }
 });

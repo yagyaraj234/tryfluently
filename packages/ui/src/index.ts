@@ -28,6 +28,7 @@ export { SkillBar, type CefrLevel, type Skill, type SkillBarProps } from "./Skil
 export { Spinner, type SpinnerProps } from "./Spinner";
 export { Split, type SplitProps } from "./Split";
 export { Stack, type Gap, type StackProps } from "./Stack";
+export { StreakCard, type StreakCardProps } from "./StreakCard";
 export { StreakChip, type StreakChipProps } from "./StreakChip";
 export { Switch, type SwitchProps } from "./Switch";
 export { Text, type TextProps, type TextSize } from "./Text";
@@ -37,5 +38,6 @@ export { TextLink, type TextLinkProps } from "./TextLink";
 export { toastManager } from "./Toast";
 export { type ChoiceOption } from "./Field";
 export { UIProvider } from "./UIProvider";
+export { UnitCard, UnitStatusTag, type UnitCardProps, type UnitStatus, type UnitStatusTagProps } from "./UnitCard";
 export { VerdictTag, type VerdictTagProps } from "./VerdictTag";
 export { XpChip, type XpChipProps } from "./XpChip";
