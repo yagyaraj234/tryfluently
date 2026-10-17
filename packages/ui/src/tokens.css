@@ -71,6 +71,9 @@
   --almost-tint: color-mix(in oklab, var(--almost) 15%, var(--paper));
   --incorrect-tint: color-mix(in oklab, var(--incorrect) 15%, var(--paper));
 
+  /* Dims the page behind a dialog or sheet. Always dark, in either theme. */
+  --scrim: color-mix(in oklab, var(--gray-950) 50%, transparent);
+
   /* Type roles. Each size carries its line height, weight and tracking. */
   --font-sans: "Familjen Grotesk", system-ui, sans-serif;
   --font-weight-regular: 400;
