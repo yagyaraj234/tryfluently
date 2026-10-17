@@ -11,7 +11,7 @@ type Client = ReturnType<typeof api>["api"]["assessments"][":id"];
 export type Assessment = InferResponseType<Client["$get"], 200>;
 export type Report = Extract<InferResponseType<Client["end"]["$post"], 200>, { status: "completed" }>["report"];
 
-const LIMIT_MS = 10 * 60_000;
+export const LIMIT_MS = 10 * 60_000;
 const MIN_MS = 4 * 60_000;
 
 /** "9:05" */
