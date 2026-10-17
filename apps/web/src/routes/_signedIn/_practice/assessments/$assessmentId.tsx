@@ -9,6 +9,7 @@ import {
   RewriteStep,
   Spinner,
   Stack,
+  StepHeader,
   Text,
   TextArea,
 } from "@impromptu/ui";
@@ -96,12 +97,18 @@ function WrittenAssessment({ assessment }: { assessment: Assessment }) {
             const item = {
               answered: part.state === "output-available" ? part.output?.answer : undefined,
               pending: busy,
-              onAnswer: (answer: string) => answerStep(addToolOutput, part, answer),
+              onAnswer: (answer: string) => void answerStep({ addToolOutput, sendMessage }, part, answer),
             };
             return part.type === "tool-fillGap" ? (
-              <FillGapStep key={key} label="Fill the gap" sentence={part.input.sentence} choices={part.input.choices} {...item} />
+              <Stack key={key} gap={5}>
+                <StepHeader type="Fill the gap" question="Complete the sentence." />
+                <FillGapStep sentence={part.input.sentence} choices={part.input.choices} {...item} />
+              </Stack>
             ) : (
-              <RewriteStep key={key} label="Rewrite" sentence={part.input.sentence} aim={part.input.aim} {...item} />
+              <Stack key={key} gap={5}>
+                <StepHeader type="Rewrite" question={part.input.aim} />
+                <RewriteStep sentence={part.input.sentence} {...item} />
+              </Stack>
             );
           }),
         )}

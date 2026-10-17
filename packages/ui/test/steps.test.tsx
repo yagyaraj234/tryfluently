@@ -1,40 +1,111 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ChatTurn, FillGapStep, RewriteStep, StepHeader } from "@impromptu/ui";
+import { ChatTurn, FillGapStep, RewriteStep, StepFeedback, StepHeader, VocabCardStep } from "@impromptu/ui";
+
+const type = (name: string, value: string) => fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } });
+const sendButton = () => screen.getByRole("button", { name: "Send answer" }) as HTMLButtonElement;
+const send = () => fireEvent.click(sendButton());
 
 describe("StepHeader", () => {
-  test("shows the label and the question as a heading", () => {
-    render(<StepHeader label="Rewrite · Step 4 of ~7" question="Make it more polite." />);
+  test("in a Lesson, labels the Step with its type and position, and asks the question as a heading", () => {
+    render(<StepHeader type="Rewrite" progress={{ position: 4, total: 7 }} question="Make it sound more natural" />);
     expect(screen.getByText("Rewrite · Step 4 of ~7")).toBeDefined();
-    expect(screen.getByRole("heading", { name: "Make it more polite." })).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Make it sound more natural" })).toBeDefined();
+  });
+
+  test("shows progress as the Steps finished before this one", () => {
+    render(<StepHeader type="Rewrite" progress={{ position: 4, total: 7 }} question="Q" />);
+    const bar = screen.getByRole("progressbar", { name: "Rewrite · Step 4 of ~7" });
+    expect(bar.getAttribute("aria-valuenow")).toBe("3");
+    expect(bar.getAttribute("aria-valuemax")).toBe("7");
+  });
+
+  test("without progress, shows only the type and the question", () => {
+    render(<StepHeader type="Fill the gap" question="Complete the sentence." />);
+    expect(screen.getByText("Fill the gap")).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Complete the sentence." })).toBeDefined();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  });
+});
+
+describe("RewriteStep", () => {
+  const input = { sentence: "I am very very happy with the result.", aim: "Replace 'very very'." };
+
+  test("quotes the original sentence and sends the Learner's version, trimmed", () => {
+    const onAnswer = mock();
+    render(<RewriteStep {...input} onAnswer={onAnswer} />);
+    expect(screen.getByText(input.sentence).closest("blockquote")).not.toBeNull();
+    expect(sendButton().disabled).toBe(true);
+    type("Your version", "  I'm delighted with the result. ");
+    send();
+    expect(onAnswer).toHaveBeenCalledWith("I'm delighted with the result.");
+  });
+
+  test("doesn't send an empty answer", () => {
+    const onAnswer = mock();
+    render(<RewriteStep {...input} onAnswer={onAnswer} />);
+    type("Your version", "   ");
+    send();
+    expect(onAnswer).not.toHaveBeenCalled();
+  });
+
+  test("can't be sent again while the answer is being sent", () => {
+    const onAnswer = mock();
+    render(<RewriteStep {...input} onAnswer={onAnswer} pending />);
+    type("Your version", "Better.");
+    send();
+    expect(onAnswer).not.toHaveBeenCalled();
+  });
+
+  test("once answered, it shows the Learner's version instead of the answer box", () => {
+    render(<RewriteStep {...input} answered="Could you send it?" onAnswer={() => {}} />);
+    expect(screen.getByText("Could you send it?")).toBeDefined();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("VocabCardStep", () => {
+  const input = { word: "deadline", meaning: "the time by which something must be done", example: "The deadline is Friday." };
+
+  test("shows the word, its meaning and an example, then sends the Learner's own sentence", () => {
+    const onAnswer = mock();
+    render(<VocabCardStep {...input} onAnswer={onAnswer} />);
+    expect(screen.getByRole("heading", { name: "deadline" })).toBeDefined();
+    expect(screen.getByText(input.meaning)).toBeDefined();
+    expect(screen.getByText(input.example)).toBeDefined();
+    type("Your sentence", "We missed the deadline.");
+    send();
+    expect(onAnswer).toHaveBeenCalledWith("We missed the deadline.");
   });
 });
 
 describe("FillGapStep", () => {
-  const sentence = "I ___ here since 2020.";
-
-  test("with choices, the Learner picks one and sends it", () => {
-    const answers: string[] = [];
-    render(<FillGapStep label="Fill the gap" sentence={sentence} choices={["work", "have worked"]} onAnswer={(a) => answers.push(a)} />);
-    const send = screen.getByRole("button", { name: "Send answer" }) as HTMLButtonElement;
-    expect(send.disabled).toBe(true);
-    fireEvent.click(screen.getByRole("radio", { name: "have worked" }));
-    // The chosen words fill the gap.
-    expect(screen.getByText("have worked", { selector: "mark" })).toBeDefined();
-    fireEvent.click(send);
-    expect(answers).toEqual(["have worked"]);
+  test("with choices, the picked chip fills the gap in the sentence and is sent", () => {
+    const onAnswer = mock();
+    // The app passes the Step's input straight through, answer key included.
+    const input = { sentence: "She ___ to work every day.", answer: "goes", choices: ["go", "goes", "going"] };
+    const { container } = render(<FillGapStep {...input} onAnswer={onAnswer} />);
+    expect(container.textContent).toContain("She blank to work every day.");
+    expect(sendButton().disabled).toBe(true);
+    fireEvent.click(screen.getByRole("radio", { name: "goes" }));
+    expect(screen.getByText("goes", { selector: "mark" })).toBeDefined();
+    send();
+    expect(onAnswer).toHaveBeenCalledWith("goes");
   });
 
-  test("without choices, the Learner types the missing words", () => {
-    const answers: string[] = [];
-    render(<FillGapStep label="Fill the gap" sentence={sentence} onAnswer={(a) => answers.push(a)} />);
-    fireEvent.change(screen.getByRole("textbox", { name: "Your answer" }), { target: { value: "  have worked " } });
-    fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
-    expect(answers).toEqual(["have worked"]);
+  test("without choices, the Learner types the missing words, and the answer key is never shown", () => {
+    const onAnswer = mock();
+    const input = { sentence: "They ___ football.", answer: "play" };
+    const { container } = render(<FillGapStep {...input} onAnswer={onAnswer} />);
+    expect(container.textContent).not.toContain("play");
+    type("Your answer", " play ");
+    send();
+    expect(onAnswer).toHaveBeenCalledWith("play");
   });
 
   test("once answered, it shows the answer and no verdict, and can't be answered again", () => {
-    render(<FillGapStep label="Fill the gap" sentence={sentence} choices={["work", "have worked"]} answered="work" onAnswer={() => {}} />);
+    render(<FillGapStep sentence="I ___ here since 2020." choices={["work", "have worked"]} answered="work" onAnswer={() => {}} />);
     expect(screen.getByText("work", { selector: "mark" })).toBeDefined();
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByRole("radio")).toBeNull();
@@ -42,29 +113,38 @@ describe("FillGapStep", () => {
   });
 
   test("while sending, the button is disabled", () => {
-    render(<FillGapStep label="Fill the gap" sentence={sentence} pending onAnswer={() => {}} />);
-    expect((screen.getByRole("button", { name: "Send answer" }) as HTMLButtonElement).disabled).toBe(true);
+    render(<FillGapStep sentence="I ___ here." pending onAnswer={() => {}} />);
+    type("Your answer", "work");
+    expect(sendButton().disabled).toBe(true);
   });
 });
 
-describe("RewriteStep", () => {
-  test("quotes the sentence, asks for the aim and sends the Learner's version", () => {
-    const answers: string[] = [];
-    render(<RewriteStep label="Rewrite" sentence="Send me the file." aim="Make it more polite." onAnswer={(a) => answers.push(a)} />);
-    expect(screen.getByRole("heading", { name: "Make it more polite." })).toBeDefined();
-    expect(screen.getByText("Send me the file.").closest("blockquote")).not.toBeNull();
-    const send = screen.getByRole("button", { name: "Send answer" }) as HTMLButtonElement;
-    expect(send.disabled).toBe(true);
-    fireEvent.change(screen.getByRole("textbox", { name: "Your version" }), { target: { value: "Could you send me the file?" } });
-    fireEvent.click(send);
-    expect(answers).toEqual(["Could you send me the file?"]);
+describe("StepFeedback", () => {
+  const feedback = { corrected: "She goes to work every day.", explanation: "Use -s with he, she and it." };
+
+  test("announces the verdict as a word, with the Learner's answer, the corrected version and the explanation", () => {
+    render(<StepFeedback verdict="almost" answer="She go to work." {...feedback} onNext={() => {}} />);
+    const panel = screen.getByRole("status");
+    expect(panel.textContent).toContain("Almost");
+    expect(panel.textContent).toContain("She go to work.");
+    expect(screen.getByText(feedback.corrected).tagName).toBe("STRONG");
+    expect(panel.textContent).toContain(feedback.explanation);
   });
 
-  test("once answered, it shows the Learner's version instead of the answer box", () => {
-    render(<RewriteStep label="Rewrite" sentence="Send me the file." aim="Polite" answered="Could you send it?" onAnswer={() => {}} />);
-    expect(screen.getByText("Could you send it?")).toBeDefined();
-    expect(screen.queryByRole("textbox")).toBeNull();
-    expect(screen.queryByRole("button")).toBeNull();
+  test("each verdict has its own tint", () => {
+    const tints = (["correct", "almost", "incorrect"] as const).map(
+      (verdict) => render(<StepFeedback verdict={verdict} {...feedback} onNext={() => {}} />).container.firstElementChild!.className,
+    );
+    expect(new Set(tints).size).toBe(3);
+  });
+
+  test("moves on with the next button, labelled 'Next step' unless told otherwise", () => {
+    const onNext = mock();
+    render(<StepFeedback verdict="correct" {...feedback} onNext={onNext} />);
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(onNext).toHaveBeenCalledTimes(1);
+    render(<StepFeedback verdict="correct" {...feedback} onNext={onNext} nextLabel="See results" />);
+    expect(screen.getByRole("button", { name: "See results" })).toBeDefined();
   });
 });
 

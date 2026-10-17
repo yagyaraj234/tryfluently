@@ -2,7 +2,22 @@ export { AppShell, type AppShellDestination, type AppShellProps } from "./AppShe
 export { Button, type ButtonProps } from "./Button";
 export { Card, type CardProps } from "./Card";
 export { CefrScale, type CefrScaleProps } from "./CefrScale";
-export { ChatTurn, FillGapStep, RewriteStep, StepHeader, type ChatTurnProps, type FillGapStepProps, type RewriteStepProps, type StepHeaderProps } from "./Steps";
+export {
+  AnswerBox,
+  ChatTurn,
+  FillGapStep,
+  RewriteStep,
+  StepFeedback,
+  StepHeader,
+  VocabCardStep,
+  type AnswerBoxProps,
+  type ChatTurnProps,
+  type FillGapStepProps,
+  type RewriteStepProps,
+  type StepFeedbackProps,
+  type StepHeaderProps,
+  type VocabCardStepProps,
+} from "./Steps";
 export { Chip, type ChipProps } from "./Chip";
 export { ChoiceChips, type ChoiceChipsProps } from "./ChoiceChips";
 export { Cluster, type ClusterProps } from "./Cluster";
@@ -12,6 +27,7 @@ export { EmptyState, ErrorState, LoadingState, type EmptyStateProps, type ErrorS
 export { FocusItemCard, type FocusItemCardProps } from "./FocusItemCard";
 export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
+export { LessonComplete, type LessonCompleteProps } from "./LessonComplete";
 export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Meter, type MeterProps } from "./Meter";
 export { Notice, type NoticeProps } from "./Notice";
