@@ -26,6 +26,7 @@ import { Route as SignedInAppRoadmapUnitIdRouteImport } from './routes/_signedIn
 import { Route as SignedInPracticeAssessmentsAssessmentIdRouteImport } from './routes/_signedIn/_practice/assessments/$assessmentId'
 import { Route as SignedInPracticeLessonsLessonIdRouteImport } from './routes/_signedIn/_practice/lessons/$lessonId'
 import { Route as SignedInPracticeRoleplaysRoleplayIdRouteImport } from './routes/_signedIn/_practice/roleplays/$roleplayId'
+import { Route as SignedInPracticeRoleplaysNewRouteImport } from './routes/_signedIn/_practice/roleplays/new'
 import { Route as SignedInAssessmentsAssessmentIdReportRouteImport } from './routes/_signedIn/assessments/$assessmentId.report'
 
 const SignedInRoute = SignedInRouteImport.update({
@@ -114,6 +115,12 @@ const SignedInPracticeRoleplaysRoleplayIdRoute =
     path: '/roleplays/$roleplayId',
     getParentRoute: () => SignedInPracticeRoute,
   } as any)
+const SignedInPracticeRoleplaysNewRoute =
+  SignedInPracticeRoleplaysNewRouteImport.update({
+    id: '/roleplays/new',
+    path: '/roleplays/new',
+    getParentRoute: () => SignedInPracticeRoute,
+  } as any)
 const SignedInAssessmentsAssessmentIdReportRoute =
   SignedInAssessmentsAssessmentIdReportRouteImport.update({
     id: '/assessments/$assessmentId/report',
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
   '/lessons/$lessonId': typeof SignedInPracticeLessonsLessonIdRoute
   '/roleplays/$roleplayId': typeof SignedInPracticeRoleplaysRoleplayIdRoute
+  '/roleplays/new': typeof SignedInPracticeRoleplaysNewRoute
   '/assessments/$assessmentId/report': typeof SignedInAssessmentsAssessmentIdReportRoute
   '/roadmap/': typeof SignedInAppRoadmapIndexRoute
 }
@@ -152,6 +160,7 @@ export interface FileRoutesByTo {
   '/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
   '/lessons/$lessonId': typeof SignedInPracticeLessonsLessonIdRoute
   '/roleplays/$roleplayId': typeof SignedInPracticeRoleplaysRoleplayIdRoute
+  '/roleplays/new': typeof SignedInPracticeRoleplaysNewRoute
   '/assessments/$assessmentId/report': typeof SignedInAssessmentsAssessmentIdReportRoute
   '/roadmap': typeof SignedInAppRoadmapIndexRoute
 }
@@ -173,6 +182,7 @@ export interface FileRoutesById {
   '/_signedIn/_practice/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
   '/_signedIn/_practice/lessons/$lessonId': typeof SignedInPracticeLessonsLessonIdRoute
   '/_signedIn/_practice/roleplays/$roleplayId': typeof SignedInPracticeRoleplaysRoleplayIdRoute
+  '/_signedIn/_practice/roleplays/new': typeof SignedInPracticeRoleplaysNewRoute
   '/_signedIn/assessments/$assessmentId/report': typeof SignedInAssessmentsAssessmentIdReportRoute
   '/_signedIn/_app/roadmap/': typeof SignedInAppRoadmapIndexRoute
 }
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/assessments/$assessmentId'
     | '/lessons/$lessonId'
     | '/roleplays/$roleplayId'
+    | '/roleplays/new'
     | '/assessments/$assessmentId/report'
     | '/roadmap/'
   fileRoutesByTo: FileRoutesByTo
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/assessments/$assessmentId'
     | '/lessons/$lessonId'
     | '/roleplays/$roleplayId'
+    | '/roleplays/new'
     | '/assessments/$assessmentId/report'
     | '/roadmap'
   id:
@@ -229,6 +241,7 @@ export interface FileRouteTypes {
     | '/_signedIn/_practice/assessments/$assessmentId'
     | '/_signedIn/_practice/lessons/$lessonId'
     | '/_signedIn/_practice/roleplays/$roleplayId'
+    | '/_signedIn/_practice/roleplays/new'
     | '/_signedIn/assessments/$assessmentId/report'
     | '/_signedIn/_app/roadmap/'
   fileRoutesById: FileRoutesById
@@ -361,6 +374,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignedInPracticeRoleplaysRoleplayIdRouteImport
       parentRoute: typeof SignedInPracticeRoute
     }
+    '/_signedIn/_practice/roleplays/new': {
+      id: '/_signedIn/_practice/roleplays/new'
+      path: '/roleplays/new'
+      fullPath: '/roleplays/new'
+      preLoaderRoute: typeof SignedInPracticeRoleplaysNewRouteImport
+      parentRoute: typeof SignedInPracticeRoute
+    }
     '/_signedIn/assessments/$assessmentId/report': {
       id: '/_signedIn/assessments/$assessmentId/report'
       path: '/assessments/$assessmentId/report'
@@ -395,6 +415,7 @@ interface SignedInPracticeRouteChildren {
   SignedInPracticeAssessmentsAssessmentIdRoute: typeof SignedInPracticeAssessmentsAssessmentIdRoute
   SignedInPracticeLessonsLessonIdRoute: typeof SignedInPracticeLessonsLessonIdRoute
   SignedInPracticeRoleplaysRoleplayIdRoute: typeof SignedInPracticeRoleplaysRoleplayIdRoute
+  SignedInPracticeRoleplaysNewRoute: typeof SignedInPracticeRoleplaysNewRoute
 }
 
 const SignedInPracticeRouteChildren: SignedInPracticeRouteChildren = {
@@ -403,6 +424,7 @@ const SignedInPracticeRouteChildren: SignedInPracticeRouteChildren = {
   SignedInPracticeLessonsLessonIdRoute: SignedInPracticeLessonsLessonIdRoute,
   SignedInPracticeRoleplaysRoleplayIdRoute:
     SignedInPracticeRoleplaysRoleplayIdRoute,
+  SignedInPracticeRoleplaysNewRoute: SignedInPracticeRoleplaysNewRoute,
 }
 
 const SignedInPracticeRouteWithChildren =

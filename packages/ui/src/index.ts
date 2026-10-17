@@ -28,6 +28,7 @@ export { Chip, type ChipProps } from "./Chip";
 export { ChoiceChips, type ChoiceChipsProps } from "./ChoiceChips";
 export { Cluster, type ClusterProps } from "./Cluster";
 export { Container, type ContainerProps } from "./Container";
+export { Debrief, type DebriefProps, type DebriefQuestion } from "./Debrief";
 export { Dialog, type DialogProps } from "./Dialog";
 export { EmptyState, ErrorState, LoadingState, type EmptyStateProps, type ErrorStateProps, type LoadingStateProps } from "./States";
 export { FocusItemCard, type FocusItemCardProps } from "./FocusItemCard";

@@ -158,4 +158,13 @@ describe("ChatTurn", () => {
     );
     expect(container.textContent).toBe("Coach: What do you do?You: I'm a nurse.");
   });
+
+  test("names the character the coach plays in a Roleplay", () => {
+    const { container } = render(
+      <ChatTurn from="coach" name="Interviewer">
+        Tell me about yourself.
+      </ChatTurn>,
+    );
+    expect(container.textContent).toBe("Interviewer: Tell me about yourself.");
+  });
 });
