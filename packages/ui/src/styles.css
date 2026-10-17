@@ -100,6 +100,9 @@
   --shadow-pop: var(--shadow-pop);
   --shadow-press: var(--shadow-press);
   --shadow-card: var(--card-shadow);
+  --translate-press: var(--press-offset);
+  --min-height-target: var(--size-target);
+  --size-target: var(--size-target);
   --transition-duration-press: var(--duration-press);
   --transition-duration-ui: var(--duration-ui);
   --ease-press: var(--ease-press);
