@@ -1,14 +1,19 @@
+import { Meter } from "@base-ui/react/meter";
 import { Progress } from "@base-ui/react/progress";
+import { SpeakerHigh } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { ChoiceChips } from "./ChoiceChips";
 import { Heading } from "./Heading";
+import { Notice } from "./Notice";
 import { labelledBarParts } from "./ProgressBar";
+import { RecordButton } from "./RecordButton";
 import { Text } from "./Text";
 import { TextArea } from "./TextArea";
 import { TextField } from "./TextField";
+import { TextLink } from "./TextLink";
 import { VerdictTag, type VerdictTagProps } from "./VerdictTag";
 
 // The Step parts shared by the Lesson player and the Written Assessment.
@@ -118,17 +123,21 @@ export function RewriteStep({ sentence, onAnswer, pending, answered }: RewriteSt
   );
 }
 
-const word = cva("flex flex-col gap-2");
+const word = cva("flex flex-col items-start gap-2");
 
 export type VocabCardStepProps = Answerable & {
   word: string;
   meaning: string;
   /** An example sentence using the word. */
   example: string;
+  /** Plays the word's Reference Pronunciation. Without it there's no "Hear it" button. */
+  onHearIt?: () => void;
+  /** Lets the Learner record their sentence instead of typing it. */
+  voice?: VoiceProps;
 };
 
 /** A vocabCard Step: the word on a card with its meaning and an example, then the Learner's own sentence. */
-export function VocabCardStep({ word: w, meaning, example, onAnswer, pending, answered }: VocabCardStepProps) {
+export function VocabCardStep({ word: w, meaning, example, onHearIt, voice, ...answer }: VocabCardStepProps) {
   return (
     <div className={stack()}>
       <Card>
@@ -136,12 +145,25 @@ export function VocabCardStep({ word: w, meaning, example, onAnswer, pending, an
           <Heading level={3} size="heading">
             {w}
           </Heading>
+          {onHearIt && <HearIt onClick={onHearIt} />}
           <Text>{meaning}</Text>
           <Text tone="muted">{example}</Text>
         </div>
       </Card>
-      <AnswerBox label="Your sentence" onAnswer={onAnswer} pending={pending} answered={answered} />
+      {voice ? (
+        <VoiceAnswer label="Your sentence" prefer="text" {...voice} {...answer} />
+      ) : (
+        <AnswerBox label="Your sentence" {...answer} />
+      )}
     </div>
+  );
+}
+
+function HearIt({ onClick }: { onClick: () => void }) {
+  return (
+    <Button variant="secondary" icon={SpeakerHigh} onClick={onClick}>
+      Hear it
+    </Button>
   );
 }
 
@@ -192,30 +214,183 @@ const panel = cva("flex flex-col items-start gap-3 rounded-md border-2 border-li
   },
 });
 const corrected = cva("text-body font-bold");
+const actions = cva("flex flex-wrap gap-3");
 
 export type StepFeedbackProps = {
   verdict: VerdictTagProps["verdict"];
   /** The Learner's answer, to compare with the corrected version. */
   answer?: string;
+  /** The answer was recorded, so it's quoted as what the Learner said. */
+  spoken?: boolean;
   corrected: string;
   /** One sentence on why. Left out when empty. */
   explanation: string;
   onNext: () => void;
   /** @default "Next step" */
   nextLabel?: string;
+  /** Plays the corrected version's Reference Pronunciation. Without it there's no "Hear it" button. */
+  onHearIt?: () => void;
 };
 
 /** The feedback on an answered Step: the verdict as a word on its tint, the corrected version and why. */
-export function StepFeedback({ verdict, answer, corrected: fixed, explanation, onNext, nextLabel = "Next step" }: StepFeedbackProps) {
+export function StepFeedback({
+  verdict,
+  answer,
+  spoken,
+  corrected: fixed,
+  explanation,
+  onNext,
+  nextLabel = "Next step",
+  onHearIt,
+}: StepFeedbackProps) {
   return (
     <div role="status" className={panel({ verdict })}>
       <VerdictTag verdict={verdict} />
-      {answer && <Text tone="muted">{`You wrote: ${answer}`}</Text>}
+      {answer && <Text tone="muted">{`${spoken ? "You said" : "You wrote"}: ${answer}`}</Text>}
       <strong className={corrected()}>{fixed}</strong>
       {explanation && <Text size="caption">{explanation}</Text>}
-      <Button onClick={onNext}>{nextLabel}</Button>
+      <div className={actions()}>
+        {onHearIt && <HearIt onClick={onHearIt} />}
+        <Button onClick={onNext}>{nextLabel}</Button>
+      </div>
     </div>
   );
+}
+
+/** Where a recorded answer is. The app's recorder reports it; the component only shows it. */
+export type RecordingState =
+  | { status: "idle" }
+  | { status: "recording"; seconds: number; level: number }
+  | { status: "processing" }
+  /** The transcript is back. */
+  | { status: "done"; text: string }
+  /** `failed`: the upload or transcription failed, and can be retried. `silent`: nothing could be heard. */
+  | { status: "failed"; reason: "failed" | "silent" }
+  /** The Learner answers in text: today's recorded minutes are used up, or there's no microphone to use. */
+  | { status: "unavailable"; reason: "capped" | "denied" | "no-microphone" | "unsupported" };
+
+/** A recorder, as a Step takes it. */
+export type VoiceProps = {
+  recording: RecordingState;
+  onStart: () => void;
+  onStop: () => void;
+  /** Sends the last recording again, after it `failed`. */
+  onRetry: () => void;
+};
+
+const unavailable: Record<Extract<RecordingState, { status: "unavailable" }>["reason"], string> = {
+  capped: "You've used today's recorded minutes. Answer in text for now; recording opens again tomorrow.",
+  denied: "Impromptu isn't allowed to use your microphone. Allow it in your browser's site settings to record, or answer in text.",
+  "no-microphone": "We couldn't find a microphone to record with. Connect one to record, or answer in text.",
+  unsupported: "This browser can't record audio. Answer in text, or try another browser.",
+};
+
+const recorder = cva("flex flex-col items-center gap-4 text-center");
+const problem = cva("flex flex-col items-start gap-3 text-left");
+const live = cva("flex w-full flex-col items-center gap-2");
+const liveLabel = cva("text-label uppercase text-live");
+const timer = cva("text-title tabular-nums text-live");
+const level = cva("w-full max-w-prose");
+const levelTrack = cva("h-2 overflow-hidden rounded-pill border-2 border-line bg-subtle");
+const levelBar = cva("block h-full bg-live");
+const said = cva("flex flex-col gap-2");
+
+const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+
+export type VoiceAnswerProps = Answerable &
+  VoiceProps & {
+    /** The answer box's label, when the Learner types instead. @default "Your answer" */
+    label?: string;
+    /** Start with the answer box rather than the record button. @default "voice" */
+    prefer?: "voice" | "text";
+    /** Shown above the record button, for example the target length. */
+    hint?: ReactNode;
+    /** The length to aim for, shown against the time so far while recording. */
+    targetSeconds?: number;
+  };
+
+/**
+ * An answer the Learner records, with "Type instead". At the recorded-minutes cap, or without a usable
+ * microphone, it explains why and switches to text.
+ */
+export function VoiceAnswer({ recording, onStart, onStop, onRetry, label, prefer = "voice", hint, targetSeconds, ...answer }: VoiceAnswerProps) {
+  const [typing, setTyping] = useState(prefer === "text");
+  if (answer.answered !== undefined) return <Text>{answer.answered}</Text>;
+
+  if (recording.status === "done")
+    return (
+      <div className={said()}>
+        <Text size="label" tone="muted">
+          You said
+        </Text>
+        <Text>{recording.text}</Text>
+      </div>
+    );
+
+  if (recording.status === "unavailable")
+    return (
+      <div className={form()}>
+        <Notice tone="info">{unavailable[recording.reason]}</Notice>
+        <AnswerBox label={label} {...answer} />
+      </div>
+    );
+
+  if (typing)
+    return (
+      <div className={form()}>
+        <AnswerBox label={label} {...answer} />
+        <div>
+          <TextLink onClick={() => setTyping(false)}>Record instead</TextLink>
+        </div>
+      </div>
+    );
+
+  const state = recording.status === "recording" || recording.status === "processing" ? recording.status : "idle";
+  return (
+    <div className={recorder()}>
+      {recording.status === "failed" && (
+        <Notice tone="error">
+          {recording.reason === "silent" ? (
+            "We couldn't hear anything in that recording. Check your microphone and record again."
+          ) : (
+            <span className={problem()}>
+              Your recording couldn't be turned into text.
+              <Button variant="secondary" onClick={onRetry}>
+                Try again
+              </Button>
+            </span>
+          )}
+        </Notice>
+      )}
+      {state === "idle" && hint}
+      <RecordButton state={state} onStart={onStart} onStop={onStop} />
+      {recording.status === "recording" && (
+        <div className={live()}>
+          <p role="status" className={liveLabel()}>
+            Recording
+          </p>
+          <span className={timer()}>{targetSeconds ? `${clock(recording.seconds)} / ${clock(targetSeconds)}` : clock(recording.seconds)}</span>
+          <Meter.Root value={Math.round(recording.level * 100)} aria-label="Microphone level" className={level()}>
+            <Meter.Track className={levelTrack()}>
+              <Meter.Indicator className={levelBar()} />
+            </Meter.Track>
+          </Meter.Root>
+        </div>
+      )}
+      {recording.status === "processing" && <p role="status">Turning your answer into text</p>}
+      {state === "idle" && <TextLink onClick={() => setTyping(true)}>Type instead</TextLink>}
+    </div>
+  );
+}
+
+export type SpeakPromptStepProps = Omit<VoiceAnswerProps, "hint" | "prefer" | "targetSeconds"> & {
+  /** How long to aim for. */
+  targetSeconds: number;
+};
+
+/** A speakPrompt Step: the Learner records a long answer to the StepHeader question, or types instead. */
+export function SpeakPromptStep({ targetSeconds, ...props }: SpeakPromptStepProps) {
+  return <VoiceAnswer {...props} targetSeconds={targetSeconds} hint={<Text tone="muted">{`Aim for about ${targetSeconds} seconds`}</Text>} />;
 }
 
 const turn = cva("max-w-prose text-body text-ink", {

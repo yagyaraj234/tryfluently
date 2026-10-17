@@ -8,6 +8,7 @@ const feedback = { type: "tool-giveFeedback", toolCallId: "c-fb", state: "output
 
 const fillGap = { sentence: "They ___ football on Sundays.", answer: "play" };
 const vocabCard = { word: "deadline", meaning: "the time by which something must be done", example: "The deadline is Friday." };
+const speakPrompt = { question: "Tell me about the team you lead.", targetSeconds: 60 };
 const rewrite = { sentence: "I am very very happy with the result.", aim: "Sound more natural by replacing 'very very'." };
 
 const lesson = (id, over) => ({ id, kind: "practice", status: "in_progress", title: "Present simple", objective: "Use present simple", messages: [], steps: [], ...over });
@@ -18,6 +19,7 @@ const lessons = {
     messages: [user("Let's start."), { id: "a1", role: "assistant", parts: [step("vocabCard", vocabCard, "output-available", { answer: "We met the deadline." }), feedback, step("fillGap", fillGap)] }],
   }),
   vocab: lesson("vocab", { messages: [user("Let's start."), { id: "a1", role: "assistant", parts: [step("vocabCard", vocabCard)] }] }),
+  speak: lesson("speak", { messages: [user("Let's start."), { id: "a1", role: "assistant", parts: [step("speakPrompt", speakPrompt)] }] }),
   rewrite: lesson("rewrite", { messages: [user("Let's start."), { id: "a1", role: "assistant", parts: [step("rewrite", rewrite)] }] }),
   done: lesson("done", { status: "completed" }),
   roleplay: lesson("roleplay", { kind: "roleplay" }),
@@ -71,6 +73,23 @@ test("a vocabCard Step shows the word, meaning and example, and asks for the Lea
   assert.match(html, /<h3[^>]*>deadline<\/h3>/);
   assert.match(t, /the time by which something must be done/);
   assert.match(t, /Your sentence/);
+});
+
+test("a vocabCard Step can play the word's Reference Pronunciation and be recorded instead", async () => {
+  const t = text(await page("/lessons/vocab"));
+  assert.match(t, /Hear it/);
+  assert.match(t, /Record instead/);
+});
+
+test("a speakPrompt Step is answered by recording, with the target length and Type instead", async () => {
+  const html = await page("/lessons/speak");
+  const t = text(html);
+  assert.match(t, /Speak · Step 1 of ~5/);
+  assert.match(html, /<h2[^>]*>Tell me about the team you lead\.<\/h2>/);
+  assert.match(t, /Aim for about 60 seconds/);
+  assert.match(html, /aria-label="Start recording"/);
+  assert.match(t, /Type instead/);
+  assert.doesNotMatch(t, /Your answer/, "the answer box waits for Type instead");
 });
 
 test("a rewrite Step asks the aim and quotes the sentence to improve", async () => {

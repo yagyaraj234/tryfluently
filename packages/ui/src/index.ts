@@ -7,16 +7,22 @@ export {
   ChatTurn,
   FillGapStep,
   RewriteStep,
+  SpeakPromptStep,
   StepFeedback,
   StepHeader,
   VocabCardStep,
+  VoiceAnswer,
   type AnswerBoxProps,
   type ChatTurnProps,
   type FillGapStepProps,
+  type RecordingState,
   type RewriteStepProps,
+  type SpeakPromptStepProps,
   type StepFeedbackProps,
   type StepHeaderProps,
   type VocabCardStepProps,
+  type VoiceAnswerProps,
+  type VoiceProps,
 } from "./Steps";
 export { Chip, type ChipProps } from "./Chip";
 export { ChoiceChips, type ChoiceChipsProps } from "./ChoiceChips";
@@ -35,6 +41,7 @@ export { Notice, type NoticeProps } from "./Notice";
 export { OfflineBanner } from "./OfflineBanner";
 export { PracticeShell, type PracticeShellProps } from "./PracticeShell";
 export { ProgressBar, type ProgressBarProps } from "./ProgressBar";
+export { RecordButton, type RecordButtonProps } from "./RecordButton";
 export { ReportStrengths, ReportWeakness, type ReportStrengthsProps, type ReportWeaknessProps } from "./Report";
 export { ScoreHistory, type ScoreHistoryEntry, type ScoreHistoryProps } from "./ScoreHistory";
 export { Screen, type ScreenProps } from "./Screen";

@@ -127,6 +127,7 @@
   --press-offset: 3px; /* a pressed button moves by its shadow, like a physical key */
   --shadow-press: var(--press-offset) var(--press-offset) 0 var(--ink);
   --size-target: 2.75rem; /* 44px, the smallest touch target */
+  --size-record: 4.5rem; /* 72px, the record button */
 
   /* Motion. */
   --duration-press: 80ms;

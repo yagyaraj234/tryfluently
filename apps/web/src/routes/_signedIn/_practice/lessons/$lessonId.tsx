@@ -1,29 +1,32 @@
 import { useChat } from "@ai-sdk/react";
 import {
-  AnswerBox,
   Button,
   ErrorState,
   FillGapStep,
   LessonComplete,
   LoadingState,
   RewriteStep,
+  SpeakPromptStep,
   Stack,
   StepFeedback,
   StepHeader,
   Text,
+  toastManager,
   VocabCardStep,
   type FillGapStepProps,
   type RewriteStepProps,
   type VocabCardStepProps,
+  type VoiceProps,
 } from "@impromptu/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import type { ToolUIPart, UIMessage } from "ai";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../../../api";
 import { answerStep, chatOptions } from "../../../../chat";
 import { lessonRoute, useNextLesson } from "../../../../lessons";
 import { progressQuery, roadmapQuery } from "../../../../queries";
+import { canHear, hearIt, useRecorder } from "../../../../voice";
 
 async function fetchLesson(id: string) {
   const response = await api().api.lessons[":id"].$get({ param: { id } });
@@ -60,18 +63,21 @@ function LessonScreen() {
 
 // ---- Step types --------------------------------------------------------------------------------------------------
 // Each Step type's header and body. The app passes the Step's input straight through.
-// #92 replaces speakPrompt (and adds recording to vocabCard) here; nothing else in the player changes.
 
-// A recorded answer (#92) is sent as `{ recordingId }`; see answerStep.
-type Answer = { onAnswer: (answer: string | { recordingId: string }) => void; pending: boolean };
-type StepKind<I> = { type: string; question: (input: I) => string; render: (input: I, answer: Answer) => ReactNode };
+// A typed answer. A recorded one goes through `voice` and is sent as `{ recordingId }`; see answerStep.
+type Answer = { onAnswer: (answer: string) => void; pending: boolean; answered?: string };
+type StepKind<I> = { type: string; question: (input: I) => string; render: (input: I, answer: Answer, voice: VoiceProps) => ReactNode };
 const kind = <I,>(k: StepKind<I>) => k as StepKind<unknown>;
+
+/** Plays a Reference Pronunciation, with a toast if it can't. */
+const play = (text: string) =>
+  hearIt(text).catch(() => toastManager.add({ title: "The audio couldn't be played", description: "Try again in a moment." }));
 
 const stepKinds: Record<string, StepKind<unknown>> = {
   vocabCard: kind<Omit<VocabCardStepProps, keyof Answer>>({
     type: "New word",
     question: (input) => `Use "${input.word}" in a sentence of your own`,
-    render: (input, answer) => <VocabCardStep {...input} {...answer} />,
+    render: (input, answer, voice) => <VocabCardStep {...input} {...answer} voice={voice} onHearIt={() => void play(input.word)} />,
   }),
   fillGap: kind<Omit<FillGapStepProps, keyof Answer>>({
     type: "Fill the gap",
@@ -83,11 +89,10 @@ const stepKinds: Record<string, StepKind<unknown>> = {
     question: (input) => input.aim,
     render: (input, answer) => <RewriteStep {...input} {...answer} />,
   }),
-  // Until #92 adds recording, a speakPrompt is answered in writing.
-  speakPrompt: kind<{ question: string }>({
+  speakPrompt: kind<{ question: string; targetSeconds: number }>({
     type: "Speak",
     question: (input) => input.question,
-    render: (_, answer) => <AnswerBox {...answer} />,
+    render: (input, answer, voice) => <SpeakPromptStep targetSeconds={input.targetSeconds} {...answer} {...voice} />,
   }),
 };
 
@@ -138,6 +143,29 @@ function Player({ lesson }: { lesson: Lesson }) {
 
   // The Step the Learner just answered, kept on screen with its feedback until they move on.
   const [reviewingId, setReviewingId] = useState<string>();
+  // Answers since the last Step was asked for; see the nudge below.
+  const nudges = useRef(0);
+  function answer(step: ToolUIPart, output: string | { recordingId: string }) {
+    nudges.current = 0;
+    setReviewingId(step.toolCallId);
+    void answerStep(chat, step, output);
+  }
+
+  // One recorder for the whole Lesson, so a cap or a denied microphone carries over to the next Step.
+  // The transcript is kept for the answered Step's feedback, since the recorder resets for the next Step.
+  const [said, setSaid] = useState<{ stepId: string; text: string }>();
+  const recorder = useRecorder(`/api/lessons/${lesson.id}/recordings`, ({ recordingId, text }) => {
+    if (!pending) return;
+    setSaid({ stepId: pending.toolCallId, text });
+    answer(pending, { recordingId });
+  });
+  const voice: VoiceProps = { recording: recorder.state, onStart: () => void recorder.start(), onStop: recorder.stop, onRetry: recorder.retry };
+  const { reset } = recorder;
+  const pendingId = pending?.toolCallId;
+  useEffect(() => {
+    if (pendingId) reset();
+  }, [pendingId, reset]);
+
   const reviewing = steps.find((s) => s.toolCallId === reviewingId);
   const feedback = reviewing && feedbackFor(reviewing);
   // A turn that finished without feedback has nothing to review.
@@ -146,7 +174,6 @@ function Player({ lesson }: { lesson: Lesson }) {
   // With no Step waiting (a new Lesson, or a turn that ended without one), ask for the next Step.
   // Limited, so a model that keeps replying without a Step can't loop.
   const nudgedAt = useRef(-1);
-  const nudges = useRef(0);
   const [stuck, setStuck] = useState(false);
   const idle = chat.status === "ready" && !showReview && !ended && !pending;
   const { sendMessage } = chat;
@@ -187,19 +214,31 @@ function Player({ lesson }: { lesson: Lesson }) {
 
   if (showReview) {
     const position = steps.indexOf(reviewing) + 1;
-    const answer = (reviewing.output as { answer?: unknown } | undefined)?.answer;
+    const output = reviewing.output as { answer?: unknown; recordingId?: unknown } | undefined;
+    const typed = typeof output?.answer === "string" ? output.answer : undefined;
+    const spoken = typeof output?.recordingId === "string";
+    const transcript = spoken && said?.stepId === reviewing.toolCallId ? said.text : undefined;
     return (
       <Stack gap={6}>
         <Header step={reviewing} position={position} />
         {feedback ? (
           <StepFeedback
             {...feedback}
-            answer={typeof answer === "string" ? answer : undefined}
+            answer={typed ?? transcript}
+            spoken={spoken}
             nextLabel={ended ? "See how you did" : "Next step"}
             onNext={() => setReviewingId(undefined)}
+            onHearIt={canHear(feedback.corrected) ? () => void play(feedback.corrected) : undefined}
           />
         ) : (
-          <LoadingState title="Checking your answer" />
+          <>
+            {stepKinds[stepName(reviewing)]!.render(
+              reviewing.input,
+              { onAnswer: () => {}, pending: true, answered: typed },
+              transcript ? { ...voice, recording: { status: "done", text: transcript } } : voice,
+            )}
+            <LoadingState title="Checking your answer" />
+          </>
         )}
       </Stack>
     );
@@ -219,14 +258,8 @@ function Player({ lesson }: { lesson: Lesson }) {
   return (
     <Stack gap={6}>
       <Header step={step} position={steps.length} />
-      {stepKinds[stepName(step)]!.render(step.input, {
-        pending: busy,
-        onAnswer: (answer) => {
-          nudges.current = 0;
-          setReviewingId(step.toolCallId);
-          void answerStep(chat, step, answer);
-        },
-      })}
+      {/* Keyed, so a Step's own state (like "Type instead") doesn't carry over to the next. */}
+      <Fragment key={step.toolCallId}>{stepKinds[stepName(step)]!.render(step.input, { pending: busy, onAnswer: (a) => answer(step, a) }, voice)}</Fragment>
     </Stack>
   );
 }
