@@ -1,8 +1,9 @@
-import { UIProvider } from "@impromptu/ui";
+import { OfflineBanner, UIProvider } from "@impromptu/ui";
 import appCss from "@impromptu/ui/styles.css?url";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { dataTheme } from "../theme";
+import { useOnline } from "../useOnline";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   beforeLoad: () => ({ theme: dataTheme() }),
@@ -24,6 +25,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function Root() {
   const { theme } = Route.useRouteContext();
+  const online = useOnline();
   return (
     <html lang="en" data-theme={theme}>
       <head>
@@ -31,6 +33,7 @@ function Root() {
       </head>
       <body>
         <UIProvider>
+          {!online && <OfflineBanner />}
           <Outlet />
         </UIProvider>
         <Scripts />
