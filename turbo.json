@@ -12,6 +12,9 @@
       "cache": false,
       "persistent": true
     },
-    "typecheck": {}
+    "typecheck": {},
+    "lint": {
+      "dependsOn": ["^lint"]
+    }
   }
 }
