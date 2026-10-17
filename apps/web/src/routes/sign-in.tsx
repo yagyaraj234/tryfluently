@@ -1,14 +1,30 @@
-import { Container, Heading, Screen } from "@impromptu/ui";
 import { createFileRoute } from "@tanstack/react-router";
+import { authClient } from "../auth";
+import { AuthFooter, AuthScreen, loadProviders } from "../AuthScreen";
 
-export const Route = createFileRoute("/sign-in")({ component: SignIn });
+export const Route = createFileRoute("/sign-in")({
+  // Better Auth sends a failed Google sign-in back here with `?error=`.
+  validateSearch: (search: Record<string, unknown>): { error?: string } =>
+    typeof search.error === "string" ? { error: search.error } : {},
+  loader: loadProviders,
+  component: SignIn,
+});
 
 function SignIn() {
+  const { google } = Route.useLoaderData();
+  const { error } = Route.useSearch();
   return (
-    <Screen surface="loud">
-      <Container>
-        <Heading level={1}>Sign in</Heading>
-      </Container>
-    </Screen>
+    <AuthScreen
+      title="Welcome back"
+      google={google}
+      initialError={error && "Google sign-in didn't work. Try again, or use your email."}
+      fields={[
+        { name: "email", label: "Email", type: "email", autoComplete: "email" },
+        { name: "password", label: "Password", type: "password", autoComplete: "current-password" },
+      ]}
+      submitLabel="Sign in"
+      onSubmit={({ email, password }) => authClient.signIn.email({ email: email!, password: password! })}
+      footer={<AuthFooter prompt="New to Impromptu?" to="/sign-up" label="Create an account" />}
+    />
   );
 }

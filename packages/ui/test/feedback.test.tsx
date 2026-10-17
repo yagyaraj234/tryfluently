@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { Meter, ProgressBar, Skeleton, Spinner, UIProvider, toastManager } from "@impromptu/ui";
+import { Meter, Notice, ProgressBar, Skeleton, Spinner, UIProvider, toastManager } from "@impromptu/ui";
 
 describe("Toast", () => {
   afterEach(() => act(() => toastManager.close()));
@@ -65,5 +65,25 @@ describe("Skeleton", () => {
     <Skeleton shape="block" size={7} />;
     // @ts-expect-error a text skeleton takes a text size
     <Skeleton shape="text" size={4} />;
+  });
+});
+
+describe("Notice", () => {
+  test("an error is announced straight away as an alert", () => {
+    render(<Notice tone="error">Wrong email or password.</Notice>);
+    expect(screen.getByRole("alert").textContent).toBe("Wrong email or password.");
+  });
+
+  test("information is announced politely as a status", () => {
+    render(<Notice tone="info">You can retake the Assessment on 22 October.</Notice>);
+    expect(screen.getByRole("status").textContent).toBe("You can retake the Assessment on 22 October.");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  test("takes no className or style", () => {
+    // @ts-expect-error className is not a prop
+    <Notice tone="info" className="x">Hi</Notice>;
+    // @ts-expect-error style is not a prop
+    <Notice tone="info" style={{}}>Hi</Notice>;
   });
 });

@@ -11,6 +11,7 @@ export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Meter, type MeterProps } from "./Meter";
+export { Notice, type NoticeProps } from "./Notice";
 export { OfflineBanner } from "./OfflineBanner";
 export { PracticeShell, type PracticeShellProps } from "./PracticeShell";
 export { ProgressBar, type ProgressBarProps } from "./ProgressBar";
