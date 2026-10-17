@@ -25,6 +25,7 @@ import { Route as SignedInGoalsConfirmRouteImport } from './routes/_signedIn/goa
 import { Route as SignedInPracticeAssessmentsAssessmentIdRouteImport } from './routes/_signedIn/_practice/assessments/$assessmentId'
 import { Route as SignedInPracticeLessonsLessonIdRouteImport } from './routes/_signedIn/_practice/lessons/$lessonId'
 import { Route as SignedInPracticeRoleplaysRoleplayIdRouteImport } from './routes/_signedIn/_practice/roleplays/$roleplayId'
+import { Route as SignedInAssessmentsAssessmentIdReportRouteImport } from './routes/_signedIn/assessments/$assessmentId.report'
 
 const SignedInRoute = SignedInRouteImport.update({
   id: '/_signedIn',
@@ -106,6 +107,12 @@ const SignedInPracticeRoleplaysRoleplayIdRoute =
     path: '/roleplays/$roleplayId',
     getParentRoute: () => SignedInPracticeRoute,
   } as any)
+const SignedInAssessmentsAssessmentIdReportRoute =
+  SignedInAssessmentsAssessmentIdReportRouteImport.update({
+    id: '/assessments/$assessmentId/report',
+    path: '/assessments/$assessmentId/report',
+    getParentRoute: () => SignedInRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof SignedInAppIndexRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
   '/lessons/$lessonId': typeof SignedInPracticeLessonsLessonIdRoute
   '/roleplays/$roleplayId': typeof SignedInPracticeRoleplaysRoleplayIdRoute
+  '/assessments/$assessmentId/report': typeof SignedInAssessmentsAssessmentIdReportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof SignedInAppIndexRoute
@@ -136,6 +144,7 @@ export interface FileRoutesByTo {
   '/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
   '/lessons/$lessonId': typeof SignedInPracticeLessonsLessonIdRoute
   '/roleplays/$roleplayId': typeof SignedInPracticeRoleplaysRoleplayIdRoute
+  '/assessments/$assessmentId/report': typeof SignedInAssessmentsAssessmentIdReportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -155,6 +164,7 @@ export interface FileRoutesById {
   '/_signedIn/_practice/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
   '/_signedIn/_practice/lessons/$lessonId': typeof SignedInPracticeLessonsLessonIdRoute
   '/_signedIn/_practice/roleplays/$roleplayId': typeof SignedInPracticeRoleplaysRoleplayIdRoute
+  '/_signedIn/assessments/$assessmentId/report': typeof SignedInAssessmentsAssessmentIdReportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/assessments/$assessmentId'
     | '/lessons/$lessonId'
     | '/roleplays/$roleplayId'
+    | '/assessments/$assessmentId/report'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/assessments/$assessmentId'
     | '/lessons/$lessonId'
     | '/roleplays/$roleplayId'
+    | '/assessments/$assessmentId/report'
   id:
     | '__root__'
     | '/_signedIn'
@@ -205,6 +217,7 @@ export interface FileRouteTypes {
     | '/_signedIn/_practice/assessments/$assessmentId'
     | '/_signedIn/_practice/lessons/$lessonId'
     | '/_signedIn/_practice/roleplays/$roleplayId'
+    | '/_signedIn/assessments/$assessmentId/report'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -328,6 +341,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignedInPracticeRoleplaysRoleplayIdRouteImport
       parentRoute: typeof SignedInPracticeRoute
     }
+    '/_signedIn/assessments/$assessmentId/report': {
+      id: '/_signedIn/assessments/$assessmentId/report'
+      path: '/assessments/$assessmentId/report'
+      fullPath: '/assessments/$assessmentId/report'
+      preLoaderRoute: typeof SignedInAssessmentsAssessmentIdReportRouteImport
+      parentRoute: typeof SignedInRoute
+    }
   }
 }
 
@@ -372,6 +392,7 @@ interface SignedInRouteChildren {
   SignedInAssessmentsNewRoute: typeof SignedInAssessmentsNewRoute
   SignedInGoalsConfirmRoute: typeof SignedInGoalsConfirmRoute
   SignedInGoalsIndexRoute: typeof SignedInGoalsIndexRoute
+  SignedInAssessmentsAssessmentIdReportRoute: typeof SignedInAssessmentsAssessmentIdReportRoute
 }
 
 const SignedInRouteChildren: SignedInRouteChildren = {
@@ -380,6 +401,8 @@ const SignedInRouteChildren: SignedInRouteChildren = {
   SignedInAssessmentsNewRoute: SignedInAssessmentsNewRoute,
   SignedInGoalsConfirmRoute: SignedInGoalsConfirmRoute,
   SignedInGoalsIndexRoute: SignedInGoalsIndexRoute,
+  SignedInAssessmentsAssessmentIdReportRoute:
+    SignedInAssessmentsAssessmentIdReportRoute,
 }
 
 const SignedInRouteWithChildren = SignedInRoute._addFileChildren(

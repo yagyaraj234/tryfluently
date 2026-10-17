@@ -2,6 +2,7 @@ export { AppShell, type AppShellDestination, type AppShellProps } from "./AppShe
 export { Button, type ButtonProps } from "./Button";
 export { Card, type CardProps } from "./Card";
 export { CefrScale, type CefrScaleProps } from "./CefrScale";
+export { ChatTurn, FillGapStep, RewriteStep, StepHeader, type ChatTurnProps, type FillGapStepProps, type RewriteStepProps, type StepHeaderProps } from "./Steps";
 export { Chip, type ChipProps } from "./Chip";
 export { ChoiceChips, type ChoiceChipsProps } from "./ChoiceChips";
 export { Cluster, type ClusterProps } from "./Cluster";
@@ -17,6 +18,7 @@ export { Notice, type NoticeProps } from "./Notice";
 export { OfflineBanner } from "./OfflineBanner";
 export { PracticeShell, type PracticeShellProps } from "./PracticeShell";
 export { ProgressBar, type ProgressBarProps } from "./ProgressBar";
+export { ReportStrengths, ReportWeakness, type ReportStrengthsProps, type ReportWeaknessProps } from "./Report";
 export { ScoreHistory, type ScoreHistoryEntry, type ScoreHistoryProps } from "./ScoreHistory";
 export { Screen, type ScreenProps } from "./Screen";
 export { Select, type SelectProps } from "./Select";
