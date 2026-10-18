@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Button } from "./Button";
 import { cardClasses } from "./Card";
 import { Heading } from "./Heading";
+import { LogoMark } from "./Logo";
 import { Stack } from "./Stack";
 import { Text } from "./Text";
 
@@ -16,7 +17,13 @@ const wrap = "mx-auto w-full max-w-page";
 const h2 = "mx-auto max-w-[20ch] text-center text-4xl leading-none font-bold tracking-tight text-balance sm:text-5xl";
 const h3 = "text-xl font-bold tracking-tight";
 const fine = "text-sm text-muted";
-const logo = "text-lg font-bold tracking-tighter whitespace-nowrap text-primary";
+const logo = "inline-flex items-center gap-2 text-lg font-bold tracking-tighter whitespace-nowrap text-primary";
+const wordmark = (
+  <>
+    <LogoMark className="size-6 text-ink" />
+    get fluency
+  </>
+);
 /** The hero fades up one piece after another. */
 const rise = [
   "motion-safe:animate-rise",
@@ -39,7 +46,7 @@ export type MarketingShellProps = {
 
 /** The page chrome: a floating pill nav, the main landmark and a footer. */
 export function MarketingShell({ links, start, startLabel, home, footerText, children }: MarketingShellProps) {
-  const homeLink = useRender({ render: home, props: { className: logo, children: "impromptu" } });
+  const homeLink = useRender({ render: home, props: { className: logo, children: wordmark } });
   return (
     <div className="min-h-dvh overflow-x-clip bg-canvas px-4 text-ink">
       <a
@@ -73,7 +80,7 @@ export function MarketingShell({ links, start, startLabel, home, footerText, chi
       </main>
       <footer className={`${wrap} flex flex-wrap justify-between gap-x-6 gap-y-3 pt-8 pb-10 text-sm text-muted`}>
         <div className="grid max-w-[36ch] gap-1">
-          <span className={logo}>impromptu</span>
+          <span className={logo}>{wordmark}</span>
           <span>{footerText}</span>
         </div>
         <nav className="flex flex-wrap items-start gap-x-4 gap-y-2 sm:gap-x-5.5" aria-label="Footer">
@@ -363,7 +370,15 @@ const glass = "rounded-2xl border border-on-brand/24 bg-on-brand/12";
 export function AuthLayout(props: AuthLayoutProps) {
   const brand = useRender({
     render: props.home,
-    props: { className: "self-start text-xl font-bold tracking-tighter text-on-brand", children: "impromptu" },
+    props: {
+      className: "flex items-center gap-2 self-start text-xl font-bold tracking-tighter text-on-brand",
+      children: (
+        <>
+          <LogoMark className="size-7" />
+          get fluency
+        </>
+      ),
+    },
   });
   const note = props.note;
   return (

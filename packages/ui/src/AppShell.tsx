@@ -2,6 +2,7 @@ import { useRender } from "@base-ui/react/use-render";
 import type { Icon } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import type { ReactElement, ReactNode } from "react";
+import { LogoMark } from "./Logo";
 
 // Phone: the top bar, then a tab bar stuck to the bottom. Desktop: the tab bar becomes a sidebar on the left.
 const shell = cva("flex min-h-dvh flex-col bg-canvas text-ink lg:flex-row");
@@ -11,7 +12,7 @@ const header = cva(
 );
 const heading = cva("text-title");
 // The landing page's logo, so the app and the site read as one product.
-const logo = cva("hidden px-3 pt-6 pb-8 text-xl font-bold tracking-tighter text-primary lg:block");
+const logo = cva("hidden items-center gap-2 px-3 pt-6 pb-8 text-xl font-bold tracking-tighter text-primary lg:flex");
 const menu = cva("hidden px-3 pb-2 text-label text-muted uppercase lg:block");
 const status = cva("flex items-center gap-2");
 const main = cva("flex-1 px-4 pt-6 pb-10 lg:px-8");
@@ -49,7 +50,10 @@ export function AppShell({ destinations, title, status: statusSlot, children }: 
   return (
     <div className={shell()}>
       <nav className={nav()}>
-        <span className={logo()}>impromptu</span>
+        <span className={logo()}>
+          <LogoMark className="size-7 text-ink" />
+          get fluency
+        </span>
         <span className={menu()}>Menu</span>
         <ul className={list()}>
           {destinations.map((d) => (
