@@ -1,135 +1,162 @@
-/* The one stylesheet apps load: Tailwind locked to our tokens, plus the tokens themselves. */
+/*
+ * The one stylesheet: Tailwind plus the Impromptu theme. The landing page and the app share every token here.
+ * Components style themselves with utilities; this file only holds tokens, dark values, keyframes and base rules.
+ */
 @import 'tailwindcss' source(none);
-@import './tokens.css';
 
 @source "./";
 
-/* Wipe Tailwind's defaults; only our tokens exist. Values that are fixed live here. */
+/* Only our colours and shadows exist. Tailwind's spacing, radius, text, container and breakpoint scales stay. */
 @theme {
-  --*: initial;
-  --breakpoint-desktop: 64rem;
-  --inset-0: 0; /* pins overlays to the viewport edges (inset-0); not a spacing step */
+  --color-*: initial;
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --text-shadow-*: initial;
 }
 
-/*
- * Everything else points at tokens.css and is inlined into utilities, so values follow
- * the theme and the surface of the element that uses them. `reference` stops Tailwind
- * re-declaring the variables (tokens.css already does).
- */
-@theme inline reference {
-  --default-font-family: var(--font-sans);
-  --font-sans: var(--font-sans);
-  --font-weight-regular: var(--font-weight-regular);
-  --font-weight-bold: var(--font-weight-bold);
+/* `static` keeps every token in the output, so a var() in an arbitrary value always resolves. */
+@theme static {
+  --font-sans: 'Familjen Grotesk', system-ui, sans-serif;
 
-  /* Colours, by role only. */
-  --background-color-surface: var(--surface);
-  --background-color-paper: var(--paper);
-  --background-color-subtle: var(--subtle);
-  --background-color-primary: var(--primary);
-  --background-color-primary-soft: var(--primary-soft);
-  --background-color-live: var(--live);
-  --background-color-scrim: var(--scrim);
-  --background-color-correct-tint: var(--correct-tint);
-  --background-color-almost-tint: var(--almost-tint);
-  --background-color-incorrect-tint: var(--incorrect-tint);
-  --background-color-skill-fluency: var(--skill-fluency);
-  --background-color-skill-grammar: var(--skill-grammar);
-  --background-color-skill-vocabulary: var(--skill-vocabulary);
-  --background-color-cefr-a1: var(--cefr-a1);
-  --background-color-cefr-a2: var(--cefr-a2);
-  --background-color-cefr-b1: var(--cefr-b1);
-  --background-color-cefr-b2: var(--cefr-b2);
-  --background-color-cefr-c1: var(--cefr-c1);
-  --background-color-cefr-c2: var(--cefr-c2);
-  --text-color-ink: var(--ink);
-  --text-color-muted: var(--muted);
-  --text-color-primary: var(--primary);
-  --text-color-on-primary: var(--on-primary);
-  --text-color-live: var(--live-text);
-  --text-color-correct: var(--correct);
-  --text-color-almost: var(--almost);
-  --text-color-incorrect: var(--incorrect);
-  --border-color-line: var(--line);
-  --border-color-primary: var(--primary);
-  --border-color-live: var(--live);
-  --outline-color-line: var(--line);
+  /* Colours, light. Dark values are below. */
+  --color-canvas: #f5f5f4; /* warm grey page background. Not "page": text-page is a type size */
+  --color-paper: #ffffff; /* cards, dialogs, menus */
+  --color-subtle: #f5f4f1; /* input fills, tracks, inset panels */
+  --color-ink: #0e0e0f;
+  --color-muted: #66655f;
+  --color-line: rgb(14 14 15 / 0.09); /* hairlines around cards and panels */
+  --color-line-strong: #8f8e88; /* form control borders: 3:1 against paper */
+  --color-highlight: color-mix(in oklab, var(--color-paper), #fff 14%);
+  --color-shadow: rgb(14 14 15 / 0.05);
+  --color-shadow-strong: rgb(14 14 15 / 0.12);
+  --color-primary: #2f3bd6; /* cobalt: actions, links, focus */
+  --color-on-primary: #ffffff;
+  --color-primary-soft: #e3eaff;
+  /* The cobalt brand panels stay cobalt in both themes, so white text always reads. */
+  --color-brand: #2f3bd6;
+  --color-brand-mid: #4466e0;
+  --color-brand-deep: #181c8c;
+  --color-brand-hi: #8cc4ff;
+  --color-on-brand: #ffffff;
+  --color-white: #ffffff;
+  --color-black: #0e0e0f;
+  --color-live: #ff2e6e;
+  --color-live-text: #d1105a;
+  --color-correct: #08753d;
+  --color-almost: #805800;
+  --color-incorrect: #be1e55;
+  --color-correct-tint: color-mix(in oklab, var(--color-correct) 15%, var(--color-paper));
+  --color-almost-tint: color-mix(in oklab, var(--color-almost) 15%, var(--color-paper));
+  --color-incorrect-tint: color-mix(in oklab, var(--color-incorrect) 15%, var(--color-paper));
+  --color-skill-fluency: #6a3df0;
+  --color-skill-grammar: #1f6feb;
+  --color-skill-vocabulary: #f0711a;
+  --color-cefr-a1: #e7e0fd;
+  --color-cefr-a2: #ccbdfa;
+  --color-cefr-b1: #ad94f6;
+  --color-cefr-b2: #7955d7;
+  --color-cefr-c1: #6a3df0;
+  --color-cefr-c2: #4b2ea2;
+  --color-scrim: rgb(17 17 17 / 0.5);
 
-  /* Type roles. */
-  --text-label: var(--text-label);
-  --text-label--line-height: var(--text-label--line-height);
-  --text-label--font-weight: var(--text-label--font-weight);
-  --text-label--letter-spacing: var(--text-label--letter-spacing);
-  --text-caption: var(--text-caption);
-  --text-caption--line-height: var(--text-caption--line-height);
-  --text-caption--font-weight: var(--text-caption--font-weight);
-  --text-caption--letter-spacing: var(--text-caption--letter-spacing);
-  --text-body: var(--text-body);
-  --text-body--line-height: var(--text-body--line-height);
-  --text-body--font-weight: var(--text-body--font-weight);
-  --text-body--letter-spacing: var(--text-body--letter-spacing);
-  --text-title: var(--text-title);
-  --text-title--line-height: var(--text-title--line-height);
-  --text-title--font-weight: var(--text-title--font-weight);
-  --text-title--letter-spacing: var(--text-title--letter-spacing);
-  --text-heading: var(--text-heading);
-  --text-heading--line-height: var(--text-heading--line-height);
-  --text-heading--font-weight: var(--text-heading--font-weight);
-  --text-heading--letter-spacing: var(--text-heading--letter-spacing);
-  --text-page: var(--text-page);
-  --text-page--line-height: var(--text-page--line-height);
-  --text-page--font-weight: var(--text-page--font-weight);
-  --text-page--letter-spacing: var(--text-page--letter-spacing);
-  --text-hero: var(--text-hero);
-  --text-hero--line-height: var(--text-hero--line-height);
-  --text-hero--font-weight: var(--text-hero--font-weight);
-  --text-hero--letter-spacing: var(--text-hero--letter-spacing);
+  /* Type roles for product copy. Each size carries its line height, weight and tracking. */
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.4;
+  --text-label--font-weight: 600;
+  --text-label--letter-spacing: 0.08em;
+  --text-caption: 0.9375rem;
+  --text-caption--line-height: 1.5;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.6;
+  --text-title: 1.3125rem;
+  --text-title--line-height: 1.35;
+  --text-title--font-weight: 700;
+  --text-title--letter-spacing: -0.015em;
+  --text-heading: 1.6875rem;
+  --text-heading--line-height: 1.2;
+  --text-heading--font-weight: 700;
+  --text-heading--letter-spacing: -0.025em;
+  --text-page: 2.125rem;
+  --text-page--line-height: 1.1;
+  --text-page--font-weight: 700;
+  --text-page--letter-spacing: -0.035em;
+  --text-hero: 3.375rem;
+  --text-hero--line-height: 1;
+  --text-hero--font-weight: 700;
+  --text-hero--letter-spacing: -0.045em;
 
-  /* Spacing steps. No --spacing base, so only these steps exist. */
-  --spacing-1: var(--space-1);
-  --spacing-2: var(--space-2);
-  --spacing-3: var(--space-3);
-  --spacing-4: var(--space-4);
-  --spacing-5: var(--space-5);
-  --spacing-6: var(--space-6);
-  --spacing-8: var(--space-8);
-  --spacing-10: var(--space-10);
-  --spacing-14: var(--space-14);
+  /* Depth: soft, layered shadows. */
+  --shadow-card: 0 1px 2px var(--color-shadow), 0 8px 24px -8px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
+  --shadow-lift: 0 2px 4px var(--color-shadow), 0 16px 32px -12px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
+  --shadow-frame: 0 40px 70px -40px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
+  --shadow-float: 0 8px 24px -6px rgb(0 0 0 / 0.35);
+  --shadow-glow: 0 6px 20px -4px rgb(0 0 0 / 0.25); /* tint it with shadow-primary/55 */
 
-  /* Shape, depth, motion, layout. */
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-pill: var(--radius-pill);
-  --shadow-pop: var(--shadow-pop);
-  --shadow-press: var(--shadow-press);
-  --shadow-card: var(--card-shadow);
-  --translate-press: var(--press-offset);
-  --min-height-target: var(--size-target);
-  --size-target: var(--size-target);
-  --size-record: var(--size-record);
-  --transition-duration-press: var(--duration-press);
-  --transition-duration-ui: var(--duration-ui);
-  --ease-press: var(--ease-press);
-  --ease-ui: var(--ease-ui);
-  /* Loading animations. Tailwind still defines the spin and pulse keyframes; components run them under motion-safe. */
-  --animate-spin: spin var(--duration-spin) linear infinite;
-  --animate-pulse: pulse var(--duration-pulse) ease-in-out infinite;
-  --animate-celebrate: celebrate var(--duration-celebrate) var(--ease-ui) both;
-  --z-index-sticky: var(--layer-sticky);
-  --z-index-overlay: var(--layer-overlay);
-  --z-index-toast: var(--layer-toast);
-  --container-content: var(--width-content);
-  --container-prose: var(--width-prose);
-  --container-sidebar: var(--width-sidebar);
+  /* Motion. */
+  --transition-duration-press: 160ms;
+  --transition-duration-ui: 160ms;
+  --ease-press: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+  --animate-spin: spin 0.8s linear infinite;
+  --animate-pulse: pulse 1.6s ease-in-out infinite;
+  --animate-celebrate: celebrate 800ms var(--ease-ui) both;
+  --animate-rise: rise 520ms var(--ease-press) backwards;
+  --animate-draw: draw 700ms var(--ease-press) 650ms backwards;
+  --animate-bob: bob 5s ease-in-out infinite;
+  --animate-wave: wave 1.1s ease-in-out infinite;
+  --animate-blink: blink 1s steps(1) infinite;
+  --animate-fill-up: fill-up linear both;
+  --animate-fill-across: fill-across linear both;
+
+  /* Layers: the only stacking levels. */
+  --z-index-behind: -1; /* decoration behind content, inside an isolate parent */
+  --z-index-sticky: 10;
+  --z-index-overlay: 20;
+  --z-index-toast: 30;
+
+  /* Widths. */
+  --container-content: 40rem; /* the Lesson column, dialogs, toasts */
+  --container-prose: 65ch; /* running text */
+  --container-sidebar: 15rem;
+  --container-page: 67.5rem; /* the landing page */
+
+  @keyframes celebrate {
+    0% { transform: scale(0.8) rotate(-12deg); }
+    50% { transform: scale(1.15) rotate(8deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+  }
+  @keyframes draw {
+    from { stroke-dashoffset: 1; }
+  }
+  @keyframes bob {
+    50% { transform: translateY(-4px); }
+  }
+  @keyframes wave {
+    50% { transform: scaleY(1); }
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+  @keyframes fill-up {
+    from { transform: scaleY(0.2); opacity: 0.2; }
+  }
+  @keyframes fill-across {
+    from { transform: scaleX(0); }
+  }
 }
 
+/* Dark follows the system unless <html data-theme> says otherwise, in either direction. */
 @custom-variant dark {
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme='light']) & {
+    &:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
       @slot;
     }
   }
-  :root[data-theme='dark'] & {
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
     @slot;
   }
 }
@@ -137,31 +164,53 @@
 /* The current page in a navigation (router links set aria-current="page"). */
 @custom-variant current (&[aria-current="page"]);
 
-/* 3px violet ring just outside the 2px ink outline. */
-@utility focus-ring {
-  outline: 3px solid var(--primary);
-}
-
-/* Flex children may shrink below long user-provided text. This is a layout reset, not a spacing step. */
-@utility min-w-0 {
-  min-width: 0;
-}
+@custom-variant reduce-transparency (@media (prefers-reduced-transparency: reduce));
 
 @layer base {
-  body {
-    position: relative; /* iOS: lets fixed backdrops cover the whole page */
-    overflow-wrap: anywhere;
+  :root {
+    @variant dark {
+      --color-canvas: #121211;
+      --color-paper: #262625;
+      --color-subtle: #1b1b1a;
+      --color-ink: #f3f2ef;
+      --color-muted: #a3a29b;
+      --color-line: rgb(255 255 255 / 0.1);
+      --color-line-strong: #7a7973;
+      --color-shadow: rgb(0 0 0 / 0.4);
+      --color-shadow-strong: rgb(0 0 0 / 0.6);
+      --color-primary: #8cc4ff;
+      --color-on-primary: #0b1240;
+      --color-primary-soft: #1d2550;
+      --color-live: #ff6b98;
+      --color-live-text: #ff6b98;
+      --color-correct: #4fd18a;
+      --color-almost: #ffd24d;
+      --color-incorrect: #ff7fa3;
+      --color-skill-fluency: #a98bff;
+      --color-skill-grammar: #6ea8ff;
+      --color-skill-vocabulary: #ff9a4d;
+      --color-cefr-a1: #323433;
+      --color-cefr-a2: #4b465f;
+      --color-cefr-b1: #695c92;
+      --color-cefr-b2: #8d76ce;
+      --color-cefr-c1: #a98bff;
+      --color-cefr-c2: #c2b4ef;
+    }
+    @apply scheme-light dark:scheme-dark;
+    interpolate-size: allow-keywords; /* lets <details> animate to its natural height */
   }
-}
 
-@keyframes celebrate {
-  0% {
-    transform: scale(0.8) rotate(-12deg);
+  body {
+    /* relative: iOS lets fixed backdrops cover the whole page */
+    @apply relative bg-canvas font-sans text-ink antialiased wrap-anywhere;
   }
-  50% {
-    transform: scale(1.15) rotate(8deg);
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
   }
-  100% {
-    transform: scale(1) rotate(0);
+
+  /* The sticky landing nav would otherwise cover a heading after an in-page link. */
+  [id] {
+    @apply scroll-mt-20;
   }
 }

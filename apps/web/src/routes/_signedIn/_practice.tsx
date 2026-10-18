@@ -10,7 +10,7 @@ function PracticeLayout() {
   return (
     <PracticeShell
       // Close goes back to where the Learner came from; opened directly, it's a plain link to Home.
-      closeRender={<Link to="/" />}
+      closeRender={<Link to="/home" />}
       onClose={(event) => {
         if (!canGoBack) return;
         event.preventDefault();

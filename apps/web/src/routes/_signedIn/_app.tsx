@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { progressQuery } from "../../lib/queries";
 
-// Link marks the current destination with aria-current="page". Home is exact, or it would match every page.
+// Link marks the current destination with aria-current="page".
 const destinations: AppShellDestination[] = [
-  { label: "Home", icon: House, render: <Link to="/" activeOptions={{ exact: true }} /> },
+  { label: "Home", icon: House, render: <Link to="/home" /> },
   { label: "Roadmap", icon: MapTrifold, render: <Link to="/roadmap" /> },
   { label: "Progress", icon: ChartLineUp, render: <Link to="/progress" /> },
   { label: "Settings", icon: GearSix, render: <Link to="/settings" /> },

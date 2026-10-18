@@ -59,7 +59,7 @@ export function StepHeader({ type, question, progress }: StepHeaderProps) {
 
 const form = cva("flex flex-col gap-4");
 const stack = cva("flex flex-col gap-6");
-const quote = cva("rounded-md bg-subtle px-4 py-3 text-body text-ink");
+const quote = cva("rounded-xl bg-subtle px-4 py-3 text-body text-ink");
 
 /** What every Step's answer shares. */
 type Answerable = {
@@ -168,7 +168,7 @@ function HearIt({ onClick }: { onClick: () => void }) {
 }
 
 const sentenceText = cva("text-title text-ink");
-const gap = cva("inline-block min-w-14 rounded-sm border-b-2 border-line bg-subtle px-2 text-center text-ink");
+const gap = cva("inline-block min-w-14 rounded-lg border-b-2 border-muted bg-subtle px-2 text-center text-ink");
 
 export type FillGapStepProps = Answerable & {
   /** The sentence, with the gap written as ___. */
@@ -208,7 +208,7 @@ export function FillGapStep({ sentence, choices, ...props }: FillGapStepProps) {
   );
 }
 
-const panel = cva("flex flex-col items-start gap-3 rounded-md border-2 border-line p-5 text-ink", {
+const panel = cva("flex flex-col items-start gap-3 rounded-xl border border-line p-5 text-ink", {
   variants: {
     verdict: { correct: "bg-correct-tint", almost: "bg-almost-tint", incorrect: "bg-incorrect-tint" },
   },
@@ -288,10 +288,10 @@ const unavailable: Record<Extract<RecordingState, { status: "unavailable" }>["re
 const recorder = cva("flex flex-col items-center gap-4 text-center");
 const problem = cva("flex flex-col items-start gap-3 text-left");
 const live = cva("flex w-full flex-col items-center gap-2");
-const liveLabel = cva("text-label uppercase text-live");
-const timer = cva("text-title tabular-nums text-live");
+const liveLabel = cva("text-label uppercase text-live-text");
+const timer = cva("text-title tabular-nums text-live-text");
 const level = cva("w-full max-w-prose");
-const levelTrack = cva("h-2 overflow-hidden rounded-pill border-2 border-line bg-subtle");
+const levelTrack = cva("h-2 overflow-hidden rounded-full border border-line bg-subtle");
 const levelBar = cva("block h-full bg-live");
 const said = cva("flex flex-col gap-2");
 
@@ -395,7 +395,7 @@ export function SpeakPromptStep({ targetSeconds, ...props }: SpeakPromptStepProp
 
 const turn = cva("max-w-prose text-body text-ink", {
   variants: {
-    from: { coach: "self-start", learner: "self-end rounded-md bg-subtle px-4 py-2" },
+    from: { coach: "self-start", learner: "self-end rounded-xl bg-subtle px-4 py-2" },
   },
 });
 

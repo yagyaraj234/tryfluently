@@ -1,6 +1,6 @@
 # Impromptu v1 acceptance audit
 
-Reviewed 18 October 2026 against GitHub specs [#13](https://github.com/yagyaraj234/impromptu/issues/13), [#65](https://github.com/yagyaraj234/impromptu/issues/65), [#86](https://github.com/yagyaraj234/impromptu/issues/86), design tickets #56–#64, `GLOSSARY.md` and both ADRs.
+Reviewed 18 October 2026 against GitHub specs [#13](https://github.com/yagyaraj234/impromptu-monorepo/issues/13), [#65](https://github.com/yagyaraj234/impromptu-monorepo/issues/65), [#86](https://github.com/yagyaraj234/impromptu-monorepo/issues/86), design tickets #56–#64, `GLOSSARY.md` and both ADRs. Results below are a snapshot of that review.
 
 Local implementation and automated checks are complete. External-service and real-device checks below remain release gates. This is not a deployment or live-provider sign-off. Hosting remains outside the v1 specs.
 
@@ -52,7 +52,7 @@ Test paths above are relative to `apps/api/test/` unless stated otherwise.
 | Unknown routes / route failures | PASS: designed 404 with Home action and recoverable error state. SSR tests check HTTP status and omit upstream details. |
 | Conversation re-entry | PASS: Assessment, Lesson and Roleplay loaders use blocking stale reloads. `useChat` seeds once per mount, so a cached empty transcript must not mount before fresh history. Browser reproduced the failure and verified the saved Step resumes and accepts its answer after the fix. |
 
-## Current engineering checks
+## Engineering checks at review
 
 | Check | Result |
 |---|---|
@@ -77,7 +77,7 @@ The 15-Lesson HTTP/DB integration test has a 15-second timeout: it exceeded Bun'
 | Independent sections, loading, errors, offline and cap alternatives | PASS at source/test seams: shared states, web SSR tests, recorder/call fakes and guide previews. This does not claim every network failure was manually reproduced. |
 | Real screen reader, 200% browser zoom, iOS/Android hardware, deployed performance/Lighthouse | BLOCKED: those environments were not available in this run. |
 
-## Remaining release gates
+## Release gates at review
 
 No configured service environment was present; the checkout contained only `.env.example`. A request for the existing local/staging environment was left with the owner. Do not use synthetic results as evidence of provider compatibility.
 

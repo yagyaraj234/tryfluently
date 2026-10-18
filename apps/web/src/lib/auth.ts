@@ -14,6 +14,6 @@ export const signUp = (fields: { name: string; email: string; password: string }
 /** Google sign-in and sign-up. Back on `/sign-in?error=…` if it fails. */
 export const signInWithGoogle = () =>
   authClient.signIn.social({
-    provider: "google", callbackURL: "/", errorCallbackURL: "/sign-in",
+    provider: "google", callbackURL: "/home", errorCallbackURL: "/sign-in",
     additionalData: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
   });

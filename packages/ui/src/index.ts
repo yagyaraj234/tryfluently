@@ -36,6 +36,29 @@ export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { LiveBar, type LiveBarProps } from "./LiveBar";
 export { LessonComplete, type LessonCompleteProps } from "./LessonComplete";
+export {
+  AuthLayout,
+  Faq,
+  Feature,
+  FeatureTrio,
+  FinalCta,
+  GoalsStrip,
+  HowItWorks,
+  MarketingColumn,
+  MarketingHero,
+  MarketingShell,
+  ProductFrame,
+  type AuthLayoutProps,
+  type AuthPoint,
+  type FaqItem,
+  type FeatureCard,
+  type FeatureProps,
+  type FeaturePoint,
+  type MarketingHeroProps,
+  type MarketingShellProps,
+  type StepItem,
+} from "./Marketing";
+export { ChatBubbles, floatChips, LevelCard, MarketingPanel, ReportMock, RoadmapPeekMock, RoleplayMock, UnitRow, type UnitRowProps } from "./MarketingMocks";
 export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Meter, type MeterProps } from "./Meter";
 export { Notice, type NoticeProps } from "./Notice";

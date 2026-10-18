@@ -1,5 +1,7 @@
 # Kenpath Svara TTS for Reference Pronunciation
 
+**Historical vendor research (2026-10-15).** Voice roster, pricing and limits below are a dated snapshot. The current Reference Pronunciation integration is in `apps/api/src/pronunciation.ts`; verify vendor terms before relying on the figures.
+
 Research for issue #3. Question: what does the Kenpath Svara TTS API offer for playing a word or phrase spoken correctly? It covers English voices and accents, request and response shape, latency, audio formats, caching and reuse, rate limits, and pricing.
 
 Sources are Kenpath's own pages and public API responses, checked 2026-10-15. When the docs don't cover something, this note says so.

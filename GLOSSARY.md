@@ -1,6 +1,6 @@
 # Impromptu
 
-An AI coach that helps non-native speakers become fluent in English for job interviews, client communication and everyday fluency. It assesses how a learner speaks, then builds a personalised, adaptive path of lessons.
+An AI coach that helps anyone build their communication skills, for work, study, travel or everyday life. English is the only supported language today; others may follow. It assesses how a learner speaks, then builds a personalised, adaptive path of lessons.
 
 ## Language
 

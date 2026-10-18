@@ -17,7 +17,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;700&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400..700&display=swap" },
     ],
   }),
   component: Root,
@@ -34,8 +34,8 @@ export function RouteError() {
 
 function NotFound() {
   return (
-    <Screen surface="quiet">
-      <EmptyState title="We couldn't find that page" action={<Button render={<Link to="/" />}>Go to Home</Button>} />
+    <Screen>
+      <EmptyState title="We couldn't find that page" action={<Button render={<Link to="/home" />}>Go to Home</Button>} />
     </Screen>
   );
 }

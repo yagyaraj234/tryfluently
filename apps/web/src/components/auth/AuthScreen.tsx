@@ -1,18 +1,53 @@
-import { Button, Container, Heading, Notice, Screen, Stack, Text, TextField, TextLink } from "@impromptu/ui";
-import { GoogleLogo } from "@phosphor-icons/react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Link, useRouter } from "@tanstack/react-router";
-import { useState, type FormEvent, type ReactNode } from "react";
-import { api } from "../../lib/api";
-import { signInWithGoogle } from "../../lib/auth";
+import { AuthLayout, Button, Notice, Stack, Text, TextField, TextLink, type AuthPoint } from '@impromptu/ui';
+import { Microphone, Path, Sparkle } from '@phosphor-icons/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Link, useRouter } from '@tanstack/react-router';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { api } from '../../lib/api';
+import { signInWithGoogle } from '../../lib/auth';
 
 /** Route loader for sign-in and sign-up: is Google configured on the API? */
 export const loadProviders = async () => (await api().api.auth.providers.$get()).json();
 
 type Field = { name: string; label: string; type: string; autoComplete: string };
 
-/** Sign-in and sign-up: the Google button when the API offers it, then an email form with its error inline. */
+const steps: AuthPoint[] = [
+  { icon: Sparkle, title: 'Set a Goal', body: 'Tell us what you want English for.' },
+  { icon: Microphone, title: 'Take the Assessment', body: 'Talk or type for up to 10 minutes.' },
+  { icon: Path, title: 'Follow your Roadmap', body: 'Practice with Lessons made for you.' },
+];
+const waiting: AuthPoint = {
+  icon: Path,
+  title: 'Your practice is waiting',
+  body: "Continue your Roadmap and see how far you've come.",
+};
+
+function GoogleMark() {
+  return (
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24">
+      <path
+        fill="#4285F4"
+        d="M21.35 12.2c0-.68-.06-1.36-.18-2H12v3.79h5.24a4.48 4.48 0 0 1-1.94 2.94v2.44h3.13c1.83-1.69 2.92-4.18 2.92-7.17Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 21.7c2.62 0 4.82-.87 6.43-2.33l-3.13-2.44c-.87.58-1.98.93-3.3.93-2.54 0-4.7-1.72-5.47-4.03H3.3v2.52A9.71 9.71 0 0 0 12 21.7Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.53 13.83a5.83 5.83 0 0 1 0-3.66V7.65H3.3a9.72 9.72 0 0 0 0 8.7l3.23-2.52Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 6.14c1.43 0 2.72.49 3.74 1.47l2.8-2.8A9.36 9.36 0 0 0 12 2.3a9.71 9.71 0 0 0-8.7 5.35l3.23 2.52C7.3 7.86 9.46 6.14 12 6.14Z"
+      />
+    </svg>
+  );
+}
+
+/** Sign-in and sign-up with email and optional Google. */
 export function AuthScreen(props: {
+  mode: 'sign-in' | 'sign-up';
   title: string;
   fields: Field[];
   submitLabel: string;
@@ -23,6 +58,7 @@ export function AuthScreen(props: {
   onSubmit: (values: Record<string, string>) => Promise<{ error: { message?: string } | null }>;
   footer: ReactNode;
 }) {
+  const signingUp = props.mode === 'sign-up';
   const router = useRouter();
   const queryClient = useQueryClient();
   const [error, setError] = useState(props.initialError);
@@ -37,7 +73,7 @@ export function AuthScreen(props: {
       const { error } = await props.onSubmit(values);
       if (error) return setError(error.message ?? "That didn't work. Try again.");
       queryClient.clear();
-      await router.navigate({ to: "/" });
+      await router.navigate({ to: '/home' });
     } catch {
       setError("We couldn't reach Impromptu. Check your connection and try again.");
     } finally {
@@ -59,41 +95,54 @@ export function AuthScreen(props: {
   }
 
   return (
-    <Screen surface="loud">
-      <Container width="prose">
-        <Stack gap={8}>
-          <Stack gap={2}>
-            <Text size="title">Impromptu</Text>
-            <Heading level={1}>{props.title}</Heading>
-          </Stack>
-          {props.google && (
-            <Stack gap={4}>
-              <Button variant="secondary" icon={GoogleLogo} fullWidth onClick={google} disabled={pending}>
-                Continue with Google
-              </Button>
-              <Text tone="muted">or with your email</Text>
-            </Stack>
-          )}
-          <form onSubmit={submit}>
-            <Stack gap={5}>
-              {props.fields.map((field) => (
-                <TextField key={field.name} {...field} required />
-              ))}
-              {error && <Notice tone="error">{error}</Notice>}
-              <Button type="submit" fullWidth disabled={pending}>
-                {props.submitLabel}
-              </Button>
-            </Stack>
-          </form>
-          {props.footer}
+    <AuthLayout
+      home={<Link to="/" />}
+      storyLabel={signingUp ? 'Getting started with Impromptu' : 'Welcome back to Impromptu'}
+      badge={signingUp ? 'Practice that fits you' : 'Keep your momentum'}
+      storyTitle={signingUp ? 'Start your journey.' : 'Pick up where you left off.'}
+      storyText={
+        signingUp
+          ? 'Speak with more confidence, one conversation at a time.'
+          : 'Your Roadmap and next conversation are ready when you are.'
+      }
+      steps={signingUp ? steps : undefined}
+      note={signingUp ? undefined : waiting}
+      title={props.title}
+      subtitle={props.google ? 'Continue with email or Google.' : 'Continue with your email.'}
+      footer={props.footer}
+      alternative={
+        props.google && (
+          <Button variant="secondary" fullWidth onClick={google} disabled={pending}>
+            <GoogleMark /> Continue with Google
+          </Button>
+        )
+      }
+    >
+      <form onSubmit={submit}>
+        <Stack gap={5}>
+          {props.fields.map((field) => (
+            <TextField key={field.name} {...field} required />
+          ))}
+          {error && <Notice tone="error">{error}</Notice>}
+          <Button type="submit" fullWidth disabled={pending}>
+            {props.submitLabel}
+          </Button>
         </Stack>
-      </Container>
-    </Screen>
+      </form>
+    </AuthLayout>
   );
 }
 
 /** "No account yet? Create one" and the like. */
-export function AuthFooter({ prompt, to, label }: { prompt: string; to: "/sign-in" | "/sign-up"; label: string }) {
+export function AuthFooter({
+  prompt,
+  to,
+  label,
+}: {
+  prompt: string;
+  to: '/sign-in' | '/sign-up';
+  label: string;
+}) {
   return (
     <Text>
       {prompt} <TextLink render={<Link to={to} />}>{label}</TextLink>

@@ -39,7 +39,7 @@ export function ReportWeakness({ label, quote, betterVersion }: ReportWeaknessPr
         <Text size="label" tone="muted">
           You said
         </Text>
-        <blockquote className="rounded-md bg-subtle px-4 py-3 text-body text-ink">{quote}</blockquote>
+        <blockquote className="rounded-xl bg-subtle px-4 py-3 text-body text-ink">{quote}</blockquote>
         <Text size="label" tone="muted">
           Better
         </Text>

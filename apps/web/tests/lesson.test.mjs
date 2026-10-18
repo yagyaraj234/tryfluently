@@ -106,7 +106,7 @@ test("a finished Lesson shows Lesson complete with the Streak and the next actio
   assert.match(t, /12 day streak/);
   assert.match(t, /\+40 XP/);
   assert.match(t, /Next Lesson/);
-  assert.match(html, /<a\b[^>]*href="\/"[^>]*>[^<]*Home/);
+  assert.match(html, /<a\b[^>]*href="\/home"[^>]*>[^<]*Home/);
 });
 
 test("an abandoned Lesson offers Home without a completion reward", async () => {
@@ -124,5 +124,5 @@ test("a Roleplay Lesson opens on the Roleplay screen", async () => {
 
 test("closing the Lesson goes back to Home", async () => {
   const response = await get("/lessons/vocab");
-  assert.match(await response.text(), /<a\b[^>]*href="\/"[^>]*aria-label="Close"|<a\b[^>]*aria-label="Close"[^>]*href="\/"/);
+  assert.match(await response.text(), /<a\b[^>]*href="\/home"[^>]*aria-label="Close"|<a\b[^>]*aria-label="Close"[^>]*href="\/home"/);
 });

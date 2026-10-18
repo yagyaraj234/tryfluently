@@ -28,11 +28,11 @@ const checkedTheme = (html) =>
     .filter((m) => /aria-checked="true"/.test(m[0].match(/<[^>]*role="radio"[^>]*>/)[0]))
     .map((m) => m[1]);
 
-test("Settings offers Light, Dark and System, with System picked when no theme is set", async () => {
+test("Settings offers Light, Dark and System, with Light picked when no theme is set", async () => {
   const html = await page();
   assert.match(html, /<h1[^>]*>Settings<\/h1>/);
   assert.match(text(html), /Theme/);
-  assert.deepEqual(checkedTheme(html), ["System"]);
+  assert.deepEqual(checkedTheme(html), ["Light"]);
 });
 
 test("the theme from the cookie is picked, and applied to the page while server rendering", async () => {

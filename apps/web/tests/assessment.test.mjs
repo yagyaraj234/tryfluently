@@ -170,7 +170,7 @@ test("a Report from leaving early is labelled partial", async () => {
 });
 
 test("the Report continues onward", async () => {
-  assert.match(await page("/assessments/done/report"), /<a[^>]*href="\/"[^>]*>Continue<\/a>/);
+  assert.match(await page("/assessments/done/report"), /<a[^>]*href="\/home"[^>]*>Continue<\/a>/);
 });
 
 test("confirming Goals lists only proposed Goals, each with its Target Levels and a confirm and remove action", async () => {

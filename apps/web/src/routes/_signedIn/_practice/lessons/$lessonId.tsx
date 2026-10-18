@@ -61,7 +61,7 @@ function LessonScreen() {
   const lesson = Route.useLoaderData();
   // A new Lesson (from Lesson complete's "Next Lesson") gets a fresh player.
   if (lesson.status === "abandoned")
-    return <EmptyState title="This Lesson has ended" description="Its Unit was skipped. Continue with your active Unit." action={<Button render={<Link to="/" />}>Back to Home</Button>} />;
+    return <EmptyState title="This Lesson has ended" description="Its Unit was skipped. Continue with your active Unit." action={<Button render={<Link to="/home" />}>Back to Home</Button>} />;
   return lesson.status === "in_progress"
     ? <Player key={lesson.id} lesson={lesson} />
     : <Complete xpGained={20 + 10 * lesson.steps.filter((s) => s.answeredAt).length} />;
@@ -288,7 +288,7 @@ function Complete({ xpGained }: { xpGained: number }) {
             <Button onClick={() => next.mutate()} disabled={next.isPending || next.isSuccess}>
               Next Lesson
             </Button>
-            <Button variant="secondary" render={<Link to="/" />}>
+            <Button variant="secondary" render={<Link to="/home" />}>
               Back to Home
             </Button>
           </>

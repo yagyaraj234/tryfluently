@@ -28,7 +28,7 @@ function onboardingRoute(goals: { status: string }[], assessments: { status: str
   if (!goals.length && !assessments.some((a) => a.status !== "discarded")) return "/goals" as const;
 }
 
-export const Route = createFileRoute("/_signedIn/_app/")({
+export const Route = createFileRoute("/_signedIn/_app/home")({
   beforeLoad: async () => {
     const [goals, assessments] = await Promise.all([
       api().api.goals.$get().then((r) => r.json()),

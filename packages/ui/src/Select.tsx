@@ -26,13 +26,13 @@ export function Select({ label, options, onValueChange, ref, ...props }: SelectP
       </div>
       <BaseSelect.Portal>
         <BaseSelect.Positioner className="z-overlay" sideOffset={4}>
-          <BaseSelect.Popup className="max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) overflow-y-auto rounded-md border-2 border-line bg-paper py-1 text-ink shadow-press data-ending-style:opacity-0 data-starting-style:opacity-0 motion-safe:transition-opacity motion-safe:duration-ui motion-safe:ease-ui">
+          <BaseSelect.Popup className="max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) overflow-y-auto rounded-xl border border-line bg-paper py-1 text-ink shadow-card data-ending-style:opacity-0 data-starting-style:opacity-0 motion-safe:transition-opacity motion-safe:duration-ui motion-safe:ease-ui">
             <BaseSelect.List>
               {options.map((option) => (
                 <BaseSelect.Item
                   key={option.value}
                   value={option.value}
-                  className="flex min-h-target cursor-default items-center justify-between gap-4 px-3 py-2 text-body data-highlighted:bg-primary-soft"
+                  className="flex min-h-11 cursor-default items-center justify-between gap-4 px-3 py-2 text-body data-highlighted:bg-primary-soft"
                 >
                   <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText>
                   <BaseSelect.ItemIndicator render={<Check />} />

@@ -2,7 +2,7 @@ import { WifiSlash } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 
 const banner = cva(
-  "sticky top-0 z-sticky flex items-center justify-center gap-2 border-b-2 border-line bg-paper px-4 py-2 text-caption font-bold text-ink",
+  "sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-line bg-paper px-4 py-2 text-caption font-bold text-ink",
 );
 
 /** Shown while the browser is offline. The app decides when (from `navigator.onLine`). */

@@ -64,7 +64,7 @@ const buttons = (html) => [...html.matchAll(/<button\b[\s\S]*?<\/button>/g)].map
 const linkTo = (html, href) => html.match(new RegExp(`<a\\b[^>]*href="${href}"[^>]*>[\\s\\S]*?</a>`))?.[0];
 
 test("Home resumes the Lesson in progress, and shows the Streak, XP and the active Unit", async () => {
-  const html = await page("/");
+  const html = await page("/home");
   assert.match(text(linkTo(html, "/lessons/l3")), /Resume/);
   assert.match(text(html), /Talking about results/);
   assert.match(text(html), /12 day streak/);
@@ -73,13 +73,13 @@ test("Home resumes the Lesson in progress, and shows the Streak, XP and the acti
 });
 
 test("Home offers to start the next Lesson when none is in progress", async () => {
-  const html = await page("/", "fresh");
+  const html = await page("/home", "fresh");
   assert.ok(buttons(html).some((b) => /Start your next Lesson/.test(b)));
   assert.equal(linkTo(html, "/lessons/[^\"]+"), undefined);
 });
 
 test("Home offers a Roleplay any time", async () => {
-  assert.match(text(linkTo(await page("/"), "/roleplays/new")), /Start a Roleplay/);
+  assert.match(text(linkTo(await page("/home"), "/roleplays/new")), /Start a Roleplay/);
 });
 
 test("the Roadmap lists every Unit as a link, with its status as a word", async () => {
@@ -109,7 +109,7 @@ test("a finished Unit can't be skipped, and a Unit without a Roleplay says so", 
 });
 
 test("without a Roadmap, Home and the Roadmap offer to build it", async () => {
-  for (const path of ["/", "/roadmap"]) {
+  for (const path of ["/home", "/roadmap"]) {
     assert.ok(buttons(await page(path, "none")).some((b) => /Build my Roadmap/.test(b)), path);
   }
 });

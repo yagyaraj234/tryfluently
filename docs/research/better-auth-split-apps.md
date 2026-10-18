@@ -1,5 +1,7 @@
 # Better Auth across `apps/web` and `apps/api`
 
+**Historical research (2026-10-15).** Current implementation uses a same-origin `/api/*` pass-through in `apps/web/src/routes/api/$.ts`; browser auth uses the web origin in `apps/web/src/lib/auth.ts`. The Better Auth instance and session guard live in `apps/api/src/app.ts`. Examples below are the original proposal, not setup instructions. Follow the root [README](../../README.md) and current code for configuration.
+
 Question (issue #5): how does Better Auth work when `apps/web` (TanStack Start) and `apps/api` (Hono on Bun) are separate apps on different origins/ports? This covers cookies and CORS, where the handler lives, session checks in Hono, the Drizzle adapter with the schema in `packages/db`, and Google OAuth.
 
 Researched 2026-10-15 against Better Auth v1.7.10 (source commit `37a75c9`), hono.dev and tanstack.com/start.

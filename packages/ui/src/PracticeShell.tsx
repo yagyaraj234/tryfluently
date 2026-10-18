@@ -3,8 +3,8 @@ import { cva } from "class-variance-authority";
 import type { MouseEvent, ReactElement, ReactNode } from "react";
 import { IconButton } from "./IconButton";
 
-// Quiet, with no navigation, so the Learner can concentrate. One column at any width.
-const shell = cva("surface-quiet flex min-h-dvh flex-col bg-surface px-4 text-ink");
+// No navigation, so the Learner can concentrate. One column at any width.
+const shell = cva("flex min-h-dvh flex-col bg-canvas px-4 text-ink");
 const header = cva("mx-auto flex w-full max-w-content items-center py-3");
 const main = cva("mx-auto w-full max-w-content flex-1 pb-10");
 

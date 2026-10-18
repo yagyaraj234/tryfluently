@@ -44,7 +44,7 @@ function Guide() {
   );
   if (preview === "practice") return (
     <PracticeShell closeRender={<Link to="/design-system" search={{ preview: undefined }} />}>
-      <Heading level={1}>PracticeShell preview</Heading><Text>Quiet surface. No navigation. Close returns to the guide.</Text>{home}
+      <Heading level={1}>PracticeShell preview</Heading><Text>No navigation. Close returns to the guide.</Text>{home}
     </PracticeShell>
   );
 
@@ -54,13 +54,13 @@ function Guide() {
   }
 
   return (
-    <Screen surface="quiet">
+    <Screen>
       <Container width="prose">
         <Stack gap={10}>
           <Stack gap={4}>
-            <Text size="label">Impromptu · Neo Pop / Lime Rush</Text>
+            <Text size="label">Impromptu · one theme for the landing page and the app</Text>
             <Heading level={1}>Design System</Heading>
-            <Text>Real components, live tokens, on a quiet surface.</Text>
+            <Text>Real components and live tokens.</Text>
             <ChoiceChips label="Preview theme" options={themes} value={theme ?? "system"} onValueChange={pickTheme} />
             <Text tone="muted">Switch themes to review every example. Tab through controls to inspect focus; open overlays to check keyboard behaviour.</Text>
           </Stack>
@@ -71,7 +71,7 @@ function Guide() {
             <Heading level={3}>Heading level 3</Heading>
           </Example>
           <Example title="Layout and shells">
-            <Text>Screen sets the surface. Stack arranges vertically, Cluster wraps, Container limits reading width. Split stacks on phone and uses two thirds / one third at 64rem.</Text>
+            <Text>Screen sets the page background and gutters. Stack arranges vertically, Cluster wraps, Container limits reading width. Split stacks on phone and uses two thirds / one third at 64rem.</Text>
             <Split main={<Card><Text>Main content</Text></Card>} side={<Card><Text>Side content</Text></Card>} />
             <Cluster>
               <Button variant="secondary" render={<Link to="/design-system" search={{ preview: "app" }} />}>Preview AppShell</Button>

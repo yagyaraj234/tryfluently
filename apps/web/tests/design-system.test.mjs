@@ -15,7 +15,7 @@ test("the Design System guide renders without auth or an available API, includin
   for (const content of ["Colour tokens", "Typography", "Forms", "Overlays and toasts", "Lesson Steps", "Voice and recording", "Roadmap and progress", "Assessment Report", "Lesson complete"]) {
     assert.ok(html.includes(content), content);
   }
-  assert.match(html, /--primary/);
+  assert.match(html, /--color-primary/);
   assert.match(html, /Recording preview state/);
   assert.match(html, /name="robots" content="noindex"/);
 });

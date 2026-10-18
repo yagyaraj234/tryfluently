@@ -5,19 +5,31 @@ import type { Icon } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import type { ComponentProps, ReactElement } from "react";
 
-/** The pressable key look shared by Button and IconButton: ink outline, offset shadow, and a press that sinks into it. */
+/** The pill look shared by Button and IconButton, with a press that shrinks it slightly. */
 export const pressableClasses =
-  "inline-flex items-center justify-center gap-2 rounded-md border-2 border-line font-bold shadow-press focus-visible:focus-ring motion-safe:transition motion-safe:duration-press motion-safe:ease-press not-data-disabled:active:shadow-none motion-safe:not-data-disabled:active:translate-press data-disabled:bg-subtle data-disabled:text-muted data-disabled:shadow-none";
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap motion-safe:transition motion-safe:duration-press motion-safe:ease-press motion-safe:not-data-disabled:active:scale-97 data-disabled:bg-subtle data-disabled:text-muted";
 
-const button = cva(`${pressableClasses} min-h-target px-5 py-2 text-body`, {
+const button = cva(pressableClasses, {
   variants: {
-    variant: { primary: "bg-primary text-on-primary", secondary: "bg-paper text-ink" },
+    variant: {
+      primary: "bg-primary text-on-primary",
+      secondary: "border border-line bg-paper text-ink shadow-card",
+      // White on a cobalt brand panel, in either theme.
+      inverse: "bg-white text-black",
+    },
+    size: { md: "min-h-11 px-5.5 py-2 text-body", sm: "min-h-9.5 px-4 text-caption" },
+    // A ring and a cobalt glow for the one call to action on a page.
+    glow: {
+      true: "shadow-glow ring-2 ring-primary ring-offset-2 ring-offset-canvas shadow-primary/55 hover:shadow-primary/70",
+    },
     fullWidth: { true: "w-full" },
   },
 });
 
 export type ButtonProps = Omit<ComponentProps<"button">, "className" | "style"> & {
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "inverse";
+  size?: "md" | "sm";
+  glow?: boolean;
   fullWidth?: boolean;
   icon?: Icon;
   /**
@@ -27,12 +39,12 @@ export type ButtonProps = Omit<ComponentProps<"button">, "className" | "style"> 
   render?: ReactElement;
 };
 
-export function Button({ variant = "primary", fullWidth = false, icon: Icon, children, render, ...props }: ButtonProps) {
+export function Button({ variant = "primary", size = "md", glow = false, fullWidth = false, icon: Icon, children, render, ...props }: ButtonProps) {
   return useRender({
     render: render ?? <BaseButton />,
     props: mergeProps<"button">(
       {
-        className: button({ variant, fullWidth }),
+        className: button({ variant, size, glow, fullWidth }),
         children: (
           <>
             {Icon && <Icon aria-hidden />}

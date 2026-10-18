@@ -32,7 +32,7 @@ export type ChoiceChipsProps = CommonProps &
   );
 
 const chip =
-  "inline-flex cursor-pointer items-center gap-2 rounded-pill border-2 border-line bg-paper px-4 py-2 text-body text-ink focus-visible:focus-ring data-checked:bg-primary-soft data-disabled:cursor-not-allowed";
+  "inline-flex cursor-pointer items-center gap-2 rounded-full border border-line-strong bg-paper px-4 py-2 text-body text-ink data-checked:border-primary data-checked:bg-primary-soft data-disabled:cursor-not-allowed";
 
 /** Single choice is a radio group (arrow keys move and select); `multiple` is a group of checkboxes. */
 export function ChoiceChips(props: ChoiceChipsProps) {

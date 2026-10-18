@@ -35,13 +35,13 @@ const links = (html) => [...nav(html).matchAll(/<a\b[^>]*>/g)].map((m) => m[0]);
 const href = (a) => a.match(/href="([^"]*)"/)[1];
 
 test("every destination is in the navigation, as a link to its route", async () => {
-  const html = await page("/");
-  assert.deepEqual(links(html).map(href), ["/", "/roadmap", "/progress", "/settings"]);
+  const html = await page("/home");
+  assert.deepEqual(links(html).map(href), ["/home", "/roadmap", "/progress", "/settings"]);
   assert.deepEqual(text(nav(html)).match(/Home|Roadmap|Progress|Settings/g), ["Home", "Roadmap", "Progress", "Settings"]);
 });
 
 test("only the current destination is marked", async () => {
-  for (const path of ["/", "/roadmap", "/progress", "/settings"]) {
+  for (const path of ["/home", "/roadmap", "/progress", "/settings"]) {
     const current = links(await page(path)).filter((a) => a.includes('aria-current="page"'));
     assert.deepEqual(current.map(href), [path]);
   }
@@ -60,7 +60,7 @@ test("the Streak and XP from /api/progress are in the chrome", async () => {
 });
 
 test("the shell still renders when /api/progress fails, without the chips", async () => {
-  const html = await page("/", "learner=asha; progress=broken");
+  const html = await page("/home", "learner=asha; progress=broken");
   assert.ok(nav(html));
   assert.doesNotMatch(text(html), /day streak|XP/);
 });
@@ -70,6 +70,6 @@ test("practice screens show no navigation, only a close link back to Home", asyn
     const html = await page(path);
     assert.equal(nav(html), undefined, path);
     assert.match(html, /<a\b[^>]*aria-label="Close"[^>]*>/, path);
-    assert.equal(href(html.match(/<a\b[^>]*aria-label="Close"[^>]*>/)[0]), "/", path);
+    assert.equal(href(html.match(/<a\b[^>]*aria-label="Close"[^>]*>/)[0]), "/home", path);
   }
 });

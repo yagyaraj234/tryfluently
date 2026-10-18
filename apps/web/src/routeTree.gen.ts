@@ -9,14 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as SignedInRouteImport } from './routes/_signedIn'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignedInAppRouteImport } from './routes/_signedIn/_app'
 import { Route as SignedInPracticeRouteImport } from './routes/_signedIn/_practice'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
-import { Route as SignedInAppIndexRouteImport } from './routes/_signedIn/_app/index'
+import { Route as SignedInAppHomeRouteImport } from './routes/_signedIn/_app/home'
 import { Route as SignedInAppProgressRouteImport } from './routes/_signedIn/_app/progress'
 import { Route as SignedInAppSettingsRouteImport } from './routes/_signedIn/_app/settings'
 import { Route as SignedInAssessmentsNewRouteImport } from './routes/_signedIn/assessments/new'
@@ -30,6 +34,11 @@ import { Route as SignedInPracticeRoleplaysRoleplayIdRouteImport } from './route
 import { Route as SignedInPracticeRoleplaysNewRouteImport } from './routes/_signedIn/_practice/roleplays/new'
 import { Route as SignedInAssessmentsAssessmentIdReportRouteImport } from './routes/_signedIn/assessments/$assessmentId.report'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignedInRoute = SignedInRouteImport.update({
   id: '/_signedIn',
   getParentRoute: () => rootRouteImport,
@@ -37,6 +46,16 @@ const SignedInRoute = SignedInRouteImport.update({
 const DesignSystemRoute = DesignSystemRouteImport.update({
   id: '/design-system',
   path: '/design-system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -47,6 +66,11 @@ const SignInRoute = SignInRouteImport.update({
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignedInAppRoute = SignedInAppRouteImport.update({
@@ -62,9 +86,9 @@ const ApiSplatRoute = ApiSplatRouteImport.update({
   path: '/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignedInAppIndexRoute = SignedInAppIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const SignedInAppHomeRoute = SignedInAppHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
   getParentRoute: () => SignedInAppRoute,
 } as any)
 const SignedInAppProgressRoute = SignedInAppProgressRouteImport.update({
@@ -135,11 +159,15 @@ const SignedInAssessmentsAssessmentIdReportRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof SignedInAppIndexRoute
+  '/': typeof IndexRoute
   '/design-system': typeof DesignSystemRoute
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/$': typeof ApiSplatRoute
+  '/home': typeof SignedInAppHomeRoute
   '/progress': typeof SignedInAppProgressRoute
   '/settings': typeof SignedInAppSettingsRoute
   '/assessments/new': typeof SignedInAssessmentsNewRoute
@@ -154,11 +182,15 @@ export interface FileRoutesByFullPath {
   '/roadmap/': typeof SignedInAppRoadmapIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof SignedInAppIndexRoute
+  '/': typeof IndexRoute
   '/design-system': typeof DesignSystemRoute
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/$': typeof ApiSplatRoute
+  '/home': typeof SignedInAppHomeRoute
   '/progress': typeof SignedInAppProgressRoute
   '/settings': typeof SignedInAppSettingsRoute
   '/assessments/new': typeof SignedInAssessmentsNewRoute
@@ -174,18 +206,22 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_signedIn': typeof SignedInRouteWithChildren
   '/design-system': typeof DesignSystemRoute
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_signedIn/_app': typeof SignedInAppRouteWithChildren
   '/_signedIn/_practice': typeof SignedInPracticeRouteWithChildren
   '/api/$': typeof ApiSplatRoute
+  '/_signedIn/_app/home': typeof SignedInAppHomeRoute
   '/_signedIn/_app/progress': typeof SignedInAppProgressRoute
   '/_signedIn/_app/settings': typeof SignedInAppSettingsRoute
   '/_signedIn/assessments/new': typeof SignedInAssessmentsNewRoute
   '/_signedIn/goals/confirm': typeof SignedInGoalsConfirmRoute
-  '/_signedIn/_app/': typeof SignedInAppIndexRoute
   '/_signedIn/goals/': typeof SignedInGoalsIndexRoute
   '/_signedIn/_app/roadmap/$unitId': typeof SignedInAppRoadmapUnitIdRoute
   '/_signedIn/_practice/assessments/$assessmentId': typeof SignedInPracticeAssessmentsAssessmentIdRoute
@@ -200,9 +236,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/design-system'
+    | '/llms.txt'
+    | '/robots.txt'
     | '/sign-in'
     | '/sign-up'
+    | '/sitemap.xml'
     | '/api/$'
+    | '/home'
     | '/progress'
     | '/settings'
     | '/assessments/new'
@@ -219,9 +259,13 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/design-system'
+    | '/llms.txt'
+    | '/robots.txt'
     | '/sign-in'
     | '/sign-up'
+    | '/sitemap.xml'
     | '/api/$'
+    | '/home'
     | '/progress'
     | '/settings'
     | '/assessments/new'
@@ -236,18 +280,22 @@ export interface FileRouteTypes {
     | '/roadmap'
   id:
     | '__root__'
+    | '/'
     | '/_signedIn'
     | '/design-system'
+    | '/llms.txt'
+    | '/robots.txt'
     | '/sign-in'
     | '/sign-up'
+    | '/sitemap.xml'
     | '/_signedIn/_app'
     | '/_signedIn/_practice'
     | '/api/$'
+    | '/_signedIn/_app/home'
     | '/_signedIn/_app/progress'
     | '/_signedIn/_app/settings'
     | '/_signedIn/assessments/new'
     | '/_signedIn/goals/confirm'
-    | '/_signedIn/_app/'
     | '/_signedIn/goals/'
     | '/_signedIn/_app/roadmap/$unitId'
     | '/_signedIn/_practice/assessments/$assessmentId'
@@ -259,15 +307,26 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   SignedInRoute: typeof SignedInRouteWithChildren
   DesignSystemRoute: typeof DesignSystemRoute
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiSplatRoute: typeof ApiSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_signedIn': {
       id: '/_signedIn'
       path: ''
@@ -282,6 +341,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesignSystemRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-in': {
       id: '/sign-in'
       path: '/sign-in'
@@ -294,6 +367,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-up'
       fullPath: '/sign-up'
       preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_signedIn/_app': {
@@ -317,11 +397,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_signedIn/_app/': {
-      id: '/_signedIn/_app/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof SignedInAppIndexRouteImport
+    '/_signedIn/_app/home': {
+      id: '/_signedIn/_app/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof SignedInAppHomeRouteImport
       parentRoute: typeof SignedInAppRoute
     }
     '/_signedIn/_app/progress': {
@@ -412,17 +492,17 @@ declare module '@tanstack/react-router' {
 }
 
 interface SignedInAppRouteChildren {
+  SignedInAppHomeRoute: typeof SignedInAppHomeRoute
   SignedInAppProgressRoute: typeof SignedInAppProgressRoute
   SignedInAppSettingsRoute: typeof SignedInAppSettingsRoute
-  SignedInAppIndexRoute: typeof SignedInAppIndexRoute
   SignedInAppRoadmapUnitIdRoute: typeof SignedInAppRoadmapUnitIdRoute
   SignedInAppRoadmapIndexRoute: typeof SignedInAppRoadmapIndexRoute
 }
 
 const SignedInAppRouteChildren: SignedInAppRouteChildren = {
+  SignedInAppHomeRoute: SignedInAppHomeRoute,
   SignedInAppProgressRoute: SignedInAppProgressRoute,
   SignedInAppSettingsRoute: SignedInAppSettingsRoute,
-  SignedInAppIndexRoute: SignedInAppIndexRoute,
   SignedInAppRoadmapUnitIdRoute: SignedInAppRoadmapUnitIdRoute,
   SignedInAppRoadmapIndexRoute: SignedInAppRoadmapIndexRoute,
 }
@@ -474,10 +554,14 @@ const SignedInRouteWithChildren = SignedInRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   SignedInRoute: SignedInRouteWithChildren,
   DesignSystemRoute: DesignSystemRoute,
+  LlmsDottxtRoute: LlmsDottxtRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport

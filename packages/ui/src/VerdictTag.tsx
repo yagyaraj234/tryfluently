@@ -1,6 +1,6 @@
 import { cva } from "class-variance-authority";
 
-const verdictTag = cva("inline-flex items-center rounded-pill px-3 py-1 text-caption font-bold", {
+const verdictTag = cva("inline-flex items-center rounded-full px-3 py-1 text-caption font-bold", {
   variants: {
     verdict: {
       correct: "bg-correct-tint text-correct",

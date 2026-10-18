@@ -5,7 +5,7 @@ import { Card } from "./Card";
 import { Heading } from "./Heading";
 import { Text } from "./Text";
 
-const tag = cva("inline-flex shrink-0 items-center gap-1 rounded-pill border-2 border-line px-3 py-1 text-caption font-bold", {
+const tag = cva("inline-flex shrink-0 items-center gap-1 rounded-full border border-line px-3 py-1 text-caption font-bold", {
   variants: {
     status: {
       planned: "bg-paper text-ink",

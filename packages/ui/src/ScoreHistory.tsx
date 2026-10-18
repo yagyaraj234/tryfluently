@@ -3,7 +3,7 @@ import type { CefrLevel } from "./SkillBar";
 
 const table = cva("w-full text-left text-body text-ink tabular-nums");
 const head = cva("pb-2 text-caption font-bold text-muted");
-const row = cva("border-t-2 border-line");
+const row = cva("border-t border-line");
 const cell = cva("py-2 pr-4");
 
 const sources = { assessment: "Assessment", lesson: "Lesson" };

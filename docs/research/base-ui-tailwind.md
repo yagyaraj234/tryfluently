@@ -1,5 +1,7 @@
 # Base UI with Tailwind v4 and TanStack Start
 
+**Historical research (2026-10-15).** Component and package versions below reflect that date. The implemented tokens, styling and component APIs live in `packages/ui/src/`; [DESIGN.md](../../DESIGN.md) describes the shipped design system.
+
 Research for [#52](https://github.com/yagyaraj234/impromptu-monorepo/issues/52). Checked 2026-10-15 against primary sources only. Points marked **(inference)** are our reading of the sources, not something the sources say outright.
 
 ## Recommendation
