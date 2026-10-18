@@ -7,7 +7,7 @@ describe("UIProvider", () => {
   test("renders the app inside it", () => {
     render(
       <UIProvider>
-        <Screen surface="quiet">Home</Screen>
+        <Screen>Home</Screen>
       </UIProvider>,
     );
     expect(screen.getByRole("main").textContent).toBe("Home");
@@ -28,15 +28,15 @@ describe("UIProvider", () => {
 
 describe("Screen", () => {
   test("renders its content inside a main landmark", () => {
-    render(<Screen surface="quiet">Hello</Screen>);
+    render(<Screen>Hello</Screen>);
     expect(screen.getByRole("main").textContent).toBe("Hello");
   });
 
   test("takes no className or style", () => {
     // @ts-expect-error className is not a prop
-    <Screen surface="loud" className="x" />;
+    <Screen className="x" />;
     // @ts-expect-error style is not a prop
-    <Screen surface="loud" style={{}} />;
+    <Screen style={{}} />;
   });
 });
 

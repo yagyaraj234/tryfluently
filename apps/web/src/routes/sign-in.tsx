@@ -15,6 +15,7 @@ function SignIn() {
   const { error } = Route.useSearch();
   return (
     <AuthScreen
+      mode="sign-in"
       title="Welcome back"
       google={google}
       initialError={error && "Google sign-in didn't work. Try again, or use your email."}

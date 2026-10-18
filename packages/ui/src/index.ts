@@ -26,16 +26,42 @@ export {
 } from "./Steps";
 export { Chip, type ChipProps } from "./Chip";
 export { ChoiceChips, type ChoiceChipsProps } from "./ChoiceChips";
+export { CardList, type CardListProps } from "./CardList";
 export { Cluster, type ClusterProps } from "./Cluster";
 export { Container, type ContainerProps } from "./Container";
+export { Dashboard, type DashboardProps } from "./Dashboard";
 export { Debrief, type DebriefProps, type DebriefQuestion } from "./Debrief";
 export { Dialog, type DialogProps } from "./Dialog";
 export { EmptyState, ErrorState, LoadingState, type EmptyStateProps, type ErrorStateProps, type LoadingStateProps } from "./States";
 export { FocusItemCard, type FocusItemCardProps } from "./FocusItemCard";
+export { Grid, type GridProps } from "./Grid";
 export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { LiveBar, type LiveBarProps } from "./LiveBar";
 export { LessonComplete, type LessonCompleteProps } from "./LessonComplete";
+export {
+  AuthLayout,
+  Faq,
+  Feature,
+  FeatureTrio,
+  FinalCta,
+  GoalsStrip,
+  HowItWorks,
+  MarketingColumn,
+  MarketingHero,
+  MarketingShell,
+  ProductFrame,
+  type AuthLayoutProps,
+  type AuthPoint,
+  type FaqItem,
+  type FeatureCard,
+  type FeatureProps,
+  type FeaturePoint,
+  type MarketingHeroProps,
+  type MarketingShellProps,
+  type StepItem,
+} from "./Marketing";
+export { ChatBubbles, floatChips, LevelCard, MarketingPanel, ReportMock, RoadmapPeekMock, RoleplayMock, UnitRow, type UnitRowProps } from "./MarketingMocks";
 export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Meter, type MeterProps } from "./Meter";
 export { Notice, type NoticeProps } from "./Notice";
@@ -53,6 +79,8 @@ export { SkillBar, type CefrLevel, type Skill, type SkillBarProps } from "./Skil
 export { Spinner, type SpinnerProps } from "./Spinner";
 export { Split, type SplitProps } from "./Split";
 export { Stack, type Gap, type StackProps } from "./Stack";
+export { ProfileCard, type ProfileCardProps } from "./ProfileCard";
+export { StatTile, type StatTileProps } from "./StatTile";
 export { StreakCard, type StreakCardProps } from "./StreakCard";
 export { StreakChip, type StreakChipProps } from "./StreakChip";
 export { Switch, type SwitchProps } from "./Switch";
@@ -64,6 +92,7 @@ export { TokenReference } from "./TokenReference";
 export { toastManager } from "./Toast";
 export { type ChoiceOption } from "./Field";
 export { UIProvider } from "./UIProvider";
-export { UnitCard, UnitStatusTag, type UnitCardProps, type UnitStatus, type UnitStatusTagProps } from "./UnitCard";
+export { UnitCard, UnitIcon, UnitStatusTag, type UnitCardProps, type UnitIconProps, type UnitStatus, type UnitStatusTagProps } from "./UnitCard";
 export { VerdictTag, type VerdictTagProps } from "./VerdictTag";
+export { WeekStrip, type WeekStripProps } from "./WeekStrip";
 export { XpChip, type XpChipProps } from "./XpChip";

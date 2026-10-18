@@ -2,7 +2,10 @@ import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 import { textSizeClasses, type TextSize } from "./Text";
 
-const heading = cva("text-balance text-ink", { variants: { size: textSizeClasses } });
+// The small sizes carry no weight of their own, so a heading at them is semibold.
+const heading = cva("text-balance text-ink", {
+  variants: { size: { ...textSizeClasses, caption: "text-caption font-semibold", body: "text-body font-semibold" } },
+});
 
 const defaultSize = { 1: "page", 2: "heading", 3: "title" } as const;
 

@@ -4,7 +4,6 @@ import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 import { IconButton } from "./IconButton";
 
-// Portalled to <body>, outside any loud Screen, so bg-surface and shadow-card resolve to the quiet surface.
 const fade =
   "motion-safe:transition motion-safe:duration-ui motion-safe:ease-ui data-starting-style:opacity-0 data-ending-style:opacity-0";
 
@@ -12,19 +11,19 @@ const backdrop = cva(`fixed inset-0 z-overlay min-h-dvh bg-scrim ${fade}`);
 
 const viewport = cva("fixed inset-0 z-overlay flex justify-center", {
   variants: {
-    kind: { dialog: "items-center p-4", sheet: "items-end desktop:items-center desktop:p-4" },
+    kind: { dialog: "items-center p-4", sheet: "items-end lg:items-center lg:p-4" },
   },
 });
 
 const popup = cva(
-  `flex max-h-full w-full max-w-content flex-col gap-4 overflow-y-auto border-2 border-line bg-surface p-6 text-ink shadow-card ${fade}`,
+  `flex max-h-full w-full max-w-content flex-col gap-4 overflow-y-auto border border-line bg-paper p-6 text-ink shadow-card ${fade}`,
   {
     variants: {
       kind: {
-        dialog: "rounded-md",
+        dialog: "rounded-xl",
         // Below desktop it slides up from the bottom edge, within thumb reach.
         sheet:
-          "rounded-t-md desktop:rounded-md max-desktop:data-starting-style:translate-y-full max-desktop:data-ending-style:translate-y-full",
+          "rounded-t-xl lg:rounded-xl max-lg:data-starting-style:translate-y-full max-lg:data-ending-style:translate-y-full",
       },
     },
   },

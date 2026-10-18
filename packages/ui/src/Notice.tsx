@@ -1,7 +1,7 @@
 import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 
-const notice = cva("rounded-md border-2 border-line px-4 py-3 text-body text-ink", {
+const notice = cva("rounded-xl border border-line px-4 py-3 text-body text-ink", {
   variants: {
     tone: { error: "bg-incorrect-tint", info: "bg-primary-soft" },
   },

@@ -286,7 +286,7 @@ function DebriefScreen({ roleplay }: { roleplay: Roleplay }) {
             ) : (
               <Button render={<Link to="/roleplays/new" />}>Another Roleplay</Button>
             )}
-            <Button variant="secondary" render={<Link to="/" />}>
+            <Button variant="secondary" render={<Link to="/home" />}>
               Back to Home
             </Button>
           </>

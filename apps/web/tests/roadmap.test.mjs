@@ -36,6 +36,9 @@ const roadmaps = {
   none: [],
 };
 
+// Thursday: practised on Monday and Wednesday.
+const week = ["12", "13", "14", "15", "16", "17", "18"].map((d) => ({ day: `2026-10-${d}`, practised: d === "12" || d === "14", today: d === "15" }));
+
 let web;
 
 before(async () => {
@@ -45,7 +48,9 @@ before(async () => {
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
     if (req.url === "/api/goals") return json(200, [{ status: "confirmed" }]);
     if (req.url === "/api/assessments") return json(200, [{ status: "completed" }]);
-    if (req.url === "/api/progress") return json(200, { xp: 340, streak: 12 });
+    if (req.url === "/api/progress") return json(200, { xp: 340, streak: 12, week });
+    if (req.url === "/api/skill-profile")
+      return json(200, { fluency: null, grammar: { score: 58, level: "B2" }, vocabulary: { score: 40, level: "B1" } });
     if (req.url === "/api/roadmap") return json(200, roadmaps[/roadmap=(\w+)/.exec(req.headers.cookie)?.[1] ?? "inProgress"]);
     json(404, { error: "Not found" });
   });
@@ -63,23 +68,52 @@ const text = (html) => html.replace(/<!--.*?-->/g, "").replace(/<[^>]+>/g, " ").
 const buttons = (html) => [...html.matchAll(/<button\b[\s\S]*?<\/button>/g)].map((m) => text(m[0]));
 const linkTo = (html, href) => html.match(new RegExp(`<a\\b[^>]*href="${href}"[^>]*>[\\s\\S]*?</a>`))?.[0];
 
-test("Home resumes the Lesson in progress, and shows the Streak, XP and the active Unit", async () => {
-  const html = await page("/");
+test("Home resumes the Lesson in progress in the active Unit", async () => {
+  const html = await page("/home");
   assert.match(text(linkTo(html, "/lessons/l3")), /Resume/);
   assert.match(text(html), /Talking about results/);
-  assert.match(text(html), /12 day streak/);
-  assert.match(text(html), /340 XP/);
-  assert.match(text(linkTo(html, "/roadmap/3")), /Tenses for projects.*Active/);
+  assert.match(text(linkTo(html, "/roadmap/3")), /Tenses for projects/);
+  assert.match(text(html), /Active/);
+});
+
+test("Home's Continue card shows how close the active Unit is to its objective, and the Lessons done", async () => {
+  const t = text(await page("/home"));
+  assert.match(t, /Continue learning.*Tenses for projects.*1 Lesson done.*64% to the objective.*Resume/);
+});
+
+test("Home's Up next links the planned Units after the active one, and leaves finished Units to the Roadmap", async () => {
+  const html = await page("/home");
+  assert.match(text(html), /Up next.*Planned.*Unit 4/);
+  assert.ok(linkTo(html, "/roadmap/4"));
+  assert.equal(linkTo(html, "/roadmap/1"), undefined);
+  assert.equal(linkTo(html, "/roadmap/2"), undefined);
+});
+
+test("Home's profile card shows the Learner's name, the CEFR Level of each measured skill, and Streak, XP and Units mastered", async () => {
+  const html = await page("/home");
+  assert.match(text(html), /Asha.*Grammar B2.*Vocabulary B1.*12 Day streak.*340 XP.*1 Unit mastered/);
+  assert.doesNotMatch(text(html), /Fluency [ABC]/);
+  assert.match(text(linkTo(html, "/progress")), /Grammar B2/);
+});
+
+test("Home's week strip runs Monday to Sunday, marking the days practised and today", async () => {
+  const t = text(await page("/home"));
+  assert.match(t, /This week.*Mon 12 practised.*Tue 13.*Wed 14 practised.*Thu 15 today.*Fri 16.*Sat 17.*Sun 18/);
+  assert.doesNotMatch(t, /Tue 13 practised/);
+});
+
+test("Home's stat tiles count the Lessons done across the Roadmap and the Units in progress", async () => {
+  assert.match(text(await page("/home")), /This week.*2 Lessons done.*1 Unit in progress/);
 });
 
 test("Home offers to start the next Lesson when none is in progress", async () => {
-  const html = await page("/", "fresh");
+  const html = await page("/home", "fresh");
   assert.ok(buttons(html).some((b) => /Start your next Lesson/.test(b)));
   assert.equal(linkTo(html, "/lessons/[^\"]+"), undefined);
 });
 
 test("Home offers a Roleplay any time", async () => {
-  assert.match(text(linkTo(await page("/"), "/roleplays/new")), /Start a Roleplay/);
+  assert.match(text(linkTo(await page("/home"), "/roleplays/new")), /Start a Roleplay/);
 });
 
 test("the Roadmap lists every Unit as a link, with its status as a word", async () => {
@@ -88,6 +122,12 @@ test("the Roadmap lists every Unit as a link, with its status as a word", async 
   for (const [i, status] of statuses.entries()) {
     assert.match(text(linkTo(html, `/roadmap/${i + 1}`)), new RegExp(status), status);
   }
+});
+
+test("the Roadmap numbers its Units in order, and only the active Unit shows how close it is to its objective", async () => {
+  const html = await page("/roadmap");
+  assert.match(text(html), /Unit 1 .*Unit 2 .*Tenses for projects Unit 3 .*64% to the objective.*Unit 4 /);
+  assert.equal(html.match(/role="meter"/g)?.length, 1);
 });
 
 test("a Unit shows its objective, skills, past Lessons with their objective progress, and its Roleplay", async () => {
@@ -102,6 +142,13 @@ test("a Unit shows its objective, skills, past Lessons with their objective prog
   assert.ok(buttons(html).some((b) => /Skip this Unit/.test(b)));
 });
 
+test("the active Unit resumes its Lesson in progress, or starts its next one; other Units offer neither", async () => {
+  assert.match(text(linkTo(await page("/roadmap/3"), "/lessons/l3")), /Resume/);
+  assert.ok(buttons(await page("/roadmap/1", "fresh")).some((b) => /Start your next Lesson/.test(b)));
+  const planned = await page("/roadmap/4");
+  assert.doesNotMatch(text(planned), /Resume|Start your next Lesson/);
+});
+
 test("a finished Unit can't be skipped, and a Unit without a Roleplay says so", async () => {
   const html = await page("/roadmap/1");
   assert.doesNotMatch(html, /Skip this Unit/);
@@ -109,7 +156,7 @@ test("a finished Unit can't be skipped, and a Unit without a Roleplay says so", 
 });
 
 test("without a Roadmap, Home and the Roadmap offer to build it", async () => {
-  for (const path of ["/", "/roadmap"]) {
+  for (const path of ["/home", "/roadmap"]) {
     assert.ok(buttons(await page(path, "none")).some((b) => /Build my Roadmap/.test(b)), path);
   }
 });

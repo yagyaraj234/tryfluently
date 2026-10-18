@@ -5,7 +5,7 @@ const levels: CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 const scale = cva("grid grid-cols-6 gap-1");
 // Ink text on the light cells (A1–B1), on-primary text on the dark ones (B2–C2).
-const cell = cva("rounded-sm py-1 text-center text-caption font-bold", {
+const cell = cva("rounded-lg py-1 text-center text-caption font-bold", {
   variants: {
     level: {
       A1: "bg-cefr-a1 text-ink",
@@ -15,7 +15,7 @@ const cell = cva("rounded-sm py-1 text-center text-caption font-bold", {
       C1: "bg-cefr-c1 text-on-primary",
       C2: "bg-cefr-c2 text-on-primary",
     },
-    current: { true: "outline-2 outline-offset-1 outline-line motion-safe:animate-celebrate" },
+    current: { true: "outline-2 outline-offset-1 outline-ink motion-safe:animate-celebrate" },
   },
 });
 

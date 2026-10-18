@@ -36,7 +36,7 @@ async function assertRedirect(path, cookie, to) {
 }
 
 test("a signed-out visitor is sent to sign-in", async () => {
-  await assertRedirect("/", undefined, "/sign-in");
+  await assertRedirect("/home", undefined, "/sign-in");
   await assertRedirect("/goals", undefined, "/sign-in");
 });
 
@@ -49,17 +49,17 @@ test("sign-in renders with the UI stylesheet and Familjen Grotesk", async () => 
 });
 
 test("a Learner with no Goals and no Assessment is sent to set Goals", async () => {
-  await assertRedirect("/", "learner=new", "/goals");
-  await assertRedirect("/", "learner=discarded", "/goals");
+  await assertRedirect("/home", "learner=new", "/goals");
+  await assertRedirect("/home", "learner=discarded", "/goals");
 });
 
 test("a Learner with proposed Goals is sent to confirm them", async () => {
-  await assertRedirect("/", "learner=proposed", "/goals/confirm");
+  await assertRedirect("/home", "learner=proposed", "/goals/confirm");
 });
 
 test("an onboarded Learner reaches Home", async () => {
   for (const learner of ["assessed", "confirmed"]) {
-    const response = await visit("/", `learner=${learner}`);
+    const response = await visit("/home", `learner=${learner}`);
     assert.equal(response.status, 200, learner);
     assert.match(await response.text(), /<h1[^>]*>Home<\/h1>/);
   }
@@ -69,10 +69,10 @@ test("Goals stay reachable while onboarding", async () => {
   assert.equal((await visit("/goals", "learner=new")).status, 200);
 });
 
-test("the theme cookie is rendered as data-theme on <html>, and System renders none", async () => {
+test("the theme cookie is rendered as data-theme on <html>, no cookie means light, and System renders none", async () => {
   const html = async (cookie) => (await (await visit("/sign-in", cookie)).text()).match(/<html[^>]*>/)[0];
   assert.match(await html("theme=dark"), /data-theme="dark"/);
   assert.match(await html("theme=light"), /data-theme="light"/);
+  assert.match(await html(), /data-theme="light"/);
   assert.doesNotMatch(await html("theme=system"), /data-theme/);
-  assert.doesNotMatch(await html(), /data-theme/);
 });

@@ -4,16 +4,16 @@ import { cva } from "class-variance-authority";
 import { spinner } from "./Spinner";
 
 // A pulsing live ring sits behind the button while it records.
-const wrap = cva("relative inline-flex rounded-pill p-1");
-const ring = cva("absolute inset-0 rounded-pill bg-live motion-safe:animate-pulse");
+const wrap = cva("relative inline-flex rounded-full p-1");
+const ring = cva("absolute inset-0 rounded-full bg-live motion-safe:animate-pulse");
 const button = cva(
-  "relative inline-flex size-record items-center justify-center rounded-pill border-2 text-heading shadow-press focus-visible:focus-ring motion-safe:transition motion-safe:duration-press motion-safe:ease-press not-data-disabled:active:shadow-none motion-safe:not-data-disabled:active:translate-press",
+  "relative inline-flex size-18 items-center justify-center rounded-full text-heading shadow-card motion-safe:transition motion-safe:duration-press motion-safe:ease-press motion-safe:not-data-disabled:active:scale-97",
   {
     variants: {
       state: {
-        idle: "border-line bg-primary text-on-primary",
-        recording: "border-line bg-paper text-ink",
-        processing: "border-line bg-subtle text-muted shadow-none",
+        idle: "bg-primary text-on-primary shadow-glow shadow-primary/55",
+        recording: "border border-line bg-paper text-ink",
+        processing: "bg-subtle text-muted shadow-none",
       },
     },
   },

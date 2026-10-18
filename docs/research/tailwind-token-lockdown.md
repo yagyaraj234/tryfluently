@@ -1,5 +1,7 @@
 # Locking Tailwind v4 to design tokens
 
+**Historical research (2026-10-15).** The shipped stylesheet is `packages/ui/src/styles.css`, imported by the web root route. Its `@source "./"` scans the UI package. The `apps/web` stylesheet setup below was a proposal; see [DESIGN.md](../../DESIGN.md) and the current CSS for the implemented boundary.
+
 Research for [#53](https://github.com/yagyaraj234/impromptu-monorepo/issues/53), part of the UI map [#51](https://github.com/yagyaraj234/impromptu-monorepo/issues/51). Checked against Tailwind CSS **v4.3.3** (the latest release, [tailwindlabs/tailwindcss releases](https://github.com/tailwindlabs/tailwindcss/releases)) and eslint-plugin-better-tailwindcss **4.9.1**. The example `tokens.css` and lint config below were compiled and linted locally with those versions. The results are noted inline as "Verified".
 
 ## Answer in brief

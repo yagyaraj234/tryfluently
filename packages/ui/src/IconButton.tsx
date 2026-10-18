@@ -6,7 +6,7 @@ import { cva } from "class-variance-authority";
 import type { ComponentProps, ReactElement } from "react";
 import { pressableClasses } from "./Button";
 
-const iconButton = cva(`${pressableClasses} size-target bg-paper text-title text-ink`);
+const iconButton = cva(`${pressableClasses} size-11 border border-line bg-paper text-title text-ink shadow-card`);
 
 export type IconButtonProps = Omit<ComponentProps<"button">, "className" | "style" | "children" | "aria-label"> & {
   icon: Icon;

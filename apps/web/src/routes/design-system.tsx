@@ -1,12 +1,12 @@
 import {
   AnswerBox, AppShell, Button, Card, CefrScale, ChatTurn, Chip, ChoiceChips, Cluster, Container, Debrief, Dialog,
-  EmptyState, ErrorState, FillGapStep, FocusItemCard, Heading, IconButton, LessonComplete, LiveBar, LoadingState,
-  Menu, Meter, Notice, OfflineBanner, PracticeShell, ProgressBar, RecordButton, ReportStrengths, ReportWeakness,
+  EmptyState, ErrorState, FillGapStep, FocusItemCard, Grid, Heading, IconButton, LessonComplete, LiveBar, LoadingState,
+  Menu, Meter, Notice, OfflineBanner, PracticeShell, ProfileCard, ProgressBar, RecordButton, ReportStrengths, ReportWeakness,
   RewriteStep, ScoreHistory, Screen, Select, Sheet, Skeleton, SkillBar, SpeakPromptStep, Spinner, Split, Stack,
-  StepFeedback, StepHeader, StreakCard, StreakChip, Switch, Text, TextArea, TextField, TextLink, TokenReference,
-  UnitCard, VocabCardStep, VerdictTag, VoiceAnswer, XpChip, toastManager, type RecordingState, type TextSize,
+  StatTile, StepFeedback, StepHeader, StreakCard, StreakChip, Switch, Text, TextArea, TextField, TextLink, TokenReference,
+  UnitCard, VocabCardStep, VerdictTag, VoiceAnswer, WeekStrip, XpChip, toastManager, type RecordingState, type TextSize,
 } from "@impromptu/ui";
-import { DotsThree, House, MapTrifold, Microphone, SpeakerHigh } from "@phosphor-icons/react";
+import { Books, CheckCircle, DotsThree, House, MapTrifold, Microphone, SpeakerHigh } from "@phosphor-icons/react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { saveTheme, type Theme } from "../lib/theme";
@@ -44,7 +44,7 @@ function Guide() {
   );
   if (preview === "practice") return (
     <PracticeShell closeRender={<Link to="/design-system" search={{ preview: undefined }} />}>
-      <Heading level={1}>PracticeShell preview</Heading><Text>Quiet surface. No navigation. Close returns to the guide.</Text>{home}
+      <Heading level={1}>PracticeShell preview</Heading><Text>No navigation. Close returns to the guide.</Text>{home}
     </PracticeShell>
   );
 
@@ -54,13 +54,13 @@ function Guide() {
   }
 
   return (
-    <Screen surface="quiet">
+    <Screen>
       <Container width="prose">
         <Stack gap={10}>
           <Stack gap={4}>
-            <Text size="label">Impromptu · Neo Pop / Lime Rush</Text>
+            <Text size="label">Impromptu · one theme for the landing page and the app</Text>
             <Heading level={1}>Design System</Heading>
-            <Text>Real components, live tokens, on a quiet surface.</Text>
+            <Text>Real components and live tokens.</Text>
             <ChoiceChips label="Preview theme" options={themes} value={theme ?? "system"} onValueChange={pickTheme} />
             <Text tone="muted">Switch themes to review every example. Tab through controls to inspect focus; open overlays to check keyboard behaviour.</Text>
           </Stack>
@@ -71,7 +71,7 @@ function Guide() {
             <Heading level={3}>Heading level 3</Heading>
           </Example>
           <Example title="Layout and shells">
-            <Text>Screen sets the surface. Stack arranges vertically, Cluster wraps, Container limits reading width. Split stacks on phone and uses two thirds / one third at 64rem.</Text>
+            <Text>Screen sets the page background and gutters. Stack arranges vertically, Cluster wraps, Container limits reading width. Split stacks on phone and uses two thirds / one third at 64rem.</Text>
             <Split main={<Card><Text>Main content</Text></Card>} side={<Card><Text>Side content</Text></Card>} />
             <Cluster>
               <Button variant="secondary" render={<Link to="/design-system" search={{ preview: "app" }} />}>Preview AppShell</Button>
@@ -108,6 +108,10 @@ function Guide() {
           <Voice />
           <Example title="Roadmap and progress">
             {(["planned", "active", "mastered", "skipped"] as const).map((status) => <UnitCard key={status} title={`Telling your story · ${status}`} objective="Describe your experience with clear past tenses." status={status} />)}
+            <UnitCard number={3} skill="grammar" title="Tenses for projects" objective="Talk about past projects with the right tense." status="active" progress={{ value: 64, lessonsDone: 2 }} action={<Button onClick={sample}>Resume Lesson</Button>} />
+            <ProfileCard name="Asha Rao" levels={[{ skill: "grammar", level: "B2" }, { skill: "vocabulary", level: "B1" }]} streak={12} xp={340} unitsMastered={1} />
+            <WeekStrip week={["12", "13", "14", "15", "16", "17", "18"].map((d) => ({ day: `2026-10-${d}`, practised: d < "15", today: d === "15" }))} />
+            <Grid columns={2}><StatTile icon={CheckCircle} value={3} label="Lessons done" /><StatTile icon={Books} value={1} label="Unit in progress" /></Grid>
             {(["fluency", "grammar", "vocabulary"] as const).map((skill) => <SkillBar key={skill} skill={skill} score={55} level="B2" />)}
             <CefrScale label="CEFR scale preview" level="B2" />
             <ScoreHistory label="Grammar history preview" entries={[

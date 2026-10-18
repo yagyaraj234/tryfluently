@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { Heading } from "./Heading";
 import { StreakCard } from "./StreakCard";
 
-// A loud panel inside the quiet practice screen: the celebration is a brand moment.
-const panel = cva("surface-loud flex flex-col items-center gap-6 rounded-md border-2 border-line bg-surface p-8 text-center text-ink");
+// The celebration is a brand moment: a card with the soft shadow.
+const panel = cva("flex flex-col items-center gap-6 rounded-3xl border border-line bg-paper p-8 text-center text-ink shadow-card");
 const icon = cva("text-hero text-primary motion-safe:animate-celebrate");
 const xp = cva("text-hero tabular-nums");
 const actions = cva("flex flex-wrap justify-center gap-3");

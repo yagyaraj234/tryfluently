@@ -2,13 +2,12 @@ import { Menu as BaseMenu } from "@base-ui/react/menu";
 import { cva } from "class-variance-authority";
 import type { ReactElement } from "react";
 
-// Portalled to <body>, so bg-surface and shadow-card resolve to the quiet surface.
 const popup = cva(
-  "flex min-w-(--anchor-width) max-h-(--available-height) origin-(--transform-origin) flex-col overflow-y-auto rounded-md border-2 border-line bg-surface p-1 text-ink shadow-card motion-safe:transition motion-safe:duration-ui motion-safe:ease-ui data-starting-style:opacity-0 data-ending-style:opacity-0",
+  "flex min-w-(--anchor-width) max-h-(--available-height) origin-(--transform-origin) flex-col overflow-y-auto rounded-xl border border-line bg-paper p-1 text-ink shadow-card motion-safe:transition motion-safe:duration-ui motion-safe:ease-ui data-starting-style:opacity-0 data-ending-style:opacity-0",
 );
 
 const item = cva(
-  "flex min-h-target cursor-default items-center rounded-sm px-3 text-body focus-visible:focus-ring data-highlighted:bg-primary-soft",
+  "flex min-h-11 cursor-default items-center rounded-lg px-3 text-body data-highlighted:bg-primary-soft",
 );
 
 /** Either an action (`onSelect`) or a link (`render`, for example a router link), never both. */

@@ -8,12 +8,12 @@ import { Notice } from "./Notice";
 import { skillNames, type Skill } from "./SkillBar";
 import { Text } from "./Text";
 
-// The Debrief after a Roleplay, on the quiet surface. Props use the API's Debrief names, so apps pass it straight through.
+// The Debrief after a Roleplay. Props use the API's Debrief names, so apps pass it straight through.
 
 const column = cva("flex flex-col gap-8");
 const group = cva("flex flex-col gap-4");
 const inCard = cva("flex flex-col gap-3");
-const quote = cva("rounded-md bg-subtle px-4 py-3 text-body text-ink");
+const quote = cva("rounded-xl bg-subtle px-4 py-3 text-body text-ink");
 const stronger = cva("text-body font-bold text-ink");
 const bullets = cva("flex list-disc flex-col gap-1 pl-5 text-caption text-ink");
 const rows = cva("flex flex-col gap-3");

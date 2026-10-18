@@ -11,7 +11,7 @@ const vocabCard = { word: "deadline", meaning: "the time by which something must
 const speakPrompt = { question: "Tell me about the team you lead.", targetSeconds: 60 };
 const rewrite = { sentence: "I am very very happy with the result.", aim: "Sound more natural by replacing 'very very'." };
 
-const lesson = (id, over) => ({ id, kind: "practice", status: "in_progress", title: "Present simple", objective: "Use present simple", messages: [], steps: [], ...over });
+const lesson = (id, over) => ({ id, unitId: "u1", kind: "practice", status: "in_progress", title: "Present simple", objective: "Use present simple", messages: [], steps: [], ...over });
 const lessons = {
   fresh: lesson("fresh"),
   // Resumed at its second Step: the first was answered and got feedback.
@@ -34,6 +34,7 @@ before(async () => {
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
     if (req.url === "/api/progress") return json(200, { xp: 340, streak: 12 });
+    if (req.url === "/api/roadmap") return json(200, [{ id: "u1", status: "active", title: "Tenses for projects", lessons: [] }]);
     const id = /^\/api\/lessons\/(\w+)$/.exec(req.url)?.[1];
     if (id && lessons[id]) return json(200, lessons[id]);
     json(404, { error: "Not found" });
@@ -106,7 +107,7 @@ test("a finished Lesson shows Lesson complete with the Streak and the next actio
   assert.match(t, /12 day streak/);
   assert.match(t, /\+40 XP/);
   assert.match(t, /Next Lesson/);
-  assert.match(html, /<a\b[^>]*href="\/"[^>]*>[^<]*Home/);
+  assert.match(html, /<a\b[^>]*href="\/home"[^>]*>[^<]*Home/);
 });
 
 test("an abandoned Lesson offers Home without a completion reward", async () => {
@@ -122,7 +123,13 @@ test("a Roleplay Lesson opens on the Roleplay screen", async () => {
   assert.match(text(await page("/roleplays/roleplay")), /Mock Interview · Standard/);
 });
 
+test("the top bar names the Unit the Lesson belongs to, next to the close link", async () => {
+  const header = (await (await get("/lessons/resumed")).text()).match(/<header[\s\S]*?<\/header>/)[0];
+  assert.match(header, /aria-label="Close"/);
+  assert.match(text(header), /Tenses for projects/);
+});
+
 test("closing the Lesson goes back to Home", async () => {
   const response = await get("/lessons/vocab");
-  assert.match(await response.text(), /<a\b[^>]*href="\/"[^>]*aria-label="Close"|<a\b[^>]*aria-label="Close"[^>]*href="\/"/);
+  assert.match(await response.text(), /<a\b[^>]*href="\/home"[^>]*aria-label="Close"|<a\b[^>]*aria-label="Close"[^>]*href="\/home"/);
 });

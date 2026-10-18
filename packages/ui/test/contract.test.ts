@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { dirname } from "node:path";
-import { compile } from "@tailwindcss/node";
+import { compile, optimize } from "@tailwindcss/node";
 import { ESLint } from "eslint";
 
 async function compileStyles(classes: string[]) {
@@ -12,39 +12,60 @@ async function compileStyles(classes: string[]) {
   return compiler.build(classes);
 }
 
+/** happy-dom ignores @layer, so unwrap the blocks. Source order already matches layer order here. */
+function unlayer(css: string) {
+  let out = css.replace(/@layer [\w, ]+;/g, "");
+  for (let i = out.indexOf("@layer"); i !== -1; i = out.indexOf("@layer")) {
+    const open = out.indexOf("{", i);
+    let depth = 1;
+    let j = open + 1;
+    for (; depth; j++) depth += out[j] === "{" ? 1 : out[j] === "}" ? -1 : 0;
+    out = out.slice(0, i) + out.slice(open + 1, j - 1) + out.slice(j);
+  }
+  return out;
+}
+
 const hasRule = (css: string, cls: string) => new RegExp(`\\.${cls}\\s*\\{`).test(css);
 
 describe("styles.css", () => {
-  const tokenClasses = ["bg-primary", "p-4", "text-body", "shadow-card"];
-  const offPalette = ["bg-blue-500", "p-7", "text-brand"];
+  const tokenClasses = ["bg-primary", "p-7", "text-body", "shadow-card", "rounded-3xl", "grid-cols-2"];
+  const offPalette = ["bg-blue-500", "text-red-600", "shadow-lg"];
 
-  test("token classes produce CSS, palette and default classes produce none", async () => {
+  test("theme colours and Tailwind's scales produce CSS, Tailwind's palette and shadows produce none", async () => {
     const css = await compileStyles([...tokenClasses, ...offPalette]);
     for (const cls of tokenClasses) expect({ cls, generated: hasRule(css, cls) }).toEqual({ cls, generated: true });
     for (const cls of offPalette) expect({ cls, generated: hasRule(css, cls) }).toEqual({ cls, generated: false });
   });
 
+  test("type roles only set type: no colour shares a role's name", async () => {
+    const roles = ["label", "caption", "body", "title", "heading", "page", "hero"];
+    const css = await compileStyles(roles.map((r) => `text-${r}`));
+    expect(css).not.toMatch(/\.text-[a-z]+ \{[^}]*\bcolor:/);
+  });
+
   test("celebration motion is enabled only when reduced motion is not requested", async () => {
     const css = await compileStyles(["motion-safe:animate-celebrate"]);
     expect(css).toContain("@media (prefers-reduced-motion: no-preference)");
-    expect(css).toContain("--duration-celebrate");
+    expect(css).toContain("--animate-celebrate");
     expect(css).toContain("@keyframes celebrate");
   });
 });
 
-describe("tokens.css theming", () => {
-  const LIGHT_PAPER = "#ffffff";
-  const DARK_PAPER = "#1b230c";
+describe("theming", () => {
+  const LIGHT_PAPER = "#fff"; // minified, as shipped
+  const DARK_PAPER = "#262625";
+  // Flattened the way the app's build ships it, since happy-dom reads neither nesting nor layers.
+  const css = compileStyles(["bg-paper"]).then((source) => unlayer(optimize(source).code));
 
   async function paperFor(colorScheme: "light" | "dark", dataTheme?: "light" | "dark") {
     const { Window } = await import("happy-dom");
     const window = new Window({ settings: { device: { prefersColorScheme: colorScheme } } });
     const { document } = window;
     const style = document.createElement("style");
-    style.textContent = await Bun.file(Bun.resolveSync("@impromptu/ui/tokens.css", import.meta.dir)).text();
+    style.textContent = await css;
     document.head.appendChild(style);
     if (dataTheme) document.documentElement.dataset.theme = dataTheme;
-    const value = window.getComputedStyle(document.documentElement).getPropertyValue("--paper").trim();
+    const value = window.getComputedStyle(document.documentElement).getPropertyValue("--color-paper").trim();
     await window.happyDOM.close();
     return value;
   }
@@ -61,8 +82,8 @@ describe("tokens.css theming", () => {
 });
 
 describe("package exports", () => {
-  test("expose the barrel, the two stylesheets and the apps lint config", () => {
-    for (const entry of ["@impromptu/ui", "@impromptu/ui/tokens.css", "@impromptu/ui/styles.css", "@impromptu/ui/eslint"]) {
+  test("expose the barrel, the one stylesheet and the apps lint config", () => {
+    for (const entry of ["@impromptu/ui", "@impromptu/ui/styles.css", "@impromptu/ui/eslint"]) {
       expect(() => Bun.resolveSync(entry, import.meta.dir)).not.toThrow();
     }
   });
@@ -99,7 +120,6 @@ describe("apps lint config", async () => {
   test("CSS imports fail, except the ui stylesheet", async () => {
     expect(await lintApp(`import "./app.css";`)).toEqual(["no-restricted-imports"]);
     expect(await lintApp(`import css from "some-lib/dist/theme.css?url";`)).toEqual(["no-restricted-imports"]);
-    expect(await lintApp(`import "@impromptu/ui/tokens.css";`)).toEqual(["no-restricted-imports"]);
     expect(await lintApp(`import "@impromptu/ui/styles.css";`)).toEqual([]);
     expect(await lintApp(`import appCss from "@impromptu/ui/styles.css?url";`)).toEqual([]);
   });
@@ -111,38 +131,37 @@ describe("ui package lint config", () => {
   const lintClasses = (classes: string) => lintUi(`import { cva } from "class-variance-authority";\nexport const fixture = cva("${classes}");`);
   const RESTRICTED = "better-tailwindcss/no-restricted-classes";
 
-  test("token classes, data-attribute variants and the surface classes pass", async () => {
-    expect(await lintClasses("bg-primary p-4 text-body shadow-card focus-visible:focus-ring")).toEqual([]);
-    expect(await lintClasses("data-open:bg-primary-soft data-disabled:text-muted dark:bg-paper")).toEqual([]);
-    expect(await lintClasses("surface-loud surface-quiet")).toEqual([]);
+  test("theme classes, Tailwind's scales, variants and opacity modifiers pass", async () => {
+    expect(await lintClasses("bg-primary p-7 text-body shadow-card rounded-3xl md:grid-cols-2 lg:p-14")).toEqual([]);
+    expect(await lintClasses("data-open:bg-primary-soft data-disabled:text-muted dark:bg-paper bg-on-brand/15")).toEqual([]);
   });
 
-  test("arbitrary values fail, Base UI's own variables pass", async () => {
-    expect(await lintClasses("w-[10px]")).toEqual([RESTRICTED]);
-    expect(await lintClasses("w-(--my-width)")).toEqual([RESTRICTED]);
-    expect(await lintClasses("origin-(--transform-origin) max-h-(--available-height) w-(--anchor-width)")).toEqual([]);
+  test("arbitrary values pass, unless they hold a raw colour", async () => {
+    expect(await lintClasses("max-w-[40ch] origin-(--transform-origin) bg-[radial-gradient(circle,var(--color-ink)_1px,transparent_2px)]")).toEqual([]);
+    for (const cls of ["bg-[#fff]", "text-[rgb(0_0_0)]", "shadow-[0_0_0_1px_oklch(0.5_0.1_200)]"]) {
+      expect({ cls, rules: await lintClasses(cls) }).toEqual({ cls, rules: [RESTRICTED] });
+    }
   });
 
   test("classes outside the tokens fail", async () => {
     expect(await lintClasses("bg-blue-500")).toEqual(["better-tailwindcss/no-unknown-classes"]);
   });
 
-  test("opacity suffixes, plain-number durations and z-indexes fail", async () => {
-    expect(await lintClasses("bg-primary/50")).toEqual([RESTRICTED]);
+  test("plain-number durations and z-indexes fail", async () => {
     expect(await lintClasses("z-10")).toEqual([RESTRICTED]);
     expect(await lintClasses("hover:duration-150")).toEqual([RESTRICTED]);
     // Stacked variants, negatives and the important modifier don't sneak past.
-    for (const cls of ["desktop:hover:z-10", "-z-10", "z-10!", "!z-10", "group-hover/item:z-10", "bg-primary/50!"]) {
+    for (const cls of ["lg:hover:z-10", "-z-10", "z-10!", "!z-10", "group-hover/item:z-10"]) {
       expect({ cls, rules: await lintClasses(cls) }).toEqual({ cls, rules: [RESTRICTED] });
     }
-    expect(await lintClasses("z-overlay duration-ui ease-press desktop:z-sticky")).toEqual([]);
+    expect(await lintClasses("z-overlay z-behind duration-ui ease-press lg:z-sticky")).toEqual([]);
   });
 
-  test("border width is always 2", async () => {
-    for (const cls of ["border", "border-3", "border-t", "focus:border-x-4", "data-open:hover:border", "divide-x"]) {
+  test("borders are 1px or 2px", async () => {
+    for (const cls of ["border-3", "border-t-4", "focus:border-x-4", "divide-x-8"]) {
       expect({ cls, rules: await lintClasses(cls) }).toEqual({ cls, rules: [RESTRICTED] });
     }
-    expect(await lintClasses("border-2 border-b-2 border-line border-solid divide-y-2 border-2!")).toEqual([]);
+    expect(await lintClasses("border border-t border-2 border-b-2 border-0 border-line divide-y border-2!")).toEqual([]);
   });
 
   test("router, API, database and state-library imports fail", async () => {

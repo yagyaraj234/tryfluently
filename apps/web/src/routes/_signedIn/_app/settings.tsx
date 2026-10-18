@@ -20,7 +20,7 @@ import { authClient } from "../../../lib/auth";
 import { progressQuery } from "../../../lib/queries";
 import { saveTheme, type Theme } from "../../../lib/theme";
 
-export const Route = createFileRoute("/_signedIn/_app/settings")({ component: Settings });
+export const Route = createFileRoute("/_signedIn/_app/settings")({ staticData: { title: "Settings" }, component: Settings });
 
 const themes: { value: Theme; label: string }[] = [
   { value: "light", label: "Light" },
@@ -42,7 +42,6 @@ function Settings() {
   return (
     <Container width="prose">
       <Stack gap={8}>
-        <Heading level={1}>Settings</Heading>
         <Card>
           <Stack gap={6}>
             <ChoiceChips label="Theme" options={themes} value={theme ?? "system"} onValueChange={pickTheme} />

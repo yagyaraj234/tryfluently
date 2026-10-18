@@ -9,7 +9,7 @@ export const fieldLabelClasses = `${textSizeClasses.label} text-ink`;
 
 // py-2 with body line height and the border clears the 44px touch target.
 export const fieldControlClasses =
-  'w-full rounded-md border-2 border-line bg-subtle px-3 py-2 text-body text-ink placeholder:text-muted focus-visible:focus-ring';
+  'w-full rounded-xl border border-line-strong bg-paper px-3.5 py-2 text-body text-ink placeholder:text-muted';
 
 export type FieldShellProps = {
   label: string;

@@ -1,5 +1,7 @@
 # AI SDK generative UI across TanStack Start and a Hono API
 
+**Historical research (2026-10-15).** Current Step tools and answer handling live in `apps/api/src/steps.ts`; the browser transport lives in `apps/web/src/lib/chat.ts`. The sketch below records the original proposal and is not a copyable current implementation.
+
 Research for issue #4. Checked 2026-10-15 against `ai@7.0.141` (npm `latest`), `@ai-sdk/react@4.0.145`, `hono@4.13.13`, `@tanstack/react-start@1.169.2`.
 
 ## Question

@@ -8,7 +8,8 @@ function SignUp() {
   const { google } = Route.useLoaderData();
   return (
     <AuthScreen
-      title="Get fluent for the moments that matter"
+      mode="sign-up"
+      title="Create your account"
       google={google}
       fields={[
         { name: "name", label: "Name", type: "text", autoComplete: "name" },

@@ -20,6 +20,7 @@ import { assessmentsQuery, focusItemsQuery, skillHistoryQuery, skillProfileQuery
 
 /** The Skill Profile with each skill's history, the Focus Items and retaking the Assessment. */
 export const Route = createFileRoute("/_signedIn/_app/progress")({
+  staticData: { title: "Progress" },
   // Never throws: a failed query shows its error state in the page.
   loader: ({ context: { queryClient } }) =>
     Promise.all([
@@ -58,7 +59,6 @@ function Progress() {
   return (
     <Container>
       <Stack gap={8}>
-        <Heading level={1}>Progress</Heading>
         {all.some((q) => q.isError) ? (
           <ErrorState description="We couldn't load your progress." onRetry={() => all.forEach((q) => q.isError && q.refetch())} />
         ) : !profile.data || !history.data || !focusItems.data || !assessments.data ? (

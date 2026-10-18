@@ -78,7 +78,7 @@ function Goals() {
   }
 
   return (
-    <Screen surface="loud">
+    <Screen>
       <Container width="prose">
         <Stack gap={8}>
           <Stack gap={3}>

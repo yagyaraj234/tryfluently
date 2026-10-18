@@ -1,5 +1,7 @@
 import {
   Button,
+  Card,
+  CardList,
   Chip,
   Cluster,
   Container,
@@ -12,11 +14,13 @@ import {
   Stack,
   Text,
   TextLink,
+  UnitIcon,
   UnitStatusTag,
 } from "@impromptu/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { LessonAction } from "../../../../components/roadmap/LessonAction";
 import { api } from "../../../../lib/api";
 import { roadmapQuery, type Unit } from "../../../../lib/queries";
 
@@ -55,31 +59,43 @@ function UnitDetails({ unit }: { unit: Unit }) {
   const past = unit.lessons.filter((l) => l.status === "completed");
   return (
     <Stack gap={8}>
-      <Stack gap={3} align="start">
-        <UnitStatusTag status={unit.status} />
-        <Heading level={1}>{unit.title}</Heading>
-        <Text>{unit.objective}</Text>
-        <Cluster>
-          {unit.skills.map((s) => (
-            <Chip key={s}>{skillNames[s]}</Chip>
-          ))}
-        </Cluster>
-        <Text tone="muted">
-          {unit.endsWithRoleplay ? "Ends with a Roleplay once you're close to the objective." : "No Roleplay in this Unit."}
-        </Text>
-      </Stack>
+      <Card>
+        <Stack gap={3} align="start">
+          <Cluster>
+            <UnitIcon skill={unit.skills[0]} />
+            <UnitStatusTag status={unit.status} />
+          </Cluster>
+          <Heading level={1}>{unit.title}</Heading>
+          <Text>{unit.objective}</Text>
+          <Cluster>
+            {unit.skills.map((s) => (
+              <Chip key={s}>{skillNames[s]}</Chip>
+            ))}
+          </Cluster>
+          <Text tone="muted">
+            {unit.endsWithRoleplay ? "Ends with a Roleplay once you're close to the objective." : "No Roleplay in this Unit."}
+          </Text>
+          {unit.status === "active" && <LessonAction unit={unit} />}
+        </Stack>
+      </Card>
       <Stack gap={4}>
         <Stack gap={1}>
           <Heading level={2}>Lessons</Heading>
           <Text tone="muted">How close each finished Lesson came to the objective.</Text>
         </Stack>
         {past.length ? (
-          past.map((l) => <Meter key={l.id} label={l.title} value={l.objectiveProgress ?? 0} />)
+          <CardList>
+            {past.map((l) => (
+              <Meter key={l.id} label={l.title} value={l.objectiveProgress ?? 0} />
+            ))}
+          </CardList>
         ) : (
           <Text tone="muted">No Lessons finished yet.</Text>
         )}
       </Stack>
-      {(unit.status === "active" || unit.status === "planned") && <SkipUnit unit={unit} />}
+      {(unit.status === "active" || unit.status === "planned") && (
+        <SkipUnit unit={unit} />
+      )}
     </Stack>
   );
 }

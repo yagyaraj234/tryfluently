@@ -2,7 +2,7 @@
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
 import { typescriptSyntax } from "./eslint.apps.js";
 
-// Any variants (`desktop:hover:`), then an optional important or negative prefix (`!`, `-`).
+// Any variants (`lg:hover:`), then an optional important or negative prefix (`!`, `-`).
 const UTILITY = "^([^:]*:)*!?-?";
 
 const SIDE_EFFECTS = [
@@ -25,31 +25,25 @@ export default [
     plugins: { "better-tailwindcss": betterTailwindcss },
     settings: { "better-tailwindcss": { entryPoint: `${import.meta.dirname}/src/styles.css` } },
     rules: {
-      // The surfaces are plain classes from tokens.css, not Tailwind utilities.
-      "better-tailwindcss/no-unknown-classes": ["error", { ignore: ["^surface-(loud|quiet)$"] }],
+      "better-tailwindcss/no-unknown-classes": "error",
       "better-tailwindcss/no-restricted-classes": [
         "error",
         {
           restrict: [
             {
-              // Arbitrary values. Base UI's documented variables are the only exception.
-              pattern:
-                "\\[|\\]|\\((?!--(anchor-width|anchor-height|available-width|available-height|transform-origin)\\))",
-              message: "Arbitrary values aren't tokens. Add a token to tokens.css and styles.css instead.",
-            },
-            {
-              pattern: "/\\d+!?$",
-              message: "No opacity suffixes. Tints are opaque tokens (for example bg-correct-tint).",
+              // Arbitrary values are fine for one-off layout, but a colour is always a theme token.
+              pattern: "\\[[^\\]]*(#[0-9a-fA-F]{3,8}|(?<![a-zA-Z])(rgba?|hsla?|oklch|oklab|lab|lch|hwb)\\()",
+              message: "Colours are tokens: use a theme colour (bg-paper, var(--color-ink)) instead of a raw value.",
             },
             {
               // Tailwind still compiles any number here; only the named tokens are allowed.
               pattern: `${UTILITY}(duration|z)-\\d+!?$`,
-              message: "Use a token: duration-press, duration-ui, z-sticky, z-overlay or z-toast.",
+              message: "Use a token: duration-press, duration-ui, z-behind, z-sticky, z-overlay or z-toast.",
             },
             {
-              // Any border width other than 2, on any side (`border`, `border-t`, `border-3`, `divide-x`, ...).
-              pattern: `${UTILITY}(border(-[xytrblse])?|divide-[xy])(-(?!2!?$)\\d+)?!?$`,
-              message: "Borders are always 2px: use border-2 (or border-t-2, divide-x-2 and so on).",
+              // Hairlines are 1px (`border`); 2px is for emphasis. Nothing thicker.
+              pattern: `${UTILITY}(border(-[xytrblse])?|divide-[xy])-(?!(0|2)!?$)\\d+!?$`,
+              message: "Borders are 1px (border) or 2px (border-2).",
             },
           ],
         },

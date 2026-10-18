@@ -2,7 +2,7 @@ import type { Icon } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 
-const chip = cva("inline-flex items-center gap-1 rounded-pill border-2 border-line px-3 py-1 text-caption font-bold text-ink", {
+const chip = cva("inline-flex items-center gap-1 rounded-full border border-line px-3 py-1 text-caption font-bold text-ink", {
   variants: {
     tone: { paper: "bg-paper", soft: "bg-primary-soft" },
   },

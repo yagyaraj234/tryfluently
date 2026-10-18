@@ -17,7 +17,7 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { api } from "../../../lib/api";
 import type { Report } from "../../../components/assessment/assessment";
 
-/** The Assessment Report reveal, on the loud surface. */
+/** The Assessment Report reveal. */
 export const Route = createFileRoute("/_signedIn/assessments/$assessmentId/report")({
   loader: async ({ params }) => {
     const response = await api().api.assessments[":id"].$get({ param: { id: params.assessmentId } });
@@ -35,7 +35,7 @@ const skills = ["grammar", "vocabulary", "fluency"] as const;
 function AssessmentReport() {
   const report = Route.useLoaderData();
   return (
-    <Screen surface="loud">
+    <Screen>
       <Container width="prose">
         {report ? (
           <Stack gap={8}>
@@ -96,7 +96,7 @@ function AssessmentReport() {
               </Stack>
             </Card>
             {/* Home sends the Learner on to confirm proposed Goals first. */}
-            <Button fullWidth render={<Link to="/" />}>
+            <Button fullWidth render={<Link to="/home" />}>
               Continue
             </Button>
           </Stack>

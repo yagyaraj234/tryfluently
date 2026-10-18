@@ -40,7 +40,7 @@ function ConfirmGoals() {
     try {
       const response = await api().api.roadmap.$post();
       if ((response.status as number) >= 500) return setRoadmap("failed");
-      await router.navigate({ to: "/" });
+      await router.navigate({ to: "/home" });
     } catch {
       setRoadmap("failed");
     }
@@ -66,7 +66,7 @@ function ConfirmGoals() {
       setGoals((gs) => gs.filter((g) => g.id !== id));
       if (!last) return;
       // Confirming the last Goal builds the Roadmap as it confirms; removing it may have, so make sure.
-      if (action === "confirm" && !roadmapFailed) return await router.navigate({ to: "/" });
+      if (action === "confirm" && !roadmapFailed) return await router.navigate({ to: "/home" });
       if (roadmapFailed) return setRoadmap("failed");
       await buildRoadmap();
     } catch {
@@ -79,7 +79,7 @@ function ConfirmGoals() {
 
   if (roadmap === "failed")
     return (
-      <Screen surface="loud">
+      <Screen>
         <ErrorState
           title="We couldn't build your Roadmap"
           description="Your Goals are saved. Try building the Roadmap again."
@@ -90,19 +90,19 @@ function ConfirmGoals() {
     );
   if (roadmap === "building")
     return (
-      <Screen surface="loud">
+      <Screen>
         <LoadingState title="Building your Roadmap…" description="Your coach is planning your Units around your Goals. This takes up to a minute." />
       </Screen>
     );
   if (!goals.length)
     return (
-      <Screen surface="loud">
-        <EmptyState title="No Goals to confirm" action={<Button render={<Link to="/" />}>Go to Home</Button>} />
+      <Screen>
+        <EmptyState title="No Goals to confirm" action={<Button render={<Link to="/home" />}>Go to Home</Button>} />
       </Screen>
     );
 
   return (
-    <Screen surface="loud">
+    <Screen>
       <Container width="prose">
         <Stack gap={8}>
           <Stack gap={3}>

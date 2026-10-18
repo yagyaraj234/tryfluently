@@ -30,13 +30,13 @@ describe("XP and Streak", () => {
     const clock = makeClock();
     const app = appFor([finished, halfDone(1)], clock);
     const { cookie } = await learnerWithRoadmap(clock);
-    expect(await progressOf(app, cookie)).toEqual({ xp: 0, streak: 0 });
+    expect(await progressOf(app, cookie)).toMatchObject({ xp: 0, streak: 0 });
 
     await playLesson(app, cookie, finished);
     await playLesson(app, cookie, halfDone(1));
 
     // 4 answered Steps × 10 + 1 completed Lesson × 20
-    expect(await progressOf(app, cookie)).toEqual({ xp: 60, streak: 1 });
+    expect(await progressOf(app, cookie)).toMatchObject({ xp: 60, streak: 1 });
   });
 
   test("the Streak counts consecutive local days with a completed Lesson", async () => {
@@ -96,5 +96,30 @@ describe("XP and Streak", () => {
     clock.advance({ days: 1 });
 
     expect(await progressOf(app, cookie)).toMatchObject({ streak: 0 });
+  });
+});
+
+describe("This week", () => {
+  test("the week runs Monday to Sunday in the Learner's timezone, marking the days with a completed Lesson", async () => {
+    const clock = makeClock("2026-10-11T09:00:00Z");
+    const app = appFor([finished, finished, finished], clock);
+    const { cookie } = await learnerWithRoadmap(clock, { timezone: "Asia/Kolkata" });
+
+    await playLesson(app, cookie, finished); // Sun 11 Oct: last week
+    clock.set("2026-10-11T19:00:00Z"); // Mon 12 Oct, 00:30 in Kolkata, still Sunday in UTC
+    await playLesson(app, cookie, finished);
+    clock.set("2026-10-14T09:00:00Z"); // Wed 14 Oct
+    await playLesson(app, cookie, finished);
+    clock.set("2026-10-15T09:00:00Z"); // Thu 15 Oct
+
+    expect((await progressOf(app, cookie)).week).toEqual([
+      { day: "2026-10-12", practised: true, today: false },
+      { day: "2026-10-13", practised: false, today: false },
+      { day: "2026-10-14", practised: true, today: false },
+      { day: "2026-10-15", practised: false, today: true },
+      { day: "2026-10-16", practised: false, today: false },
+      { day: "2026-10-17", practised: false, today: false },
+      { day: "2026-10-18", practised: false, today: false },
+    ]);
   });
 });
