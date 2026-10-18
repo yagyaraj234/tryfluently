@@ -23,6 +23,15 @@ bun run --filter @impromptu/web dev        # web on :3001
 Open http://localhost:3001. `WEB_ORIGIN` and `BETTER_AUTH_URL` point at the web origin, because that's
 where the browser reaches the API. `bun run dev` starts both at once.
 
+API reference: http://localhost:3000/docs. The OpenAPI document is served at
+http://localhost:3000/docs/openapi.json. Operations are listed from the Hono
+routes; request and response schemas are not yet included.
+
+For local API metrics, keep `METRICS_ENABLED=true` in the root `.env` and run
+`docker compose -f docker-compose.monitoring.yml up -d`. See
+[infra/monitoring/README.md](infra/monitoring/README.md) for Grafana access and
+dashboard details.
+
 ```sh
 bun run build
 bun run --filter @impromptu/web preview

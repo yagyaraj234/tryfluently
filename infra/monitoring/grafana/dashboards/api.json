@@ -1,0 +1,39 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [{ "expr": "sum(rate(impromptu_http_requests_total[$__rate_interval]))", "refId": "A" }],
+      "title": "Request rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(impromptu_http_request_duration_seconds_bucket[$__rate_interval])))", "refId": "A" }],
+      "title": "P95 request duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "id": 3,
+      "targets": [{ "expr": "sum by (route, status_code) (rate(impromptu_http_requests_total[$__rate_interval]))", "legendFormat": "{{route}} {{status_code}}", "refId": "A" }],
+      "title": "Requests by route and status",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 41,
+  "tags": ["impromptu", "api"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "Impromptu API",
+  "uid": "impromptu-api",
+  "version": 1
+}
