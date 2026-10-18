@@ -154,6 +154,7 @@ This Roleplay is a text chat: write your lines as you would say them, without st
         return c.json({ error: "You've used today's voice minutes. Try text mode, or come back tomorrow.", ...budget }, 429);
 
       const call = await broker.start(userId, {
+        targetId: row.id,
         budgetSeconds: budget.remainingSeconds,
         sdp: offer,
         instructions: roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedBriefs(deps, userId)),
@@ -170,7 +171,7 @@ This Roleplay is a text chat: write your lines as you would say them, without st
       if (row.status !== "in_progress") return c.json({ error: "This Roleplay has ended" }, 409);
       if (!row.textMode) {
         // Hang up first, so the transcript holds everything that was said.
-        await broker.hangup(userId);
+        await broker.hangup(userId, row.id);
       }
       const result = await completeLesson(deps, row.id, userId);
       if (result.status === "failed") return c.json({ error: "The Debrief couldn't be generated. Try again." }, 502);

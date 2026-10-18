@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { apiUrl } from "../../api";
+import { apiUrl } from "../../lib/api";
 
 // The browser only ever talks to the web origin, so Better Auth cookies are first-party.
 async function passThrough({ request }: { request: Request }) {

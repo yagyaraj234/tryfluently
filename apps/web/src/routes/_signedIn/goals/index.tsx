@@ -1,8 +1,8 @@
 import { Button, ChoiceChips, Container, Heading, Notice, Screen, Stack, Text, TextArea, TextLink } from "@impromptu/ui";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useRef, useState, type FormEvent } from "react";
-import { api } from "../../../api";
-import { authClient } from "../../../auth";
+import { api } from "../../../lib/api";
+import { authClient } from "../../../lib/auth";
 
 export const Route = createFileRoute("/_signedIn/goals/")({ component: Goals });
 
@@ -64,8 +64,17 @@ function Goals() {
   }
 
   async function signOut() {
-    await authClient.signOut();
-    await router.navigate({ to: "/sign-in" });
+    setPending(true);
+    setError(undefined);
+    try {
+      const { error } = await authClient.signOut();
+      if (error) return setError("We couldn't sign you out. Try again.");
+      await router.navigate({ to: "/sign-in" });
+    } catch {
+      setError("We couldn't reach Impromptu. Check your connection and try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -111,7 +120,7 @@ function Goals() {
           <Stack gap={3} align="start">
             <Text tone="muted">Not sure yet? Take the Assessment first and it will propose Goals for you.</Text>
             <TextLink render={<Link to="/assessments/new" />}>Skip for now</TextLink>
-            <TextLink onClick={signOut}>Sign out</TextLink>
+            <TextLink onClick={signOut} disabled={pending}>Sign out</TextLink>
           </Stack>
         </Stack>
       </Container>

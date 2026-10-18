@@ -14,8 +14,8 @@ import {
   Text,
 } from "@impromptu/ui";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { api } from "../../../api";
-import type { Report } from "../../../assessment";
+import { api } from "../../../lib/api";
+import type { Report } from "../../../components/assessment/assessment";
 
 /** The Assessment Report reveal, on the loud surface. */
 export const Route = createFileRoute("/_signedIn/assessments/$assessmentId/report")({

@@ -9,7 +9,7 @@ import {
 import { DotsThree, House, MapTrifold, Microphone, SpeakerHigh } from "@phosphor-icons/react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
-import { saveTheme, type Theme } from "../theme";
+import { saveTheme, type Theme } from "../lib/theme";
 
 export const Route = createFileRoute("/design-system")({
   validateSearch: (search: Record<string, unknown>) => ({

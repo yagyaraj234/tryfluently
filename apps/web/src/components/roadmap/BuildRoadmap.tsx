@@ -2,8 +2,8 @@ import { Button, EmptyState, ErrorState, LoadingState } from "@impromptu/ui";
 import { MapTrifold } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { api } from "./api";
-import { roadmapQuery } from "./queries";
+import { api } from "../../lib/api";
+import { roadmapQuery } from "../../lib/queries";
 
 /** Shown on Home and the Roadmap when there's no Roadmap yet, usually because building it failed: try again. */
 export function BuildRoadmap() {

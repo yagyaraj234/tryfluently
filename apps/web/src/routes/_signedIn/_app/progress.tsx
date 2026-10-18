@@ -16,7 +16,7 @@ import {
 } from "@impromptu/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { assessmentsQuery, focusItemsQuery, skillHistoryQuery, skillProfileQuery } from "../../../queries";
+import { assessmentsQuery, focusItemsQuery, skillHistoryQuery, skillProfileQuery } from "../../../lib/queries";
 
 /** The Skill Profile with each skill's history, the Focus Items and retaking the Assessment. */
 export const Route = createFileRoute("/_signedIn/_app/progress")({

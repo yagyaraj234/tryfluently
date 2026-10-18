@@ -1,7 +1,7 @@
 import { schema, type Db } from "@impromptu/db";
 import { betterAuth } from "better-auth";
+import { APIError, getOAuthState } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -11,12 +11,12 @@ import { lessons } from "./lessons";
 import type { Mailer } from "./mailer";
 import type { Models } from "./models";
 import { pronunciation, type Speech } from "./pronunciation";
-import { realtimeBroker, voiceMinutes, type Realtime } from "./realtime";
+import { realtimeBroker, voiceMinutesRoute, type Realtime } from "./realtime";
 import type { Transcriber } from "./recordings";
-import { roadmap } from "./roadmap";
+import { focusItemsRoute, roadmap } from "./roadmap";
 import { roleplays } from "./roleplays";
-import { progress } from "./progress";
-import { skillHistory, skillProfile } from "./scoring";
+import { progressRoute } from "./progress";
+import { skillProfileRoutes } from "./scoring";
 
 export type { Mailer, Models, Realtime, Speech, Transcriber };
 
@@ -87,9 +87,23 @@ export function createApp(deps: Deps) {
     socialProviders: env.GOOGLE_CLIENT_ID
       ? { google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET! } }
       : {},
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            const state = await getOAuthState();
+            if (state?.timezone === undefined) return;
+            const parsed = timezone.safeParse(state.timezone);
+            if (!parsed.success) throw new APIError("BAD_REQUEST", { message: "Invalid timezone" });
+            // OAuth state is client input. Apply it only at sign-up, preserving later Settings choices.
+            return { data: { ...user, timezone: parsed.data } };
+          },
+        },
+      },
+    },
     advanced: env.COOKIE_DOMAIN ? { crossSubDomainCookies: { enabled: true, domain: env.COOKIE_DOMAIN } } : {},
     user: {
-      deleteUser: { enabled: true },
+      deleteUser: { enabled: true, beforeDelete: (user) => broker.hangup(user.id) },
       additionalFields: { timezone: { type: "string", required: false, defaultValue: "UTC", validator: { input: timezone } } },
     },
   });
@@ -114,19 +128,10 @@ export function createApp(deps: Deps) {
       .route("/api/lessons", lessons({ ...deps, settings }))
       .route("/api/roleplays", roleplays({ ...deps, settings, broker }))
       .route("/api/pronunciation", pronunciation(deps))
-      .get("/api/skill-profile", async (c) => c.json(await skillProfile(db, c.var.user.id)))
-      .get("/api/skill-profile/history", async (c) => c.json(await skillHistory(db, c.var.user.id)))
-      .get("/api/voice-minutes", async (c) => c.json(await voiceMinutes(broker, c.var.user, settings.realtimeMinutesPerDay)))
-      .get("/api/progress", async (c) => c.json(await progress(db, c.var.user, deps.now())))
-      .get("/api/focus-items", async (c) =>
-        c.json(
-          await db
-            .select()
-            .from(schema.focusItem)
-            .where(eq(schema.focusItem.userId, c.var.user.id))
-            .orderBy(asc(schema.focusItem.createdAt), asc(schema.focusItem.label)),
-        ),
-      )
+      .route("/api/skill-profile", skillProfileRoutes(db))
+      .route("/api/voice-minutes", voiceMinutesRoute(broker, settings.realtimeMinutesPerDay))
+      .route("/api/progress", progressRoute(deps))
+      .route("/api/focus-items", focusItemsRoute(db))
   );
 }
 

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authClient } from "../auth";
-import { AuthFooter, AuthScreen, loadProviders } from "../AuthScreen";
+import { authClient } from "../lib/auth";
+import { AuthFooter, AuthScreen, loadProviders } from "../components/auth/AuthScreen";
 
 export const Route = createFileRoute("/sign-in")({
   // Better Auth sends a failed Google sign-in back here with `?error=`.

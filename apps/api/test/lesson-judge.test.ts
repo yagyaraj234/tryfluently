@@ -117,7 +117,7 @@ describe("unit progression", () => {
     const [first, second] = await roadmapOf(app, cookie);
     expect(first.status).toBe("skipped");
     expect(second.status).toBe("active");
-  });
+  }, 15_000); // Fifteen real DB-backed Lessons exceed Bun's 5s default during parallel workspace checks.
 
   test("skipping the active Unit marks it skipped, not mastered, and activates the next one", async () => {
     const app = makeApp({ models: { step: mockModel(lessonPlan()), roadmap: mockModel(unitsReply(3, "Revised")) } });

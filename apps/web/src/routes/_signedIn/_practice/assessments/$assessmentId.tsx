@@ -19,20 +19,20 @@ import {
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { UIMessage } from "ai";
 import { useEffect, useState, type FormEvent } from "react";
-import { api } from "../../../../api";
-import { AssessmentEnding, Discarded, LeaveDialog, LIMIT_MS, TimeLeft, useAssessmentSession, type Assessment } from "../../../../assessment";
-import { useRealtimeCall } from "../../../../call";
-import { answerStep, chatOptions } from "../../../../chat";
+import { api } from "../../../../lib/api";
+import { AssessmentEnding, Discarded, LeaveDialog, LIMIT_MS, TimeLeft, useAssessmentSession, type Assessment } from "../../../../components/assessment/assessment";
+import { useRealtimeCall } from "../../../../lib/call";
+import { answerStep, chatOptions } from "../../../../lib/chat";
 
 export const Route = createFileRoute("/_signedIn/_practice/assessments/$assessmentId")({
-  loader: async ({ params }) => {
+  loader: { staleReloadMode: "blocking", handler: async ({ params }) => {
     const response = await api().api.assessments[":id"].$get({ param: { id: params.assessmentId } });
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`Couldn't load your Assessment (${response.status})`);
     const assessment = await response.json();
     if (assessment.status === "completed") throw redirect({ to: "/assessments/$assessmentId/report", params });
     return assessment;
-  },
+  } },
   component: AssessmentScreen,
 });
 

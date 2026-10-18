@@ -20,6 +20,27 @@ const opts = (onTranscript: (t: UIMessage[]) => Promise<unknown>) => ({
 const utterance = (id: string) => ({ type: "conversation.item.input_audio_transcription.completed", item_id: id, transcript: id });
 
 describe("Realtime close failures", () => {
+  test("hangup requested during the SDP handshake waits for the call, then closes it", async () => {
+    const { userId } = await setup();
+    const realtime = fakeRealtime();
+    const connected = Promise.withResolvers<void>();
+    const broker = realtimeBroker({ db: testDb, now: makeClock(), schedule: fakeTimers().schedule, realtime: {
+      ...realtime, createCall: async (...args) => { await connected.promise; return realtime.createCall(...args); },
+    } });
+    const start = broker.start(userId, { ...opts(async () => {}), targetId: "roleplay" });
+    const ending = broker.hangup(userId, "roleplay");
+    connected.resolve();
+    await Promise.all([start, ending]);
+    expect(realtime.sideband().hungUp).toBe(true);
+  });
+  test("ending another Assessment or Roleplay cannot hang up the current call", async () => {
+    const { userId, realtime, broker } = await setup();
+    await broker.start(userId, { ...opts(async () => {}), targetId: "current-roleplay" });
+    await broker.hangup(userId, "earlier-assessment");
+    expect(realtime.sideband().hungUp).toBe(false);
+    await broker.hangup(userId, "current-roleplay");
+    expect(realtime.sideband().hungUp).toBe(true);
+  });
   test("a failed transcript save propagates from hangup, still logs usage and releases the call", async () => {
     const { userId, realtime, timers, broker } = await setup();
     const error = new Error("transcript unavailable");

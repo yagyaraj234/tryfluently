@@ -2,8 +2,8 @@ import { Button, EmptyState, ErrorState, OfflineBanner, Screen, UIProvider } fro
 import appCss from "@impromptu/ui/styles.css?url";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useRouter } from "@tanstack/react-router";
-import { dataTheme } from "../theme";
-import { useOnline } from "../useOnline";
+import { dataTheme } from "../lib/theme";
+import { useOnline } from "../hooks/useOnline";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   beforeLoad: () => ({ theme: dataTheme() }),

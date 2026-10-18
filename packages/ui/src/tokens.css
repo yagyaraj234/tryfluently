@@ -42,7 +42,7 @@
 
   /* Semantic colours, light. */
   color-scheme: light;
-  --brand: var(--lime-400);
+  --brand: var(--violet-100);
   --paper: var(--white);
   --ink: var(--gray-950);
   --muted: var(--olive-700);
@@ -75,7 +75,7 @@
   --scrim: color-mix(in oklab, var(--gray-950) 50%, transparent);
 
   /* Type roles. Each size carries its line height, weight and tracking. */
-  --font-sans: "Familjen Grotesk", system-ui, sans-serif;
+  --font-sans: 'Familjen Grotesk', system-ui, sans-serif;
   --font-weight-regular: 400;
   --font-weight-bold: 700;
   --text-label: 0.8125rem;
@@ -152,7 +152,7 @@
 
 /* Dark values, repeated so that an explicit data-theme wins in either direction. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme='light']) {
     color-scheme: dark;
     --brand: var(--olive-950);
     --paper: var(--olive-900);
@@ -180,7 +180,7 @@
   }
 }
 
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   color-scheme: dark;
   --brand: var(--olive-950);
   --paper: var(--olive-900);
@@ -215,6 +215,6 @@
 }
 
 .surface-loud {
-  --surface: var(--brand);
+  --surface: var(--violet-100);
   --card-shadow: var(--shadow-pop);
 }

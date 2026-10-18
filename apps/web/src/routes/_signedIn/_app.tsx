@@ -2,7 +2,7 @@ import { AppShell, StreakChip, XpChip, type AppShellDestination } from "@impromp
 import { ChartLineUp, GearSix, House, MapTrifold } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
-import { progressQuery } from "../../queries";
+import { progressQuery } from "../../lib/queries";
 
 // Link marks the current destination with aria-current="page". Home is exact, or it would match every page.
 const destinations: AppShellDestination[] = [

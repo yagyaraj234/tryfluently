@@ -1,9 +1,10 @@
 import { Button, Container, Heading, Notice, Screen, Stack, Text, TextField, TextLink } from "@impromptu/ui";
 import { GoogleLogo } from "@phosphor-icons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { api } from "./api";
-import { signInWithGoogle } from "./auth";
+import { api } from "../../lib/api";
+import { signInWithGoogle } from "../../lib/auth";
 
 /** Route loader for sign-in and sign-up: is Google configured on the API? */
 export const loadProviders = async () => (await api().api.auth.providers.$get()).json();
@@ -23,6 +24,7 @@ export function AuthScreen(props: {
   footer: ReactNode;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [error, setError] = useState(props.initialError);
   const [pending, setPending] = useState(false);
 
@@ -34,6 +36,7 @@ export function AuthScreen(props: {
     try {
       const { error } = await props.onSubmit(values);
       if (error) return setError(error.message ?? "That didn't work. Try again.");
+      queryClient.clear();
       await router.navigate({ to: "/" });
     } catch {
       setError("We couldn't reach Impromptu. Check your connection and try again.");
@@ -43,9 +46,16 @@ export function AuthScreen(props: {
   }
 
   async function google() {
+    setPending(true);
     setError(undefined);
-    const { error } = await signInWithGoogle();
-    if (error) setError(error.message ?? "Google sign-in didn't work. Try again.");
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) setError(error.message ?? "Google sign-in didn't work. Try again.");
+    } catch {
+      setError("We couldn't reach Google sign-in. Check your connection and try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -58,7 +68,7 @@ export function AuthScreen(props: {
           </Stack>
           {props.google && (
             <Stack gap={4}>
-              <Button variant="secondary" icon={GoogleLogo} fullWidth onClick={google}>
+              <Button variant="secondary" icon={GoogleLogo} fullWidth onClick={google} disabled={pending}>
                 Continue with Google
               </Button>
               <Text tone="muted">or with your email</Text>

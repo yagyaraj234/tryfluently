@@ -112,7 +112,7 @@ export const assessments = ({
 
   // Sends the Learner's first-ever completed Report, once. emailed_at is claimed before sending,
   // and released if sending fails so a later Report can try again.
-  async function emailIfFirst(row: Row, to: string, report: z.infer<typeof reportOutput>) {
+  async function emailIfFirst(row: Row, to: string, report: Parameters<typeof reportEmail>[1]) {
     const [claimed] = await db
       .update(assessment)
       .set({ emailedAt: now() })
@@ -136,7 +136,7 @@ export const assessments = ({
   async function finish(row: Row, user: { id: string; email: string }, { partial }: { partial: boolean }) {
     if (row.mode === "voice") {
       // Hang up first, so the transcript holds everything that was said.
-      await broker.hangup(user.id);
+      await broker.hangup(user.id, row.id);
       row = (await find(row.id, user.id))!;
     }
     const at = now();
@@ -173,7 +173,10 @@ export const assessments = ({
     };
     const userId = user.id;
 
-    await db.transaction(async (tx) => {
+    const changed = await db.transaction(async (tx) => {
+      // Concurrent /end requests may both finish judging; only one commits learning results.
+      const [locked] = await tx.select().from(assessment).where(eq(assessment.id, row.id)).for("update");
+      if (locked?.status !== "in_progress") return false;
       await tx.update(assessment).set({ status: "completed", endedAt: at, report }).where(eq(assessment.id, row.id));
       await recordScores(
         tx,
@@ -187,8 +190,10 @@ export const assessments = ({
       const hasGoals = (await tx.select({ id: goal.id }).from(goal).where(eq(goal.userId, userId)).limit(1)).length > 0;
       if (!hasGoals && out.proposedGoals.length)
         await tx.insert(goal).values(out.proposedGoals.map((g) => ({ userId, kind: g.kind, targetLevels: g.targetLevels, createdAt: at })));
+      return true;
     });
-    await emailIfFirst(row, user.email, out);
+    if (!changed) return { status: "ended" as const };
+    await emailIfFirst(row, user.email, report);
     // Goals confirmed before the Assessment were waiting for a Skill Profile (if this fails, POST /api/roadmap retries);
     // a retake revises the Roadmap the Learner already has.
     if ((await buildRoadmap({ db, now, models }, userId)) === "exists") await reviseRoadmap({ db, now, models }, userId);
@@ -268,6 +273,7 @@ export const assessments = ({
         return c.json({ error: "Calls are only for a Voice Assessment in progress" }, 409);
 
       const call = await broker.start(userId, {
+        targetId: row.id,
         sdp: offer,
         instructions: instructions(await briefsOf(userId), 0),
         purpose: "assessment",
@@ -283,6 +289,7 @@ export const assessments = ({
 
       const result = await finish(row, c.var.user, { partial: c.req.valid("json").left ?? false });
       if (result.status === "failed") return c.json({ error: "The Report couldn't be generated. Try again." }, 502);
+      if (result.status === "ended") return c.json({ error: "This Assessment has ended" }, 409);
       return c.json(result);
     });
 };
