@@ -20,7 +20,7 @@ const fine = "text-sm text-muted";
 const logo = "inline-flex items-center gap-2 text-lg font-bold tracking-tighter whitespace-nowrap text-primary";
 const wordmark = (
   <>
-    <LogoMark className="size-6" />
+    <LogoMark className="size-6 text-ink" />
     get fluency
   </>
 );
@@ -374,7 +374,7 @@ export function AuthLayout(props: AuthLayoutProps) {
       className: "flex items-center gap-2 self-start text-xl font-bold tracking-tighter text-on-brand",
       children: (
         <>
-          <LogoMark mono className="size-7" />
+          <LogoMark className="size-7" />
           get fluency
         </>
       ),

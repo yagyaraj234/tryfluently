@@ -51,7 +51,7 @@ export function AppShell({ destinations, title, status: statusSlot, children }: 
     <div className={shell()}>
       <nav className={nav()}>
         <span className={logo()}>
-          <LogoMark className="size-7" />
+          <LogoMark className="size-7 text-ink" />
           get fluency
         </span>
         <span className={menu()}>Menu</span>
