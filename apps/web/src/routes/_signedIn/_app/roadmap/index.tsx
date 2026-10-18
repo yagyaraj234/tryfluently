@@ -1,10 +1,11 @@
-import { Container, ErrorState, Grid, Heading, LoadingState, Stack, Text, UnitCard } from "@impromptu/ui";
+import { Container, ErrorState, Grid, LoadingState, Stack, Text, UnitCard } from "@impromptu/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BuildRoadmap } from "../../../../components/roadmap/BuildRoadmap";
 import { roadmapQuery, unitProgress } from "../../../../lib/queries";
 
 export const Route = createFileRoute("/_signedIn/_app/roadmap/")({
+  staticData: { title: "Roadmap" },
   loader: ({ context }) => context.queryClient.prefetchQuery(roadmapQuery),
   component: Roadmap,
 });
@@ -14,10 +15,7 @@ function Roadmap() {
   return (
     <Container width="page">
       <Stack gap={6}>
-        <Stack gap={2}>
-          <Heading level={1}>Roadmap</Heading>
-          <Text tone="muted">Your Units in order. It changes as your Skill Profile does.</Text>
-        </Stack>
+        <Text tone="muted">Your Units in order. It changes as your Skill Profile does.</Text>
         {roadmap.isPending ? (
           <LoadingState title="Loading your Roadmap" />
         ) : roadmap.isError ? (

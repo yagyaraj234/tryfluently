@@ -14,8 +14,10 @@ export function LessonAction({ unit }: { unit: Unit }) {
   if (next.isError)
     return <ErrorState title="Your Lesson couldn't be prepared" description="Try again in a moment." onRetry={() => next.mutate()} />;
   return current ? (
-    <Button render={<Link {...lessonRoute(current)} />}>{`Resume ${current.title}`}</Button>
+    <Button size="sm" render={<Link {...lessonRoute(current)} />}>{`Resume ${current.title}`}</Button>
   ) : (
-    <Button onClick={() => next.mutate()}>Start your next Lesson</Button>
+    <Button size="sm" onClick={() => next.mutate()}>
+      Start your next Lesson
+    </Button>
   );
 }

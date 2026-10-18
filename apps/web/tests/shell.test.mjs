@@ -47,9 +47,11 @@ test("only the current destination is marked", async () => {
   }
 });
 
-test("destinations later tickets fill render a placeholder in the shell", async () => {
-  for (const [path, title] of [["/progress", "Progress"], ["/settings", "Settings"]]) {
-    assert.match(await page(path), new RegExp(`<h1[^>]*>${title}</h1>`));
+test("the top bar names the current destination as the page's one heading", async () => {
+  for (const [path, title] of [["/home", "Home"], ["/roadmap", "Roadmap"], ["/progress", "Progress"], ["/settings", "Settings"]]) {
+    const html = await page(path);
+    assert.match(html.match(/<header[\s\S]*?<\/header>/)[0], new RegExp(`<h1[^>]*>${title}</h1>`), path);
+    assert.equal(html.match(/<h1\b/g).length, 1, path);
   }
 });
 

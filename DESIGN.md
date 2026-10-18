@@ -144,7 +144,7 @@ Design for phones first, then add breakpoints with Tailwind's defaults:
 | (none) | 0 | One column, 16px side gutters (`px-4`) |
 | `sm:` | 40rem | Nav links appear; larger display type; looser section padding |
 | `md:` | 48rem | Landing grids go to two or three columns; auth shows the full story panel beside the form |
-| `lg:` | 64rem | App navigation becomes a sidebar with the wordmark; `Split` goes two thirds / one third; Sheets centre |
+| `lg:` | 64rem | App navigation becomes a sidebar with the logo; Home's rail docks to the right; `Split` goes two thirds / one third; Sheets centre |
 
 Use `max-*:` variants (`max-sm:w-full`) only when a phone-only style is simpler than undoing it at a breakpoint.
 
@@ -152,7 +152,7 @@ Use `max-*:` variants (`max-sm:w-full`) only when a phone-only style is simpler 
 |---|---|---|
 | Landing | One column; product frame stacks; nav shows the wordmark and "Start free" | Two-column features; three-column steps and cards (from `md`) |
 | Sign-in / sign-up | The cobalt panel shrinks to the wordmark and headline above the form | Story panel with steps beside the form (from `md`) |
-| Home | Continue, Up next, then the profile card, This week and the stat tiles | A dashboard at `Container width="page"`: Continue and Up next on the left, the profile, week and stats column on the right, through `Split` |
+| Home | Continue learning, Up next, then the rail as one white panel | `Dashboard`: the main column, and a full-height white rail flush against the right edge with the profile card, This week and the stat tiles |
 | Roadmap | Numbered Unit cards in one column | The same cards two to a row at `Container width="page"`, in Roadmap order |
 | Unit | The Unit's header card with its main action, then its finished Lessons as rows | Centred content column |
 | Goals / Assessment choice / confirmation | Single column with full-width main action | Centred prose column; keep forms together |
@@ -193,6 +193,7 @@ Every component lives in `@impromptu/ui` and is imported from the package root. 
 | | `Container` | — | `width: "content" \| "prose" \| "page"`; centred. `page` is for dashboards with a side column |
 | | `Grid` | — | `columns: "responsive" \| 2` (one column on phones, two from `sm`; or always two); `ordered` renders a list |
 | | `Split` | — | `main` and `side` slots; stacked below `lg`, two thirds and one third at it |
+| | `Dashboard` | — | `main` and `rail` slots, for Home inside `AppShell`; the rail is a white panel below the main column on phones and a full-height column on the right at `lg` |
 | Type | `Text` | — | `size` (label…hero), `tone: "ink" \| "muted"`, `as`, `tabular` |
 | | `Heading` | — | `level: 1 \| 2 \| 3` → page / heading / title; `size` overrides |
 | Actions | `Button` | Base UI Button | `variant: "primary" \| "secondary" \| "inverse"`, `size: "md" \| "sm"`, `glow`, `fullWidth`, `icon`, `render` |
@@ -211,7 +212,7 @@ Every component lives in `@impromptu/ui` and is imported from the package root. 
 | | `Meter` | Meter | `value`, `max`, `label` |
 | | `Spinner` | — | `label` |
 | | `Skeleton` | — | `shape: "text" \| "block" \| "circle"`, `size` |
-| Display | `Card` | — | `render` (makes the whole card a link) |
+| Display | `Card` | — | `render` (makes the whole card a link), `size: "md" \| "sm"` (`sm` is the denser dashboard card) |
 | | `CardList` | — | Rows on one card, split by hairlines |
 | | `Chip` | — | `tone: "paper" \| "soft"`, `icon` |
 | | `VerdictTag` | — | `verdict: "correct" \| "almost" \| "incorrect"`; the word is always shown |
@@ -232,12 +233,14 @@ The shipped domain components include `AppShell`, `PracticeShell`, `UnitCard`, `
 
 | Component | Spec |
 |---|---|
-| **App bar** | The "Impromptu" wordmark (`title`), which moves to the top of the sidebar at `lg`. Streak and XP chips on the right. Sidebar rows are roomy; the current one fills with `primary-soft`. |
+| **App bar** | A sticky top bar: the page's `h1` in `title` on the left (from the route's `staticData.title`), Streak and XP chips on the right, a hairline below. Pages with their own heading, like a Unit, leave the title out. |
+| **Sidebar** | The landing page's lowercase cobalt "impromptu" logo, a muted "MENU" label, then compact `caption` rows with an icon. The current row fills with `primary-soft` and turns cobalt. |
+| **Rail tiles** | On Home's white rail, the profile card, week strip and stat tiles are `subtle` tiles with a hairline and `rounded-2xl` (`railTileClasses`), like cards in a tray. |
 | **Practice bar** | The close button, and beside it what's being practised (a Lesson's Unit) in muted `caption`. It sticks to the top. |
-| **Unit card** | A `primary-soft` icon tile for the Unit's first skill and the status tag on top, then "UNIT 3" and the title, the objective, and for the active Unit a bar for how close it is to its objective with the Lessons done. With an action (Resume), only the title is the link. |
-| **Profile card** | A cobalt avatar with the initial, the name, the CEFR Level of each measured skill as `soft` chips (a link to Progress), and Streak · XP · Units mastered on a `subtle` strip. |
-| **Week strip** | This week, Monday to Sunday. Practised days fill cobalt, earlier days sit on `subtle`, later days are muted, and today has a cobalt ring. Screen readers hear "practised" and "today". |
-| **Stat tile** | A small card: an icon tile, a number in `heading`, and a muted label that reads on from it ("2 Lessons done"). |
+| **Unit card** | A dense card (`Card size="sm"`): the icon tile, the title in semibold `body` with "UNIT 3 · GRAMMAR" below, the status tag, and the objective in two lines. The active Unit adds a thick bar with "2 Lessons done" and "58% to the objective" under it. `cover` adds a cobalt brand cover with the Unit's icon, standing in for a thumbnail. With an action (Resume), only the title is the link. |
+| **Profile card** | A cobalt avatar with the initial, the name, the CEFR Level of each measured skill as small cobalt pills (a link to Progress), and Streak · XP · Units mastered with icons on a white strip. |
+| **Week strip** | "This week" with "4/7 days", then seven day pills, Monday to Sunday, each with the weekday and date. Practised days fill cobalt, earlier days are white, later days are muted, and today has an offset cobalt ring. Screen readers hear "practised" and "today". |
+| **Stat tile** | A rail tile: a white icon tile, a number in `title`, and a muted label that reads on from it ("2 Lessons done"). |
 | **`StepFeedback`** | A verdict-tint background with the `VerdictTag`, the corrected sentence in bold, a one-sentence explanation, a "Hear it" secondary button and a "Next step" primary button. |
 | **Live bar** | A `live` border with a pulsing dot, the "LIVE" label in `text-live-text`, the Roleplay kind and tone, the remaining minutes (tabular) and a secondary "End" button. It sticks to the top of the Roleplay screen. |
 | **Recording button** | A 72px round button (`size-18`). Idle: cobalt with the glow. Recording: paper with a pulsing `live` ring. Processing: a spinner on `subtle`. |

@@ -78,7 +78,7 @@ test("Home resumes the Lesson in progress in the active Unit", async () => {
 
 test("Home's Continue card shows how close the active Unit is to its objective, and the Lessons done", async () => {
   const t = text(await page("/home"));
-  assert.match(t, /Continue.*Tenses for projects.*64% of the way to the objective.*1 Lesson done.*Resume/);
+  assert.match(t, /Continue learning.*Tenses for projects.*1 Lesson done.*64% to the objective.*Resume/);
 });
 
 test("Home's Up next links the planned Units after the active one, and leaves finished Units to the Roadmap", async () => {
@@ -126,7 +126,7 @@ test("the Roadmap lists every Unit as a link, with its status as a word", async 
 
 test("the Roadmap numbers its Units in order, and only the active Unit shows how close it is to its objective", async () => {
   const html = await page("/roadmap");
-  assert.match(text(html), /Unit 1 .*Unit 2 .*Unit 3 Tenses for projects.*64% of the way to the objective.*Unit 4 /);
+  assert.match(text(html), /Unit 1 .*Unit 2 .*Tenses for projects Unit 3 .*64% to the objective.*Unit 4 /);
   assert.equal(html.match(/role="meter"/g)?.length, 1);
 });
 

@@ -29,6 +29,7 @@ export { ChoiceChips, type ChoiceChipsProps } from "./ChoiceChips";
 export { CardList, type CardListProps } from "./CardList";
 export { Cluster, type ClusterProps } from "./Cluster";
 export { Container, type ContainerProps } from "./Container";
+export { Dashboard, type DashboardProps } from "./Dashboard";
 export { Debrief, type DebriefProps, type DebriefQuestion } from "./Debrief";
 export { Dialog, type DialogProps } from "./Dialog";
 export { EmptyState, ErrorState, LoadingState, type EmptyStateProps, type ErrorStateProps, type LoadingStateProps } from "./States";

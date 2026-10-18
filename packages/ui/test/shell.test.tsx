@@ -36,14 +36,15 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { current: "page" }).textContent).toBe("Roadmap");
   });
 
-  test("shows the wordmark and the status next to it, and the screen in main", () => {
+  test("shows the page title as the heading in the top bar with the status, and the screen in main", () => {
     render(
-      <AppShell destinations={destinations} status={<StreakChip days={3} />}>
+      <AppShell destinations={destinations} title="Home" status={<StreakChip days={3} />}>
         Today
       </AppShell>,
     );
     const banner = screen.getByRole("banner");
-    expect(banner.textContent).toBe("Impromptu3 day streak");
+    expect(banner.textContent).toBe("Home3 day streak");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Home");
     expect(screen.getByRole("main").textContent).toBe("Today");
   });
 

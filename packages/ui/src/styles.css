@@ -119,6 +119,7 @@
   --container-content: 40rem; /* the Lesson column, dialogs, toasts */
   --container-prose: 65ch; /* running text */
   --container-sidebar: 15rem;
+  --container-rail: 22rem; /* Home's right-hand rail */
   --container-page: 67.5rem; /* the landing page */
 
   @keyframes celebrate {

@@ -1,19 +1,23 @@
 import { useRender } from "@base-ui/react/use-render";
+import { Fire, Lightning, Trophy, type Icon } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import type { ReactElement } from "react";
-import { Card } from "./Card";
-import { Chip } from "./Chip";
 import { skillNames, type CefrLevel, type Skill } from "./SkillBar";
 
-const body = cva("flex flex-col gap-5");
-const who = cva("flex items-center gap-4");
-const avatar = cva("grid size-14 shrink-0 place-items-center rounded-full bg-primary text-heading text-on-primary");
-const name = cva("text-title text-ink");
-const levelsClasses = cva("flex flex-wrap gap-2 rounded-full");
-const stats = cva("grid grid-cols-3 divide-x divide-line rounded-2xl bg-subtle py-3");
-const stat = cva("flex flex-col items-center gap-0.5 px-2 text-center");
-const value = cva("text-title tabular-nums");
-const label = cva("text-caption text-muted");
+/** The rail's tinted tiles: they sit on the white rail panel, like cards in a tray. */
+export const railTileClasses = "rounded-2xl border border-line bg-subtle p-4 text-ink";
+
+const body = cva(`flex flex-col gap-4 ${railTileClasses}`);
+const who = cva("flex items-center gap-3");
+const avatar = cva("grid size-14 shrink-0 place-items-center rounded-full bg-primary text-heading text-on-primary ring-4 ring-primary-soft");
+const name = cva("truncate text-body font-semibold");
+const levelsClasses = cva("flex flex-wrap gap-1.5 rounded-lg");
+const level = cva("rounded-full bg-primary-soft px-2 py-0.5 text-label font-semibold tracking-normal text-primary");
+const stats = cva("grid grid-cols-3 divide-x divide-line rounded-xl bg-paper py-3");
+const stat = cva("flex flex-col items-center gap-0.5 px-1 text-center");
+const value = cva("inline-flex items-center gap-1 text-title tabular-nums");
+const statIcon = cva("text-body text-primary");
+const label = cva("text-label font-normal tracking-normal text-muted");
 
 export type ProfileCardProps = {
   name: string;
@@ -32,35 +36,37 @@ export function ProfileCard({ name: learner, levels, levelsRender, streak, xp, u
     render: levelsRender ?? <div />,
     props: {
       className: levelsClasses(),
-      children: levels.map((l) => <Chip key={l.skill} tone="soft">{`${skillNames[l.skill]} ${l.level}`}</Chip>),
+      children: levels.map((l) => <span key={l.skill} className={level()}>{`${skillNames[l.skill]} ${l.level}`}</span>),
     },
   });
   return (
-    <Card>
-      <div className={body()}>
-        <div className={who()}>
-          <span aria-hidden className={avatar()}>
-            {learner.charAt(0).toUpperCase()}
-          </span>
-          <div className="flex min-w-0 flex-col gap-2">
-            <p className={name()}>{learner}</p>
-            {levels.length > 0 && levelChips}
-          </div>
-        </div>
-        <div className={stats()}>
-          <Stat value={streak} label="Day streak" />
-          <Stat value={xp} label="XP" />
-          <Stat value={unitsMastered} label={unitsMastered === 1 ? "Unit mastered" : "Units mastered"} />
+    <section aria-label="Your profile" className={body()}>
+      <div className={who()}>
+        <span aria-hidden className={avatar()}>
+          {learner.charAt(0).toUpperCase()}
+        </span>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <p className={name()}>{learner}</p>
+          {levels.length > 0 && levelChips}
         </div>
       </div>
-    </Card>
+      <div className={stats()}>
+        <Stat icon={Fire} value={streak} label="Day streak" />
+        <Stat icon={Lightning} value={xp} label="XP" />
+        <Stat icon={Trophy} value={unitsMastered} label={unitsMastered === 1 ? "Unit mastered" : "Units mastered"} />
+      </div>
+    </section>
   );
 }
 
-function Stat({ value: n, label: text }: { value: number; label: string }) {
+function Stat({ icon: StatIcon, value: n, label: text }: { icon: Icon; value: number; label: string }) {
   return (
     <p className={stat()}>
-      <span className={value()}>{n}</span> <span className={label()}>{text}</span>
+      <span className={value()}>
+        <StatIcon aria-hidden className={statIcon()} />
+        {n}
+      </span>{" "}
+      <span className={label()}>{text}</span>
     </p>
   );
 }
