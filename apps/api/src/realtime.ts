@@ -14,7 +14,7 @@ export type Realtime = {
   // Posts the browser's SDP offer with the owner's key; the answer goes back to the browser, the call id stays here.
   createCall(sdp: string, session: RealtimeSession): Promise<{ answer: string; callId: string }>;
   // Opens the server's sideband connection to a live call.
-  attach(callId: string, handlers: { onEvent(e: RealtimeEvent): void; onClose(): void | Promise<void> }): Sideband;
+  attach(callId: string, handlers: { onEvent(e: RealtimeEvent): void | Promise<void>; onClose(): void | Promise<void> }): Sideband;
 };
 
 const API = "https://api.openai.com/v1/realtime";
@@ -35,7 +35,7 @@ export const openaiRealtime = (apiKey: string): Realtime => {
     attach(callId, { onEvent, onClose }) {
       // Bun's WebSocket takes headers, which browsers' doesn't.
       const ws = new WebSocket(`${API}?call_id=${callId}`, { headers: { authorization } } as any);
-      ws.onmessage = (m) => onEvent(JSON.parse(String(m.data)));
+      ws.onmessage = (m) => void Promise.resolve(onEvent(JSON.parse(String(m.data)))).catch((error) => console.error("realtime event failed", error));
       ws.onclose = () => {
         void Promise.resolve().then(onClose).catch((error) => console.error("realtime close failed", error));
       };
@@ -107,6 +107,8 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
       sdp: string;
       instructions: string;
       purpose: CallPurpose;
+      tools?: unknown[];
+      endTool?: string;
       targetId?: string;
       budgetSeconds?: number;
       onTranscript(t: UIMessage[]): Promise<unknown>;
@@ -120,7 +122,7 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
 
     let call: { answer: string; callId: string };
     try {
-      call = await realtime.createCall(opts.sdp, sessionConfig);
+      call = await realtime.createCall(opts.sdp, opts.tools ? { ...sessionConfig, tools: opts.tools } : sessionConfig);
     } catch (e) {
       live.delete(userId);
       closed();
@@ -136,6 +138,16 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
     const usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
     let saving: Promise<SaveFailure | undefined> = Promise.resolve(undefined);
     let ended = false;
+    let ending = false;
+    let endResponseId: string | undefined;
+    let cancelEndFallback: (() => void) | undefined;
+
+    const endFromTool = async () => {
+      if (ending) return;
+      ending = true;
+      cancelEndFallback?.();
+      await hangup(userId, opts.targetId);
+    };
 
     const add = (message: UIMessage) => {
       transcript.push(message);
@@ -150,7 +162,7 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
     };
 
     entry.sideband = realtime.attach(call.callId, {
-      onEvent(e) {
+      async onEvent(e) {
         if (e.type === "input_audio_buffer.speech_started") timing.set(e.item_id, { speechStartMs: e.audio_start_ms });
         else if (e.type === "input_audio_buffer.speech_stopped") timing.set(e.item_id, { ...timing.get(e.item_id), speechEndMs: e.audio_end_ms });
         else if (e.type === "conversation.item.input_audio_transcription.completed") {
@@ -163,6 +175,12 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
           usage.inputTokens += u.input_tokens ?? 0;
           usage.cachedInputTokens += u.input_token_details?.cached_tokens ?? 0;
           usage.outputTokens += u.output_tokens ?? 0;
+        } else if (opts.endTool && e.type === "response.function_call_arguments.done" && e.name === opts.endTool && !endResponseId) {
+          endResponseId = e.response_id;
+          // The model should have spoken its closing line; do not leave the call open if that audio event is missing.
+          cancelEndFallback = schedule(5_000, endFromTool);
+        } else if (endResponseId === e.response_id && e.type === "output_audio_buffer.stopped") {
+          await endFromTool();
         }
       },
       async onClose() {

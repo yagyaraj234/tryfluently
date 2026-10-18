@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createRecorder } from "../src/voice.ts";
+import { createRecorder } from "../src/hooks/voice.ts";
 
 // A fake microphone, MediaRecorder and clock. Stopping the recorder emits one webm chunk.
 function fakeMedia({ getUserMedia } = {}) {
@@ -192,7 +192,7 @@ test("disposing a recording releases the microphone and uploads nothing", async 
 });
 
 test("Hear it plays the Reference Pronunciation from the API, one clip at a time", async () => {
-  const { hearIt } = await import("../src/voice.ts");
+  const { hearIt } = await import("../src/hooks/voice.ts");
   const played = [];
   globalThis.Audio = class {
     constructor(src) {

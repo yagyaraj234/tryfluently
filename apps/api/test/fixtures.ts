@@ -7,6 +7,7 @@ export const reportReply = (over: Record<string, unknown> = {}) => ({
   skills: {
     grammar: { score: 42, evidence: ["I have went to Pune last year"] },
     vocabulary: { score: 55, evidence: ["we leverage synergies"] },
+    fluency: null,
   },
   strengths: ["Clear structure", "Good range of work vocabulary", "Confident tone"],
   weaknesses: [

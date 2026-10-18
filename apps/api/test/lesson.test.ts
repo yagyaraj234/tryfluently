@@ -11,7 +11,7 @@ const toolNames = (call: any) => (call.tools ?? []).map((t: any) => t.name).sort
 function lessonApp(turns: Turn[], clock = makeClock()) {
   const step = mockTurns(...turns);
   step.doGenerate = mockModel(lessonPlan()).doGenerate;
-  const judge = mockModel({ skills: {}, objectiveProgress: 50, summary: "Practised present simple." });
+  const judge = mockModel({ skills: { fluency: null, grammar: null, vocabulary: null }, objectiveProgress: 50, summary: "Practised present simple.", focusItems: null });
   return { app: makeApp({ now: clock, models: { step, judge } }), step, clock };
 }
 

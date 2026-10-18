@@ -21,6 +21,7 @@
         "better-auth": "^1.7.10",
         "drizzle-orm": "^0.45.4",
         "hono": "^4.13.13",
+        "openai": "^7.38.0",
         "prom-client": "^15.1.3",
         "zod": "^4.6.7",
       },
@@ -771,6 +772,8 @@
     "node-releases": ["node-releases@2.0.59", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/node-releases/-/node-releases-2.0.59.tgz", {}, "sha512-5qr2okC4ItAI0hG5SaV0HoYMpnM/Y6+Oqr7AmPYy/2uEoGvS+GbSKLeRxSS1uAdu59yz0ouzcuXievSgg///WA=="],
 
     "obug": ["obug@3.0.0", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/obug/-/obug-3.0.0.tgz", {}, "sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw=="],
+
+    "openai": ["openai@7.38.0", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/openai/-/openai-7.38.0.tgz", { "peerDependencies": { "@aws-sdk/credential-provider-node": ">=3.972.0 <4", "@smithy/hash-node": ">=4.3.0 <5", "@smithy/signature-v4": ">=5.4.0 <6", "undici": ">=5 <9", "ws": "^8.21.0", "zod": "^3.25 || ^4.0" }, "optionalPeers": ["@aws-sdk/credential-provider-node", "@smithy/hash-node", "@smithy/signature-v4", "undici", "ws", "zod"] }, "sha512-Ef+YyIeoiisZLP/tV4F4/RieJAl4OEJTyJg6gV0AXOb0T9CDkvYJoU224OY5CTmQ4zDJeku4jEHjz2b3/6Ndhw=="],
 
     "optionator": ["optionator@0.9.4", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/optionator/-/optionator-0.9.4.tgz", { "dependencies": { "deep-is": "^0.1.3", "fast-levenshtein": "^2.0.6", "levn": "^0.4.1", "prelude-ls": "^1.2.1", "type-check": "^0.4.0", "word-wrap": "^1.2.5" } }, "sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g=="],
 

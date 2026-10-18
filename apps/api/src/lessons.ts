@@ -26,7 +26,7 @@ const feedbackInput = z.object({
   focusItemIds: z.array(z.string()).optional().describe("Ids of open Focus Items the Learner used correctly in this answer"),
 });
 
-const planOutput = z.object({ title: z.string(), objective: z.string() });
+export const planOutput = z.object({ title: z.string(), objective: z.string() });
 
 const planInstructions = `You plan the next short Lesson (3–10 Steps) in a Unit of an English coaching Roadmap.
 Give it a title and one concrete objective. Build on the earlier Lessons' summaries without repeating them,

@@ -61,6 +61,8 @@ describe("text-mode Roleplay", () => {
     const prompt = JSON.stringify(step.doStreamCalls[0]!.prompt);
     expect(prompt).toContain("interviewer in a Mock Interview");
     expect(prompt).toContain("Tough");
+    expect(prompt).toContain("base the next question or follow-up on details in that last answer");
+    expect(prompt).toContain("Do not agree, praise, reassure, or validate");
 
     const end = await app.request(`/api/roleplays/${roleplay.id}/end`, json({}, cookie));
     expect(end.status).toBe(200);

@@ -7,7 +7,7 @@ import { makeApp, makeClock, mockModel, signUp, userMessage } from "./helpers";
 import { testDb } from "./setup";
 
 const judgement = {
-  skills: { grammar: { score: 60, evidence: ["I have worked here for years."] } },
+  skills: { fluency: null, grammar: { score: 60, evidence: ["I have worked here for years."] }, vocabulary: null },
   objectiveProgress: 70,
   summary: "Practised present perfect.",
   focusItems: [{ label: "Present perfect", kind: "grammar" }],

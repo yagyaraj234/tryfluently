@@ -15,7 +15,7 @@ export const unitOutput = z.object({
   skills: z.array(z.enum(skills)).min(1),
   endsWithRoleplay: z.boolean(),
 });
-const roadmapOutput = z.object({ units: z.array(unitOutput).min(8).max(10) });
+export const roadmapOutput = z.object({ units: z.array(unitOutput).min(8).max(10) });
 
 const roadmapInstructions = `You plan an English coaching Roadmap. Write 8–10 Units in order, each a focused topic with
 a concrete objective the Learner can meet, the skills it practises (fluency, grammar, vocabulary), and whether it ends
@@ -79,7 +79,7 @@ export async function buildRoadmap({ db, now, models }: Ctx, userId: string) {
   return "built" as const;
 }
 
-const revisionOutput = z.object({ units: z.array(unitOutput).min(1).max(10) });
+export const revisionOutput = z.object({ units: z.array(unitOutput).min(1).max(10) });
 
 const revisionInstructions = (task: string) => `You revise a Learner's English coaching Roadmap. Mastered, skipped and
 active Units are fixed. ${task} Each Unit is a focused topic with a concrete objective, the skills it practises

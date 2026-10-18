@@ -3,7 +3,12 @@ import { answerStep, feedback, fillGap, learnerWithRoadmap, lessonPlan } from ".
 import { get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, type TestApp, type Turn } from "./helpers";
 
 const end = { tool: "endLesson", input: {} };
-const judgeReply = { scores: { grammar: { score: 50, evidence: [] } }, objectiveProgress: 60, summary: "Practised routines." };
+const judgeReply = {
+  skills: { fluency: null, grammar: { score: 50, evidence: [] }, vocabulary: null },
+  objectiveProgress: 60,
+  summary: "Practised routines.",
+  focusItems: null,
+};
 
 // A Lesson finished after 3 answers, or one left after `answers` answers.
 const finished: Turn[] = [[fillGap()], [feedback(), fillGap()], [feedback(), fillGap()], [feedback(), end]];

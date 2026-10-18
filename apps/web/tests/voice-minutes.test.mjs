@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { minutesLeft, resetsIn } from "../src/voiceMinutes.ts";
+import { minutesLeft, resetsIn } from "../src/lib/voiceMinutes.ts";
 
 // Today's voice minutes come back at local midnight.
 test("the voice minutes reset at the next local midnight, said in hours or, under an hour, minutes", () => {

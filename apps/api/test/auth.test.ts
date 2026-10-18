@@ -1,6 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { eq, sql } from "drizzle-orm";
-import { cookieFrom, fakeRealtime, json, makeApp, uniqueEmail, WEB_ORIGIN } from "./helpers";
+import { cookieFrom, fakeMailer, fakeRealtime, json, makeApp, signUp, uniqueEmail, WEB_ORIGIN } from "./helpers";
 import { testDb } from "./setup";
 import { schema } from "@impromptu/db";
 
@@ -8,8 +8,7 @@ describe("auth", () => {
   test("deleting an account ends its live voice call before cascading its data", async () => {
     const realtime = fakeRealtime();
     const app = makeApp({ realtime });
-    const response = await app.request("/api/auth/sign-up/email", json({ name: "Asha", email: uniqueEmail(), password: "correct-horse-battery" }));
-    const cookie = cookieFrom(response);
+    const { cookie } = await signUp(app);
     const assessment = await app.request("/api/assessments", json({ mode: "voice" }, cookie));
     const { id } = await assessment.json() as { id: string };
     expect((await app.request(`/api/assessments/${id}/call`, { method: "POST", headers: { cookie, origin: WEB_ORIGIN }, body: "v=0" })).status).toBe(201);
@@ -54,30 +53,34 @@ describe("auth", () => {
       provider.mockRestore();
     }
   });
-  test("a Learner signs up, signs in, and the session cookie authenticates later requests", async () => {
-    const app = makeApp();
+  test("a Learner must verify their email before they can sign in", async () => {
+    const mailer = fakeMailer();
+    const app = makeApp({ mailer });
     const email = uniqueEmail();
     const password = "correct-horse-battery";
 
     const signUp = await app.request("/api/auth/sign-up/email", json({ name: "Asha", email, password }));
     expect(signUp.status).toBe(200);
+    expect(mailer.sent).toHaveLength(1);
+    expect(mailer.sent[0]).toMatchObject({ to: email, subject: "Verify your Impromptu email" });
+    expect((await app.request("/api/me", { headers: { cookie: cookieFrom(signUp) } })).status).not.toBe(200);
 
     const signIn = await app.request("/api/auth/sign-in/email", json({ email, password }));
-    expect(signIn.status).toBe(200);
+    expect(signIn.status).toBe(403);
 
-    const me = await app.request("/api/me", { headers: { cookie: cookieFrom(signIn) } });
+    const url = new URL(mailer.sent[0]!.text!.match(/https?:\S+/)![0]!);
+    const verified = await app.request(url.pathname + url.search);
+    expect(verified.status).toBe(302);
+
+    const me = await app.request("/api/me", { headers: { cookie: cookieFrom(verified) } });
     expect(me.status).toBe(200);
     expect(await me.json()).toMatchObject({ email, name: "Asha" });
   });
 
   test("the Learner's timezone is stored at sign-up", async () => {
     const app = makeApp();
-    const signUp = await app.request(
-      "/api/auth/sign-up/email",
-      json({ name: "Ravi", email: uniqueEmail(), password: "correct-horse-battery", timezone: "Asia/Kolkata" }),
-    );
-
-    const me = await app.request("/api/me", { headers: { cookie: cookieFrom(signUp) } });
+    const { cookie } = await signUp(app, { name: "Ravi", timezone: "Asia/Kolkata" });
+    const me = await app.request("/api/me", { headers: { cookie } });
     expect(await me.json()).toMatchObject({ timezone: "Asia/Kolkata" });
   });
 
@@ -103,8 +106,7 @@ describe("auth", () => {
   test("a Learner can delete their account and no rows remain for them in any table", async () => {
     const app = makeApp();
     const password = "correct-horse-battery";
-    const signUp = await app.request("/api/auth/sign-up/email", json({ name: "Mei", email: uniqueEmail(), password }));
-    const cookie = cookieFrom(signUp);
+    const { cookie } = await signUp(app, { name: "Mei", password });
     const { id } = (await (await app.request("/api/me", { headers: { cookie } })).json()) as { id: string };
 
     const del = await app.request("/api/auth/delete-user", json({ password }, cookie));

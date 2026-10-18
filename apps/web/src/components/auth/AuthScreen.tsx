@@ -56,6 +56,7 @@ export function AuthScreen(props: {
   initialError?: string;
   /** Resolves with Better Auth's error, if any. */
   onSubmit: (values: Record<string, string>) => Promise<{ error: { message?: string } | null }>;
+  successTo?: '/home' | '/verify-email';
   footer: ReactNode;
 }) {
   const signingUp = props.mode === 'sign-up';
@@ -73,7 +74,7 @@ export function AuthScreen(props: {
       const { error } = await props.onSubmit(values);
       if (error) return setError(error.message ?? "That didn't work. Try again.");
       queryClient.clear();
-      await router.navigate({ to: '/home' });
+      await router.navigate({ to: props.successTo ?? '/home' });
     } catch {
       setError("We couldn't reach Impromptu. Check your connection and try again.");
     } finally {

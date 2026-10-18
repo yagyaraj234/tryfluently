@@ -79,14 +79,26 @@ explain a project they worked on, and finish with "Do you have any questions for
 raise a problem or a delay, push back on scope, price or timing, and agree next steps.`,
 };
 
+const endCallTool = {
+  type: "function",
+  name: "end_call",
+  description: "End the Roleplay after you have spoken a short closing sentence.",
+  parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
+};
+
 // Instructions for a Roleplay, spoken or in text. Reused by text-mode Roleplays.
-export const roleplayInstructions = (kind: RoleplayKind, tone: Tone, briefs: string[]) =>
+export const roleplayInstructions = (kind: RoleplayKind, tone: Tone, briefs: string[], spoken = false) =>
   `${scenarios[kind]}
 Tone — ${toneText[tone]}
 ${briefs.length ? `What you know about the Learner:\n${briefs.join("\n\n")}` : ""}
-Ask 5–7 main questions over 8–12 minutes, one at a time, with natural follow-ups. Stay in character the whole time.
-The Learner is practising English: never correct them or give feedback during the Roleplay, and never judge whether
-their technical answers are right.`;
+Ask exactly one question at a time. After each answer, base the next question or follow-up on details in that last answer;
+do not use a prewritten list or ask several questions together. Do not agree, praise, reassure, or validate the Learner's
+answer. Stay in character and probe unclear claims, trade-offs, decisions, and outcomes. The Learner is practising English:
+never correct them or give feedback during the Roleplay, and never judge whether their technical answers are right.${
+    spoken
+      ? `\nWhen the conversation is complete, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.`
+      : ""
+  }`;
 
 export const roleplays = (deps: Deps & { settings: { alphaLesson: number; realtimeMinutesPerDay: number }; broker: RealtimeBroker }) => {
   const { db, broker } = deps;
@@ -157,8 +169,10 @@ This Roleplay is a text chat: write your lines as you would say them, without st
         targetId: row.id,
         budgetSeconds: budget.remainingSeconds,
         sdp: offer,
-        instructions: roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedBriefs(deps, userId)),
+        instructions: roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedBriefs(deps, userId), true),
         purpose: "roleplay",
+        tools: [endCallTool],
+        endTool: endCallTool.name,
         onTranscript: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
       });
       if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);

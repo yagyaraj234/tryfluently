@@ -126,7 +126,7 @@ describe("skill profile", () => {
     [85, 100, "C2", "C2"],
   ])("scores %i and %i are labelled %s and %s", async (low, high, lowLevel, highLevel) => {
     const reply = reportReply();
-    const skills = { grammar: { score: low, evidence: [] }, vocabulary: { score: high, evidence: [] } };
+    const skills = { fluency: null, grammar: { score: low, evidence: [] }, vocabulary: { score: high, evidence: [] } };
     const { app, clock } = appWith([{ ...reply, skills }]);
     const { cookie } = await signUp(app);
     await takeWrittenAssessment(app, cookie, clock);
@@ -139,7 +139,7 @@ describe("skill profile", () => {
 
   test("a later Assessment moves each score halfway toward the new result, and history keeps both", async () => {
     const first = reportReply();
-    const second = { ...first, skills: { grammar: { score: 60, evidence: [] }, vocabulary: { score: 55, evidence: [] } } };
+    const second = { ...first, skills: { fluency: null, grammar: { score: 60, evidence: [] }, vocabulary: { score: 55, evidence: [] } } };
     const { app, clock } = appWith([first, second]);
     const { cookie } = await signUp(app);
 

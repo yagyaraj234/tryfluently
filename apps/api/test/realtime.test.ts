@@ -41,6 +41,22 @@ describe("Realtime close failures", () => {
     await broker.hangup(userId, "current-roleplay");
     expect(realtime.sideband().hungUp).toBe(true);
   });
+  test("an end-call tool waits for the closing audio, then hangs up", async () => {
+    const { userId, realtime, broker } = await setup();
+    await broker.start(userId, { ...opts(async () => {}), endTool: "end_call" });
+    const sideband = realtime.sideband();
+    await sideband.emit({ type: "response.function_call_arguments.done", name: "end_call", response_id: "response_1" });
+    expect(sideband.hungUp).toBe(false);
+    await sideband.emit({ type: "output_audio_buffer.stopped", response_id: "response_1" });
+    expect(sideband.hungUp).toBe(true);
+  });
+  test("an end-call tool falls back when the closing audio event is missing", async () => {
+    const { userId, realtime, timers, broker } = await setup();
+    await broker.start(userId, { ...opts(async () => {}), endTool: "end_call" });
+    await realtime.sideband().emit({ type: "response.function_call_arguments.done", name: "end_call", response_id: "response_1" });
+    await timers.fire(5_000);
+    expect(realtime.sideband().hungUp).toBe(true);
+  });
   test("a failed transcript save propagates from hangup, still logs usage and releases the call", async () => {
     const { userId, realtime, timers, broker } = await setup();
     const error = new Error("transcript unavailable");

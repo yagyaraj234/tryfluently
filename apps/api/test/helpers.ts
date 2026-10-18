@@ -1,5 +1,7 @@
 import type { LanguageModel } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
+import { schema } from "@impromptu/db";
+import { eq } from "drizzle-orm";
 import { createApp, type Env, type Mailer, type Models, type Schedule, type Settings, type Speech, type Transcriber } from "../src/app";
 import type { Realtime, RealtimeEvent, RealtimeSession } from "../src/realtime";
 import { testDb } from "./setup";
@@ -47,7 +49,7 @@ export function fakeRealtime() {
   const calls: { sdp: string; session: RealtimeSession; callId: string }[] = [];
   const sidebands = new Map<
     string,
-    { sent: any[]; hungUp: boolean; emit: (e: RealtimeEvent) => void; close: () => Promise<void> }
+    { sent: any[]; hungUp: boolean; emit: (e: RealtimeEvent) => Promise<void>; close: () => Promise<void> }
   >();
   const realtime: Realtime = {
     async createCall(sdp, session) {
@@ -59,7 +61,7 @@ export function fakeRealtime() {
       const sb = {
         sent: [] as any[],
         hungUp: false,
-        emit: onEvent,
+        emit: async (e: RealtimeEvent) => void (await onEvent(e)),
         close: async () => onClose(),
       };
       sidebands.set(callId, sb);
@@ -143,6 +145,7 @@ export function makeApp({
       BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
       BETTER_AUTH_URL: "http://localhost:3000",
       WEB_ORIGIN,
+      KENPATH_VOICE: "alloy",
       ...env,
     },
   });
@@ -248,11 +251,13 @@ export const cookieFrom = (res: Response) =>
 
 // Signs up a fresh Learner and returns their session cookie and id.
 export async function signUp(app: TestApp, extra: Record<string, unknown> = {}) {
+  const email = uniqueEmail();
   const res = await app.request(
     "/api/auth/sign-up/email",
-    json({ name: "Asha", email: uniqueEmail(), password: "correct-horse-battery", ...extra }),
+    json({ name: "Asha", email, password: "correct-horse-battery", ...extra }),
   );
-  const cookie = cookieFrom(res);
+  await testDb.update(schema.user).set({ emailVerified: true }).where(eq(schema.user.email, email));
+  const cookie = cookieFrom(await app.request("/api/auth/sign-in/email", json({ email, password: "correct-horse-battery" })));
   const { id } = (await (await app.request("/api/me", get(cookie))).json()) as { id: string };
   return { cookie, id };
 }

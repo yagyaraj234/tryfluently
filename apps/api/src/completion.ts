@@ -13,27 +13,27 @@ type Ctx = Pick<Deps, "db" | "now" | "models"> & { settings: { alphaLesson: numb
 const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
 
 // What the judge returns after each Lesson: only the skills it saw evidence for are scored.
-const judgeOutput = z.object({
-  skills: z.object({ fluency: skillResult, grammar: skillResult, vocabulary: skillResult }).partial(),
+export const judgeOutput = z.object({
+  skills: z.object({ fluency: skillResult.nullable(), grammar: skillResult.nullable(), vocabulary: skillResult.nullable() }),
   objectiveProgress: z.number().int().min(0).max(100),
   summary: z.string(),
-  focusItems: z.array(z.object({ label: z.string(), kind: z.enum(["grammar", "vocabulary", "phrase"]) })).optional(),
+  focusItems: z.array(z.object({ label: z.string(), kind: z.enum(["grammar", "vocabulary", "phrase"]) })).nullable(),
 });
 
 const judgeInstructions = `You are an examiner for English as a second language. Judge one finished Lesson from its Steps:
 what the Learner was asked, what they answered and the feedback they got. Using the official CEFR descriptors, score
-0–100 only the skills (fluency, grammar, vocabulary) the Learner showed evidence of, with quotes. Rate progress on the
+0–100 only the skills (fluency, grammar, vocabulary) the Learner showed evidence of, with quotes; set every other skill to null. Rate progress on the
 Lesson objective 0–100, and write a two-sentence summary that the next Lesson can build on.
 If the Learner made the same mistake more than once, add it as a Focus Item with a short label and its kind.
 Score fluency only from voice Steps (mode "voice"), using their timing (words per minute) and how smoothly they flow.`;
 
-const debriefOutput = z.object({
+export const debriefOutput = z.object({
   overallImpression: z.string(),
   // One entry per main question; its follow-ups belong to it.
   questions: z
     .array(z.object({ question: z.string(), quote: z.string(), strongerPhrasing: z.string(), languageIssues: z.array(z.string()) }))
     .min(1),
-  skills: z.object({ fluency: skillResult, grammar: skillResult, vocabulary: skillResult }).partial(),
+  skills: z.object({ fluency: skillResult.nullable(), grammar: skillResult.nullable(), vocabulary: skillResult.nullable() }),
   phrasesToLearn: z.array(z.string()).length(3),
   objectiveProgress: z.number().int().min(0).max(100),
   summary: z.string(),
@@ -43,7 +43,7 @@ const debriefInstructions = `You are an examiner for English as a second languag
 the Learner's Debrief. Judge their English only, never whether their technical or business answers are correct.
 Give an overall impression. For each main question the Learner was asked (group follow-ups with their question), quote
 what they said, give a stronger phrasing and list the language issues. Using the official CEFR descriptors, score 0–100
-the skills (grammar, vocabulary, and fluency as how coherent and connected their speech is) they showed evidence of.
+the skills (grammar, vocabulary, and fluency as how coherent and connected their speech is) they showed evidence of; set every other skill to null.
 Give exactly 3 phrases to learn, rate how well they met the objective 0–100, and write a two-sentence summary.`;
 
 const textOf = (messages: UIMessage[]) =>

@@ -17,6 +17,7 @@ import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as SignedInAppRouteImport } from './routes/_signedIn/_app'
 import { Route as SignedInPracticeRouteImport } from './routes/_signedIn/_practice'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
@@ -71,6 +72,11 @@ const SignUpRoute = SignUpRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignedInAppRoute = SignedInAppRouteImport.update({
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/home': typeof SignedInAppHomeRoute
   '/progress': typeof SignedInAppProgressRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/home': typeof SignedInAppHomeRoute
   '/progress': typeof SignedInAppProgressRoute
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/_signedIn/_app': typeof SignedInAppRouteWithChildren
   '/_signedIn/_practice': typeof SignedInPracticeRouteWithChildren
   '/api/$': typeof ApiSplatRoute
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
+    | '/verify-email'
     | '/api/$'
     | '/home'
     | '/progress'
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
+    | '/verify-email'
     | '/api/$'
     | '/home'
     | '/progress'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
+    | '/verify-email'
     | '/_signedIn/_app'
     | '/_signedIn/_practice'
     | '/api/$'
@@ -315,6 +327,7 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   ApiSplatRoute: typeof ApiSplatRoute
 }
 
@@ -374,6 +387,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_signedIn/_app': {
@@ -562,6 +582,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport

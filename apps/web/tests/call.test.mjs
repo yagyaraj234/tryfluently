@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { startCall } from "../src/call.ts";
+import { startCall } from "../src/lib/call.ts";
 
 // A live voice call (Voice Assessment, voice Roleplay) against a fake microphone, RTCPeerConnection and API.
 function fakes({ microphone = "allowed", reply = () => new Response("answer-sdp", { status: 201, headers: { "content-type": "application/sdp" } }) } = {}) {

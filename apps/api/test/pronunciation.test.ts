@@ -58,6 +58,16 @@ describe("reference pronunciation", () => {
     expect(speech.calls[0]!.voice).toBe("alloy");
   });
 
+  test("a missing default voice only disables Reference Pronunciation", async () => {
+    const speech = fakeSpeech();
+    const app = makeApp({ speech, env: { KENPATH_VOICE: undefined } });
+    const { cookie } = await signUp(app);
+
+    const res = await app.request(hear(`hello ${crypto.randomUUID()}`), get(cookie));
+    expect(res.status).toBe(503);
+    expect(speech.calls).toEqual([]);
+  });
+
   test("hearing a phrase needs a session", async () => {
     const speech = fakeSpeech();
     const res = await makeApp({ speech }).request(hear("hello"));

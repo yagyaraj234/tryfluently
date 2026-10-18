@@ -22,6 +22,7 @@ const setup = (reports: unknown[] = [], mailer = fakeMailer()) => {
   });
   return { app, clock, mailer };
 };
+const reportEmails = (mailer: ReturnType<typeof fakeMailer>) => mailer.sent.filter((email) => typeof email.subject === "string" && email.subject.includes("Assessment Report"));
 
 describe("assessment lifecycle", () => {
   test("two requests ending the same Assessment persist one Report and one set of learning results", async () => {
@@ -33,7 +34,7 @@ describe("assessment lifecycle", () => {
     expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
     expect(await (await app.request("/api/skill-profile/history", get(cookie))).json()).toHaveLength(2);
     expect(await (await app.request("/api/focus-items", get(cookie))).json()).toHaveLength(3);
-    expect(mailer.sent).toHaveLength(1);
+    expect(reportEmails(mailer)).toHaveLength(1);
   });
   test("an attempt ended under 4 minutes is discarded without a Report and doesn't block a new one", async () => {
     const { app, clock } = setup();
@@ -125,17 +126,17 @@ describe("first-Report email", () => {
     const me = (await (await app.request("/api/me", get(cookie))).json()) as any;
 
     const first = await takeWrittenAssessment(app, cookie, clock);
-    expect(mailer.sent).toHaveLength(1);
-    expect(mailer.sent[0]).toMatchObject({ to: me.email, subject: expect.stringContaining("Assessment Report") });
-    expect(mailer.sent[0]!.html).toContain(`href="${WEB_ORIGIN}/"`);
-    expect(mailer.sent[0]!.text).toContain(`Start your first Lesson: ${WEB_ORIGIN}/`);
-    expect(mailer.sent[0]!.html).toContain("Fluency: Not measured yet");
-    expect(mailer.sent[0]!.html).toContain("Past simple vs present perfect");
+    const [reportEmail] = reportEmails(mailer);
+    expect(reportEmail).toMatchObject({ to: me.email, subject: expect.stringContaining("Assessment Report") });
+    expect(reportEmail!.html).toContain(`href="${WEB_ORIGIN}/"`);
+    expect(reportEmail!.text).toContain(`Start your first Lesson: ${WEB_ORIGIN}/`);
+    expect(reportEmail!.html).toContain("Fluency: Not measured yet");
+    expect(reportEmail!.html).toContain("Past simple vs present perfect");
     expect((await read(app, cookie, first.id)).emailedAt).not.toBeNull();
 
     clock.advance({ days: 7 });
     await takeWrittenAssessment(app, cookie, clock);
-    expect(mailer.sent).toHaveLength(1);
+    expect(mailer.sent).toHaveLength(2);
   });
 
   test("a discarded attempt sends nothing; the first completed one after it is emailed", async () => {
@@ -144,10 +145,10 @@ describe("first-Report email", () => {
     const id = await startAndChat(app, cookie);
     clock.advance({ minutes: 1 });
     await app.request(`/api/assessments/${id}/end`, json({}, cookie));
-    expect(mailer.sent).toHaveLength(0);
+    expect(reportEmails(mailer)).toHaveLength(0);
 
     await takeWrittenAssessment(app, cookie, clock);
-    expect(mailer.sent).toHaveLength(1);
+    expect(reportEmails(mailer)).toHaveLength(1);
   });
 
   test("an email that fails to send doesn't lose the Report, and is tried again next time", async () => {

@@ -16,7 +16,7 @@ type Opts = { judge?: unknown; transcriber?: ReturnType<typeof fakeTranscriber>;
 function voiceApp(turns: Turn[], { judge, transcriber = fakeTranscriber(), clock = makeClock(), minutes }: Opts = {}) {
   const step = mockTurns(...turns);
   step.doGenerate = mockModel(lessonPlan(), lessonPlan()).doGenerate;
-  const judgeModel = mockModel(judge ?? { skills: {}, objectiveProgress: 50, summary: "Spoke about routines." });
+  const judgeModel = mockModel(judge ?? { skills: { fluency: null, grammar: null, vocabulary: null }, objectiveProgress: 50, summary: "Spoke about routines.", focusItems: null });
   const app = makeApp({
     now: clock,
     transcriber,
@@ -166,9 +166,10 @@ describe("recorded voice Steps", () => {
 
 describe("fluency from voice Steps only", () => {
   const fluentJudge = {
-    skills: { fluency: { score: 90, evidence: ["smooth"] }, grammar: { score: 50, evidence: [] } },
+    skills: { fluency: { score: 90, evidence: ["smooth"] }, grammar: { score: 50, evidence: [] }, vocabulary: null },
     objectiveProgress: 50,
     summary: "Talked about routines.",
+    focusItems: null,
   };
   const threeSteps = (stepCall: Turn[number]): Turn[] => [[stepCall], [feedback(), stepCall], [feedback(), stepCall], [feedback(), end]];
 

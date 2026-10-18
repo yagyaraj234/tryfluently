@@ -9,7 +9,9 @@ const usedCorrectly = (focusItemIds: string[]) => ({
   input: { verdict: "correct", corrected: "She goes to work every day.", explanation: "Well done.", focusItemIds },
 });
 
-const judgeReply = (focusItems: object[] = []) => ({ skills: {}, objectiveProgress: 50, summary: "Practised routines.", focusItems });
+const judgeReply = (focusItems: object[] = []) => ({
+  skills: { fluency: null, grammar: null, vocabulary: null }, objectiveProgress: 50, summary: "Practised routines.", focusItems,
+});
 
 function appWith(turns: Turn[], judgeReplies: unknown[] = [judgeReply()]) {
   const clock = makeClock();

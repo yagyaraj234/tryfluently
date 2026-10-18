@@ -10,6 +10,7 @@ export const Route = createFileRoute("/_signedIn")({
     // ponytail: one /api/me call per navigation; cache it in the QueryClient if it ever shows up as slow.
     const response = await api().api.me.$get();
     if (response.status === 401) throw redirect({ to: "/sign-in" });
+    if (response.status === 403) throw redirect({ to: "/verify-email" });
     if (!response.ok) throw new Error(`Couldn't load your session (${response.status})`);
     return { learner: await response.json() };
   },

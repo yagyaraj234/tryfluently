@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Chat } from "@ai-sdk/react";
-import { answerStep, chatOptions } from "../src/chat.ts";
+import { answerStep, chatOptions } from "../src/lib/chat.ts";
 
 // The server keeps the chat history, so each request carries only the newest message.
 // A fake fetch records what is sent and replies with the given UI message stream chunks.

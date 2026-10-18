@@ -12,6 +12,15 @@ export const resendMailer = (apiKey: string, from: string): Mailer => ({
   },
 });
 
+export function verificationEmail(to: string, url: string): Email {
+  return {
+    to,
+    subject: "Verify your Impromptu email",
+    text: `Verify your email to start using Impromptu: ${url}`,
+    html: `<!doctype html><html><body><p>Verify your email to start using Impromptu.</p><p><a href="${escape(url)}">Verify email</a></p><p>If you didn't create an account, you can ignore this email.</p></body></html>`,
+  };
+}
+
 const escape = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
 type Report = {

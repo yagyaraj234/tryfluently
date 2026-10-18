@@ -3,9 +3,10 @@ import { answerStep, feedback, fillGap, learnerWithRoadmap, lessonPlan, unitsRep
 import { get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, type TestApp, type Turn } from "./helpers";
 
 const judgeReply = (objectiveProgress: number, skills: object = { grammar: { score: 62, evidence: ["She goes to work."] } }) => ({
-  skills,
+  skills: { fluency: null, grammar: null, vocabulary: null, ...skills },
   objectiveProgress,
   summary: `Practised present simple; progress ${objectiveProgress}.`,
+  focusItems: null,
 });
 
 // The four chat turns of a 3-Step Lesson that the model then ends.

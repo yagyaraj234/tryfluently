@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
-import { cefrLevel, goalKind, targetLevels } from "./goals";
+import { cefrLevel, goalKind } from "./goals";
 import { reportEmail } from "./mailer";
 import type { RealtimeBroker } from "./realtime";
 import { buildRoadmap, reviseRoadmap } from "./roadmap";
@@ -19,11 +19,13 @@ const MIN_MINUTES = 4;
 const RETAKE_DAYS = 7;
 
 const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
+const proposedTargetLevels = z.object({ fluency: cefrLevel, grammar: cefrLevel, vocabulary: cefrLevel });
 
 // What the report model must return.
 export const reportOutput = z.object({
   overallLevel: cefrLevel,
-  skills: z.object({ grammar: skillResult, vocabulary: skillResult, fluency: skillResult.optional() }),
+  // OpenAI strict JSON Schema requires every object key; null means fluency was not observed.
+  skills: z.object({ grammar: skillResult, vocabulary: skillResult, fluency: skillResult.nullable() }),
   strengths: z.array(z.string()).length(3),
   weaknesses: z
     .array(
@@ -36,7 +38,7 @@ export const reportOutput = z.object({
     )
     .min(3)
     .max(5),
-  proposedGoals: z.array(z.object({ kind: goalKind, targetLevels })),
+  proposedGoals: z.array(z.object({ kind: goalKind, targetLevels: proposedTargetLevels })),
   firstUnit: z.object({ title: z.string(), objective: z.string() }),
 });
 
@@ -72,7 +74,7 @@ const reportInstructions = (mode: Row["mode"]) => `You are an examiner for Engli
 and assess the Learner (the "Learner" lines only) against the official CEFR descriptors for grammar and vocabulary${
   mode === "voice" ? ", and score fluency on how coherent and connected their speech is (speed and pauses are measured separately)" : ""
 }.
-Score each skill 0–100 with quotes as evidence. Give exactly 3 strengths and 3–5 weaknesses; each weakness quotes
+Score each measured skill 0–100 with quotes as evidence; set fluency to null for a Written Assessment. Give exactly 3 strengths and 3–5 weaknesses; each weakness quotes
 what the Learner said and gives a better version. Propose Goals and Target Levels, and preview the first Unit.`;
 
 // The transcript as the report model reads it, structured items and the Learner's answers (with grades) included.

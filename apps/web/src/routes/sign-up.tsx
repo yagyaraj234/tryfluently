@@ -18,6 +18,7 @@ function SignUp() {
       ]}
       submitLabel="Create account"
       onSubmit={({ name, email, password }) => signUp({ name: name!, email: email!, password: password! })}
+      successTo="/verify-email"
       footer={<AuthFooter prompt="Already have an account?" to="/sign-in" label="Sign in" />}
     />
   );

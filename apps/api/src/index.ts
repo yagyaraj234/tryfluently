@@ -1,5 +1,5 @@
 import { createDb } from '@impromptu/db';
-import { createApp } from './app';
+import { createApp, type Env } from './app';
 import { resendMailer } from './mailer';
 import { modelsFromSettings } from './models';
 import { kenpathSpeech } from './pronunciation';
@@ -26,7 +26,7 @@ export default {
   fetch: createApp({
     db: createDb(env.DATABASE_URL!),
     now: () => new Date(),
-    env: env as any,
+    env: env as Env,
     models: modelsFromSettings(env),
     mailer: resendMailer(env.RESEND_API_KEY!, env.EMAIL_FROM!),
     speech: kenpathSpeech(env.KENPATH_BASE_URL!, env.KENPATH_API_KEY!, env.KENPATH_MODEL!),

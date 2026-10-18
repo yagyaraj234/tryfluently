@@ -49,7 +49,7 @@ describe("roadmap revision", () => {
     const turns: Turn[] = [[fillGap()], [feedback(), fillGap()], [feedback(), fillGap()], [feedback(), { tool: "endLesson", input: {} }]];
     const step = mockTurns(...turns, ...turns);
     step.doGenerate = mockModel(lessonPlan(), lessonPlan()).doGenerate;
-    const judged = { skills: {}, objectiveProgress: 90, summary: "Done." };
+    const judged = { skills: { fluency: null, grammar: null, vocabulary: null }, objectiveProgress: 90, summary: "Done.", focusItems: null };
     const app = makeApp({
       now: clock,
       models: {

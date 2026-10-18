@@ -142,6 +142,8 @@ describe("Roleplay call", () => {
     const instructions = realtime.sideband().sent.find((e) => e.type === "session.update").session.instructions;
     expect(instructions).toContain("Asha is a backend engineer at a Pune fintech.");
     expect(instructions).toContain("Tough");
+    expect(instructions).toContain("Then call end_call");
+    expect(realtime.calls[0]!.session).toMatchObject({ tools: [expect.objectContaining({ name: "end_call" })] });
 
     await realtime.sideband().close();
     const [usage] = await testDb
@@ -256,7 +258,7 @@ describe("Roleplay at the end of a Unit", () => {
     const realtime = fakeRealtime();
     const step = mockTurns([fillGap()], [feedback(), fillGap()], [feedback(), fillGap()], [feedback(), { tool: "endLesson", input: {} }]);
     step.doGenerate = mockModel(lessonPlan()).doGenerate;
-    const judge = mockModel({ skills: {}, objectiveProgress: 85, summary: "Nearly there." }, debriefReply({ objectiveProgress: 90 }));
+    const judge = mockModel({ skills: { fluency: null, grammar: null, vocabulary: null }, objectiveProgress: 85, summary: "Nearly there.", focusItems: null }, debriefReply({ objectiveProgress: 90 }));
     // The first skip's revision plans one final Unit that ends with a Roleplay; mastering it later extends the Roadmap.
     const roadmap = mockModel(unitsReply(1, "Final"), unitsReply(2, "More"));
     const app = makeApp({ now: clock, realtime, models: { step, judge, roadmap } });

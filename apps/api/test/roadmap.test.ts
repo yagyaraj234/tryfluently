@@ -58,8 +58,8 @@ describe("confirm Goals → Roadmap", () => {
   test("the Roadmap waits until no proposed Goals are left, so it covers all of them", async () => {
     const report = reportReply({
       proposedGoals: [
-        { kind: "job_interview", targetLevels: { grammar: "B2" } },
-        { kind: "client_communication", targetLevels: { grammar: "B2" } },
+        { kind: "job_interview", targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "B2" } },
+        { kind: "client_communication", targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "B2" } },
       ],
     });
     const { app, clock } = setup({ report });

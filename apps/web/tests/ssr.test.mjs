@@ -15,6 +15,7 @@ let web;
 
 before(async () => {
   web = await startWeb((req, res) => {
+    if (/unverified=1/.test(req.headers.cookie ?? "")) return res.writeHead(403, { "content-type": "application/json" }).end(JSON.stringify({ error: "Verify your email" }));
     const learner = learners[/learner=(\w+)/.exec(req.headers.cookie ?? "")?.[1]];
     const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!learner) return json(401, { error: "Unauthorized" });
@@ -38,6 +39,10 @@ async function assertRedirect(path, cookie, to) {
 test("a signed-out visitor is sent to sign-in", async () => {
   await assertRedirect("/home", undefined, "/sign-in");
   await assertRedirect("/goals", undefined, "/sign-in");
+});
+
+test("an unverified visitor is sent to email verification", async () => {
+  await assertRedirect("/home", "unverified=1", "/verify-email");
 });
 
 test("sign-in renders with the UI stylesheet and Familjen Grotesk", async () => {
