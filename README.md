@@ -49,3 +49,9 @@ and builds. Commit the generated route tree so typechecking works immediately af
 
 The tests start the dev server against a stub API and check the pass-through, the signed-in guard,
 onboarding routing and the theme cookie in server-rendered HTML.
+
+### Design System and v1 verification
+
+Open `/design-system` for live tokens and component previews, with theme controls on a quiet surface.
+The guide works without signing in or configuring AI services. Shell previews open through links
+inside the guide; all actions use example content.

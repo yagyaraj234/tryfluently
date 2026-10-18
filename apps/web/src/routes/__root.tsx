@@ -1,7 +1,7 @@
-import { OfflineBanner, UIProvider } from "@impromptu/ui";
+import { Button, EmptyState, ErrorState, OfflineBanner, Screen, UIProvider } from "@impromptu/ui";
 import appCss from "@impromptu/ui/styles.css?url";
 import type { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useRouter } from "@tanstack/react-router";
 import { dataTheme } from "../theme";
 import { useOnline } from "../useOnline";
 
@@ -21,7 +21,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
   }),
   component: Root,
+  errorComponent: RouteError,
+  notFoundComponent: NotFound,
 });
+
+export function RouteError() {
+  const router = useRouter();
+  return (
+    <ErrorState title="We couldn't load this page" description="Check your connection and try again." onRetry={() => router.invalidate()} />
+  );
+}
+
+function NotFound() {
+  return (
+    <Screen surface="quiet">
+      <EmptyState title="We couldn't find that page" action={<Button render={<Link to="/" />}>Go to Home</Button>} />
+    </Screen>
+  );
+}
 
 function Root() {
   const { theme } = Route.useRouteContext();

@@ -23,6 +23,13 @@ describe("styles.css", () => {
     for (const cls of tokenClasses) expect({ cls, generated: hasRule(css, cls) }).toEqual({ cls, generated: true });
     for (const cls of offPalette) expect({ cls, generated: hasRule(css, cls) }).toEqual({ cls, generated: false });
   });
+
+  test("celebration motion is enabled only when reduced motion is not requested", async () => {
+    const css = await compileStyles(["motion-safe:animate-celebrate"]);
+    expect(css).toContain("@media (prefers-reduced-motion: no-preference)");
+    expect(css).toContain("--duration-celebrate");
+    expect(css).toContain("@keyframes celebrate");
+  });
 });
 
 describe("tokens.css theming", () => {

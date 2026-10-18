@@ -23,7 +23,7 @@ export function Switch({ label, disabled, onCheckedChange, ...props }: SwitchPro
         {...props}
         // Drops Base UI's event details so the public callback is just the new state.
         onCheckedChange={(checked) => onCheckedChange?.(checked)}
-        className="flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-pill border-2 border-line bg-subtle p-1 focus-visible:focus-ring data-checked:bg-primary"
+        className="flex min-h-target w-14 shrink-0 cursor-pointer items-center rounded-pill border-2 border-line bg-subtle p-1 focus-visible:focus-ring data-checked:bg-primary"
       >
         <BaseSwitch.Thumb className="size-5 rounded-pill border-2 border-line bg-paper data-checked:translate-x-5 motion-safe:transition-transform motion-safe:duration-ui motion-safe:ease-ui" />
       </BaseSwitch.Root>

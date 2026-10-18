@@ -18,6 +18,10 @@ const debrief: DebriefProps = {
 };
 
 describe("Debrief", () => {
+  test("labels a text Roleplay without suggesting fluency was measured", () => {
+    render(<Debrief {...debrief} textMode />);
+    expect(screen.getByText("Text mode · Fluency wasn't measured in this Roleplay.")).toBeDefined();
+  });
   test("shows the overall impression", () => {
     render(<Debrief {...debrief} />);
     expect(screen.getByText(debrief.overallImpression)).toBeDefined();

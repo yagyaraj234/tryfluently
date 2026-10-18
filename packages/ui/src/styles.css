@@ -114,6 +114,7 @@
   /* Loading animations. Tailwind still defines the spin and pulse keyframes; components run them under motion-safe. */
   --animate-spin: spin var(--duration-spin) linear infinite;
   --animate-pulse: pulse var(--duration-pulse) ease-in-out infinite;
+  --animate-celebrate: celebrate var(--duration-celebrate) var(--ease-ui) both;
   --z-index-sticky: var(--layer-sticky);
   --z-index-overlay: var(--layer-overlay);
   --z-index-toast: var(--layer-toast);
@@ -141,8 +142,20 @@
   outline: 3px solid var(--primary);
 }
 
+/* Flex children may shrink below long user-provided text. This is a layout reset, not a spacing step. */
+@utility min-w-0 {
+  min-width: 0;
+}
+
 @layer base {
   body {
     position: relative; /* iOS: lets fixed backdrops cover the whole page */
+    overflow-wrap: anywhere;
   }
+}
+
+@keyframes celebrate {
+  0% { transform: scale(0.8) rotate(-12deg); }
+  50% { transform: scale(1.15) rotate(8deg); }
+  100% { transform: scale(1) rotate(0); }
 }

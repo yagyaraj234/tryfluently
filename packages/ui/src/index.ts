@@ -60,6 +60,7 @@ export { Text, type TextProps, type TextSize } from "./Text";
 export { TextArea, type TextAreaProps } from "./TextArea";
 export { TextField, type TextFieldProps } from "./TextField";
 export { TextLink, type TextLinkProps } from "./TextLink";
+export { TokenReference } from "./TokenReference";
 export { toastManager } from "./Toast";
 export { type ChoiceOption } from "./Field";
 export { UIProvider } from "./UIProvider";

@@ -16,7 +16,7 @@
   --violet-200: #ccbdfa;
   --violet-300: #ad94f6;
   --violet-400: #a98bff;
-  --violet-500: #8864f3;
+  --violet-500: #7955d7;
   --violet-600: #6a3df0;
   --violet-800: #4b2ea2;
   --violet-950: #160a33;
@@ -30,11 +30,11 @@
   --pink-500: #ff2e6e;
   --pink-700: #d1105a;
   --green-400: #4fd18a;
-  --green-700: #138a4c;
+  --green-700: #08753d;
   --amber-300: #ffd24d;
-  --amber-700: #9a6a00;
+  --amber-700: #805800;
   --rose-300: #ff7fa3;
-  --rose-600: #c8215a;
+  --rose-600: #be1e55;
   --blue-400: #6ea8ff;
   --blue-600: #1f6feb;
   --orange-400: #ff9a4d;
@@ -136,6 +136,7 @@
   --ease-ui: cubic-bezier(0.2, 0, 0, 1);
   --duration-pulse: 1.6s;
   --duration-spin: 0.8s; /* one turn of a Spinner */
+  --duration-celebrate: 800ms;
 
   /* Layers. */
   --layer-sticky: 10;
