@@ -144,7 +144,7 @@ Design for phones first, then add breakpoints with Tailwind's defaults:
 | (none) | 0 | One column, 16px side gutters (`px-4`) |
 | `sm:` | 40rem | Nav links appear; larger display type; looser section padding |
 | `md:` | 48rem | Landing grids go to two or three columns; auth shows the full story panel beside the form |
-| `lg:` | 64rem | App navigation becomes a sidebar; `Split` goes two thirds / one third; Sheets centre |
+| `lg:` | 64rem | App navigation becomes a sidebar with the wordmark; `Split` goes two thirds / one third; Sheets centre |
 
 Use `max-*:` variants (`max-sm:w-full`) only when a phone-only style is simpler than undoing it at a breakpoint.
 
@@ -152,10 +152,11 @@ Use `max-*:` variants (`max-sm:w-full`) only when a phone-only style is simpler 
 |---|---|---|
 | Landing | One column; product frame stacks; nav shows the wordmark and "Start free" | Two-column features; three-column steps and cards (from `md`) |
 | Sign-in / sign-up | The cobalt panel shrinks to the wordmark and headline above the form | Story panel with steps beside the form (from `md`) |
-| Home | Today's Lesson, Roleplay, then Streak and XP | Main content and secondary status through `Split` |
-| Roadmap / Unit | Ordered cards and Lessons in one column | Centred content column; preserve learning order |
+| Home | Continue, Up next, then the profile card, This week and the stat tiles | A dashboard at `Container width="page"`: Continue and Up next on the left, the profile, week and stats column on the right, through `Split` |
+| Roadmap | Numbered Unit cards in one column | The same cards two to a row at `Container width="page"`, in Roadmap order |
+| Unit | The Unit's header card with its main action, then its finished Lessons as rows | Centred content column |
 | Goals / Assessment choice / confirmation | Single column with full-width main action | Centred prose column; keep forms together |
-| Lesson / live Assessment / Roleplay | Single column; controls wrap | Same focused content width; no side panels while practising |
+| Lesson / live Assessment / Roleplay | Single column; controls wrap; a Lesson's Step sits on a paper card | Same focused content width; no side panels while practising |
 | Assessment Report / Debrief | Sections in reading order | Centred prose or content column; keep quote and correction together |
 | Progress / Settings | One section at a time | Centred content or prose column; don't stretch tables or forms |
 
@@ -189,7 +190,8 @@ Every component lives in `@impromptu/ui` and is imported from the package root. 
 | Layout | `Screen` | — | Renders `<main>` on the canvas with side gutters |
 | | `Stack` | — | `gap` (spacing step), `align` |
 | | `Cluster` | — | `gap`, `justify`, `align`; wraps |
-| | `Container` | — | `width: "content" \| "prose"`; centred |
+| | `Container` | — | `width: "content" \| "prose" \| "page"`; centred. `page` is for dashboards with a side column |
+| | `Grid` | — | `columns: "responsive" \| 2` (one column on phones, two from `sm`; or always two); `ordered` renders a list |
 | | `Split` | — | `main` and `side` slots; stacked below `lg`, two thirds and one third at it |
 | Type | `Text` | — | `size` (label…hero), `tone: "ink" \| "muted"`, `as`, `tabular` |
 | | `Heading` | — | `level: 1 \| 2 \| 3` → page / heading / title; `size` overrides |
@@ -210,6 +212,7 @@ Every component lives in `@impromptu/ui` and is imported from the package root. 
 | | `Spinner` | — | `label` |
 | | `Skeleton` | — | `shape: "text" \| "block" \| "circle"`, `size` |
 | Display | `Card` | — | `render` (makes the whole card a link) |
+| | `CardList` | — | Rows on one card, split by hairlines |
 | | `Chip` | — | `tone: "paper" \| "soft"`, `icon` |
 | | `VerdictTag` | — | `verdict: "correct" \| "almost" \| "incorrect"`; the word is always shown |
 
@@ -225,11 +228,16 @@ How they look:
 
 ### Domain components
 
-The shipped domain components include `AppShell`, `PracticeShell`, `StepFeedback`, `LiveBar`, `RecordButton`, `SkillBar`, `CefrScale`, `StreakCard`, `LessonComplete`, `Report` and `Debrief`. The table records their visual intent; use the exports in `packages/ui/src/index.ts` for current props.
+The shipped domain components include `AppShell`, `PracticeShell`, `UnitCard`, `ProfileCard`, `WeekStrip`, `StatTile`, `StepFeedback`, `LiveBar`, `RecordButton`, `SkillBar`, `CefrScale`, `StreakCard`, `LessonComplete`, `Report` and `Debrief`. The table records their visual intent; use the exports in `packages/ui/src/index.ts` for current props.
 
 | Component | Spec |
 |---|---|
-| **App bar** | The "Impromptu" wordmark (`title`). Streak and XP chips on the right. |
+| **App bar** | The "Impromptu" wordmark (`title`), which moves to the top of the sidebar at `lg`. Streak and XP chips on the right. Sidebar rows are roomy; the current one fills with `primary-soft`. |
+| **Practice bar** | The close button, and beside it what's being practised (a Lesson's Unit) in muted `caption`. It sticks to the top. |
+| **Unit card** | A `primary-soft` icon tile for the Unit's first skill and the status tag on top, then "UNIT 3" and the title, the objective, and for the active Unit a bar for how close it is to its objective with the Lessons done. With an action (Resume), only the title is the link. |
+| **Profile card** | A cobalt avatar with the initial, the name, the CEFR Level of each measured skill as `soft` chips (a link to Progress), and Streak · XP · Units mastered on a `subtle` strip. |
+| **Week strip** | This week, Monday to Sunday. Practised days fill cobalt, earlier days sit on `subtle`, later days are muted, and today has a cobalt ring. Screen readers hear "practised" and "today". |
+| **Stat tile** | A small card: an icon tile, a number in `heading`, and a muted label that reads on from it ("2 Lessons done"). |
 | **`StepFeedback`** | A verdict-tint background with the `VerdictTag`, the corrected sentence in bold, a one-sentence explanation, a "Hear it" secondary button and a "Next step" primary button. |
 | **Live bar** | A `live` border with a pulsing dot, the "LIVE" label in `text-live-text`, the Roleplay kind and tone, the remaining minutes (tabular) and a secondary "End" button. It sticks to the top of the Roleplay screen. |
 | **Recording button** | A 72px round button (`size-18`). Idle: cobalt with the glow. Recording: paper with a pulsing `live` ring. Processing: a spinner on `subtle`. |

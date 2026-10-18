@@ -222,7 +222,7 @@ describe("ending a Roleplay", () => {
     for (const f of phrases) expect(f).toMatchObject({ kind: "phrase", sourceId: roleplay.id, status: "open" });
 
     // It counts as a completed Lesson: 2 Steps × 10 + 1 Lesson × 20.
-    expect(await (await app.request("/api/progress", get(cookie))).json()).toEqual({ xp: 40, streak: 1 });
+    expect(await (await app.request("/api/progress", get(cookie))).json()).toMatchObject({ xp: 40, streak: 1 });
   });
 
   test("a Debrief that doesn't match its schema fails cleanly and can be tried again", async () => {

@@ -1,6 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import {
   Button,
+  Card,
   ErrorState,
   EmptyState,
   FillGapStep,
@@ -26,7 +27,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../../../lib/api";
 import { answerStep, chatOptions } from "../../../../lib/chat";
 import { lessonRoute, useNextLesson } from "../../../../lib/lessons";
-import { progressQuery } from "../../../../lib/queries";
+import { progressQuery, roadmapQuery } from "../../../../lib/queries";
 import { canHear, hearIt, useRecorder } from "../../../../hooks/voice";
 
 async function fetchLesson(id: string) {
@@ -43,7 +44,12 @@ export const Route = createFileRoute("/_signedIn/_practice/lessons/$lessonId")({
   // useChat seeds history once per mount; don't mount it from stale route data on a return visit.
   loader: { staleReloadMode: "blocking", handler: async ({ params, context }) => {
     // The Streak is available on the completion screen without another loading boundary.
-    const [lesson] = await Promise.all([fetchLesson(params.lessonId), context.queryClient.prefetchQuery(progressQuery)]);
+    // The Roadmap names the Lesson's Unit in the top bar.
+    const [lesson] = await Promise.all([
+      fetchLesson(params.lessonId),
+      context.queryClient.prefetchQuery(progressQuery),
+      context.queryClient.prefetchQuery(roadmapQuery),
+    ]);
     if (lesson.kind === "roleplay") throw redirect(lessonRoute(lesson));
     return lesson;
   } },
@@ -226,28 +232,30 @@ function Player({ lesson }: { lesson: Lesson }) {
     const spoken = typeof output?.recordingId === "string";
     const transcript = spoken && said?.stepId === reviewing.toolCallId ? said.text : undefined;
     return (
-      <Stack gap={6}>
-        <Header step={reviewing} position={position} />
-        {feedback ? (
-          <StepFeedback
-            {...feedback}
-            answer={typed ?? transcript}
-            spoken={spoken}
-            nextLabel={ended ? "See how you did" : "Next step"}
-            onNext={() => setReviewingId(undefined)}
-            onHearIt={canHear(feedback.corrected) ? () => void play(feedback.corrected) : undefined}
-          />
-        ) : (
-          <>
-            {stepKinds[stepName(reviewing)]!.render(
-              reviewing.input,
-              { onAnswer: () => {}, pending: true, answered: typed },
-              transcript ? { ...voice, recording: { status: "done", text: transcript } } : voice,
-            )}
-            <LoadingState title="Checking your answer" />
-          </>
-        )}
-      </Stack>
+      <Card>
+        <Stack gap={6}>
+          <Header step={reviewing} position={position} />
+          {feedback ? (
+            <StepFeedback
+              {...feedback}
+              answer={typed ?? transcript}
+              spoken={spoken}
+              nextLabel={ended ? "See how you did" : "Next step"}
+              onNext={() => setReviewingId(undefined)}
+              onHearIt={canHear(feedback.corrected) ? () => void play(feedback.corrected) : undefined}
+            />
+          ) : (
+            <>
+              {stepKinds[stepName(reviewing)]!.render(
+                reviewing.input,
+                { onAnswer: () => {}, pending: true, answered: typed },
+                transcript ? { ...voice, recording: { status: "done", text: transcript } } : voice,
+              )}
+              <LoadingState title="Checking your answer" />
+            </>
+          )}
+        </Stack>
+      </Card>
     );
   }
 
@@ -263,11 +271,13 @@ function Player({ lesson }: { lesson: Lesson }) {
 
   const step = pending;
   return (
-    <Stack gap={6}>
-      <Header step={step} position={steps.length} />
-      {/* Keyed, so a Step's own state (like "Type instead") doesn't carry over to the next. */}
-      <Fragment key={step.toolCallId}>{stepKinds[stepName(step)]!.render(step.input, { pending: busy, onAnswer: (a) => answer(step, a) }, voice)}</Fragment>
-    </Stack>
+    <Card>
+      <Stack gap={6}>
+        <Header step={step} position={steps.length} />
+        {/* Keyed, so a Step's own state (like "Type instead") doesn't carry over to the next. */}
+        <Fragment key={step.toolCallId}>{stepKinds[stepName(step)]!.render(step.input, { pending: busy, onAnswer: (a) => answer(step, a) }, voice)}</Fragment>
+      </Stack>
+    </Card>
   );
 }
 

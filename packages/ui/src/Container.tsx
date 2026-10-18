@@ -3,12 +3,13 @@ import type { ReactNode } from "react";
 
 const container = cva("mx-auto w-full", {
   variants: {
-    width: { content: "max-w-content", prose: "max-w-prose" },
+    width: { content: "max-w-content", prose: "max-w-prose", page: "max-w-page" },
   },
 });
 
 export type ContainerProps = {
-  width?: "content" | "prose";
+  /** `page` is for dashboards with a side column, like Home. */
+  width?: "content" | "prose" | "page";
   children?: ReactNode;
 };
 

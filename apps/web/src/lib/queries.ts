@@ -23,6 +23,12 @@ export const roadmapQuery = queryOptions({
 
 export type Unit = Awaited<ReturnType<NonNullable<typeof roadmapQuery.queryFn>>>[number];
 
+/** How close the latest finished Lesson came to the Unit's objective, and how many Lessons are done. */
+export function unitProgress(unit: Unit) {
+  const done = unit.lessons.filter((l) => l.status === "completed");
+  return { value: done.at(-1)?.objectiveProgress ?? 0, lessonsDone: done.length };
+}
+
 async function json<T>(request: Promise<{ ok: boolean; status: number; json(): Promise<T> }>, what: string) {
   const response = await request;
   if (!response.ok) throw new Error(`Couldn't load your ${what} (${response.status})`);

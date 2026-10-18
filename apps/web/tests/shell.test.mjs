@@ -14,7 +14,7 @@ before(async () => {
     if (req.url === "/api/assessments") return json(200, [{ status: "completed" }]);
     if (req.url === "/api/progress") {
       if (/progress=broken/.test(req.headers.cookie)) return json(500, { error: "Internal Server Error" });
-      return json(200, { xp: 340, streak: 12 });
+      return json(200, { xp: 340, streak: 12, week: [] });
     }
     if (req.url === "/api/lessons/1") return json(200, { id: "1", kind: "practice", status: "in_progress", messages: [], steps: [] });
     json(404, { error: "Not found" });
