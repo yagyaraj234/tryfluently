@@ -4,7 +4,7 @@ import { Card } from "./Card";
 
 const body = cva("flex flex-col items-start gap-2");
 const number = cva("flex items-center gap-2 text-hero tabular-nums");
-const flame = cva("text-primary");
+const flame = cva("text-primary", { variants: { milestone: { true: "motion-safe:animate-celebrate" } } });
 const label = cva("text-label uppercase");
 
 export type StreakCardProps = {
@@ -18,7 +18,7 @@ export function StreakCard({ days }: StreakCardProps) {
     <Card>
       <div className={body()}>
         <span className={number()}>
-          <Fire aria-hidden className={flame()} />
+          <Fire aria-hidden className={flame({ milestone: days > 0 && days % 7 === 0 })} />
           {days}
         </span>{" "}
         <span className={label()}>day streak</span>

@@ -49,9 +49,9 @@ Every verdict is shown as a coloured word (Correct / Almost / Incorrect), never 
 
 | Token | Light | Dark | Utility | Tint token | Tint utility |
 |---|---|---|---|---|---|
-| `--correct` | `#138A4C` | `#4FD18A` | `text-correct` | `--correct-tint` | `bg-correct-tint` |
-| `--almost` | `#9A6A00` | `#FFD24D` | `text-almost` | `--almost-tint` | `bg-almost-tint` |
-| `--incorrect` | `#C8215A` | `#FF7FA3` | `text-incorrect` | `--incorrect-tint` | `bg-incorrect-tint` |
+| `--correct` | `#08753D` | `#4FD18A` | `text-correct` | `--correct-tint` | `bg-correct-tint` |
+| `--almost` | `#805800` | `#FFD24D` | `text-almost` | `--almost-tint` | `bg-almost-tint` |
+| `--incorrect` | `#BE1E55` | `#FF7FA3` | `text-incorrect` | `--incorrect-tint` | `bg-incorrect-tint` |
 
 Incorrect is a soft rose, not an alarm red, so that a mistake doesn't feel like a punishment.
 
@@ -69,7 +69,7 @@ The scale uses a single violet hue, getting darker from A1 to C2. Use ink text o
 
 | | A1 | A2 | B1 | B2 | C1 | C2 |
 |---|---|---|---|---|---|---|
-| Light | `#E7E0FD` | `#CCBDFA` | `#AD94F6` | `#8864F3` | `#6A3DF0` | `#4B2EA2` |
+| Light | `#E7E0FD` | `#CCBDFA` | `#AD94F6` | `#7955D7` | `#6A3DF0` | `#4B2EA2` |
 | Dark | `#323433` | `#4B465F` | `#695C92` | `#8D76CE` | `#A98BFF` | `#C2B4EF` |
 
 ## Typography
@@ -132,7 +132,7 @@ A `Screen` sets the surface once with `surface="loud"` or `surface="quiet"`, whi
 
 - **Button press:** on `:active`, translate by `--press-offset` (3px, 3px) and set the shadow to 0, over `--duration-press`. It feels like a physical key.
 - **Live dot:** a pulse ring every `--duration-pulse` while live.
-- **Celebrations:** a single burst for a finished Lesson, a Streak milestone or a new CEFR Level, under 1.2s. These happen only on loud surfaces, never during practice. There are no celebration tokens yet.
+- **Celebrations:** a single burst for a finished Lesson, a Streak milestone or a new CEFR Level, under 1.2s. These happen only on loud surfaces, never during practice. The shared `--duration-celebrate` token is 800ms; `animate-celebrate` runs once on the Lesson icon, the current CEFR cell and weekly Streak milestones.
 - **Reduced motion:** `prefers-reduced-motion: reduce` turns off the pulse, the celebrations and the press translate. Components run motion only under `motion-safe:`.
 
 ## Components
@@ -235,3 +235,39 @@ Tokens are defined once as CSS variables in `tokens.css`: hue primitives (`--vio
 - **Theme:** follows the system setting by default, with a Light / Dark / System choice. The app stores it and renders `data-theme` on `<html>` on the server, so the first paint is right. `UIProvider` doesn't handle theme. Inside the package, the `dark:` variant matches both dark selectors.
 - **Layout:** design for phones first. The Lesson player is a single column at any width, in `Container width="content"` (640px). `Screen` gives side gutters of 16px. `Split` turns into two columns at `desktop`.
 - **Accessibility:** touch targets are at least 44px (`--size-target`); focus is always visible (`focus-ring`, a violet ring); body text meets 4.5:1 contrast and large text 3:1; verdicts and live state always carry words, not only colour; every `Screen` is a `main` landmark.
+
+
+## v1 interface rules
+
+The working [Design System guide](http://localhost:3001/design-system) renders the shipped components, not copies. It offers Light / Dark / System on a fixed quiet preview surface, recording states, forms, overlays and separate AppShell / PracticeShell examples. It needs no account or AI keys. `DESIGN.md` remains the written reference; the guide is the visual and interactive reference.
+
+### Writing
+
+- Use the terms in `GLOSSARY.md`, short sentences and familiar English. Address the Learner as “you”.
+- Actions name their result: “Start the Written Assessment”, “Confirm”, “Write my Debrief”. Avoid technical status codes, provider names and implementation terms in normal flows.
+- Errors say what happened, whether answers were saved, and what to do next. Keep useful input; offer a retry or text alternative where available.
+- Treat mistakes as practice. Verdicts always include Correct / Almost / Incorrect; never imply a text answer measured fluency.
+- State limits in the Learner's local time. Use concrete counts or dates where known; never promise completion times the product cannot guarantee.
+
+### Responsive layouts
+
+| Screens | Phone | Desktop (64rem and above) |
+|---|---|---|
+| Home | Today's Lesson, Roleplay, then Streak and XP | Main content and secondary status through Split |
+| Roadmap / Unit | Ordered cards and Lessons in one column | Centred content column; preserve learning order |
+| Sign-in / Goals / Assessment choice / confirmation | Single column with full-width main action | Centred prose column; keep forms together |
+| Lesson / live Assessment / Roleplay | Quiet single column; controls wrap | Same focused content width; no side panels while practising |
+| Assessment Report / Debrief | Sections in reading order | Centred prose/content column; retain quote and correction proximity |
+| Progress / Settings | One section at a time | Centred content/prose column; avoid stretching tables or forms |
+
+Long pasted text wraps inside its container. Navigation becomes a sidebar on desktop and bottom tabs on phone. Dialogs are centred; Sheets rise from the bottom on phone and centre on desktop. Overlays stay within the viewport and scroll when needed.
+
+### Motion
+
+Page changes are immediate; no page-wide movement or delayed access to content. Buttons use the 80ms press and overlays the 160ms UI transition. Lesson completion, CEFR reveals and weekly Streak milestones use the same 800ms one-shot celebration. Timers never animate each tick. Every movement uses `motion-safe:`; reduced motion preserves content, focus and feedback without movement.
+
+### First Assessment Report email
+
+The first completed Report is delivered as responsive HTML plus plain text. A lime heading introduces the overall CEFR Level; the body includes measured skills, strengths, quoted weaknesses, better versions and the first Unit. Written Assessments explicitly leave fluency unmeasured; partial Reports say so. One violet action opens Home, which confirms proposed Goals before offering the first Lesson. Use inline styles, system fonts and layout tables; no remote images, scripts, tracking pixels or dependency on app CSS. Untrusted Report text is escaped.
+
+Haptics, share images, translations and marketing pages remain outside v1 as specified in #86.

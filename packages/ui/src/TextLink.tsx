@@ -4,7 +4,7 @@ import { useRender } from "@base-ui/react/use-render";
 import { cva } from "class-variance-authority";
 import type { ComponentProps, ReactElement } from "react";
 
-const textLink = cva("rounded-sm font-bold text-primary underline focus-visible:focus-ring");
+const textLink = cva("inline-flex min-h-target items-center rounded-sm font-bold text-primary underline focus-visible:focus-ring");
 
 export type TextLinkProps = Omit<ComponentProps<"button">, "className" | "style"> & {
   /** Renders this element instead of a button, for example a router link. It receives our props, classes and ref. */

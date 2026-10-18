@@ -32,7 +32,7 @@ export function Select({ label, options, onValueChange, ref, ...props }: SelectP
                 <BaseSelect.Item
                   key={option.value}
                   value={option.value}
-                  className="flex cursor-default items-center justify-between gap-4 px-3 py-2 text-body data-highlighted:bg-primary-soft"
+                  className="flex min-h-target cursor-default items-center justify-between gap-4 px-3 py-2 text-body data-highlighted:bg-primary-soft"
                 >
                   <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText>
                   <BaseSelect.ItemIndicator render={<Check />} />

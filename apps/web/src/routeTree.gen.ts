@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignedInRouteImport } from './routes/_signedIn'
+import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignedInAppRouteImport } from './routes/_signedIn/_app'
@@ -31,6 +32,11 @@ import { Route as SignedInAssessmentsAssessmentIdReportRouteImport } from './rou
 
 const SignedInRoute = SignedInRouteImport.update({
   id: '/_signedIn',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignSystemRoute = DesignSystemRouteImport.update({
+  id: '/design-system',
+  path: '/design-system',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -130,6 +136,7 @@ const SignedInAssessmentsAssessmentIdReportRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof SignedInAppIndexRoute
+  '/design-system': typeof DesignSystemRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/api/$': typeof ApiSplatRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof SignedInAppIndexRoute
+  '/design-system': typeof DesignSystemRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/api/$': typeof ApiSplatRoute
@@ -167,6 +175,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_signedIn': typeof SignedInRouteWithChildren
+  '/design-system': typeof DesignSystemRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/_signedIn/_app': typeof SignedInAppRouteWithChildren
@@ -190,6 +199,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/design-system'
     | '/sign-in'
     | '/sign-up'
     | '/api/$'
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/design-system'
     | '/sign-in'
     | '/sign-up'
     | '/api/$'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_signedIn'
+    | '/design-system'
     | '/sign-in'
     | '/sign-up'
     | '/_signedIn/_app'
@@ -248,6 +260,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   SignedInRoute: typeof SignedInRouteWithChildren
+  DesignSystemRoute: typeof DesignSystemRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   ApiSplatRoute: typeof ApiSplatRoute
@@ -260,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof SignedInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/design-system': {
+      id: '/design-system'
+      path: '/design-system'
+      fullPath: '/design-system'
+      preLoaderRoute: typeof DesignSystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -455,6 +475,7 @@ const SignedInRouteWithChildren = SignedInRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   SignedInRoute: SignedInRouteWithChildren,
+  DesignSystemRoute: DesignSystemRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   ApiSplatRoute: ApiSplatRoute,

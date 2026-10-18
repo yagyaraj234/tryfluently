@@ -5,7 +5,7 @@ import type { ReactElement, ReactNode } from "react";
 
 // Phone: header on top, a tab bar stuck to the bottom. Desktop: the tab bar becomes a sidebar on the left.
 const shell = cva("surface-loud flex min-h-dvh flex-col bg-surface text-ink desktop:flex-row");
-const body = cva("flex flex-1 flex-col");
+const body = cva("flex min-w-0 flex-1 flex-col");
 const header = cva("flex items-center justify-between gap-4 px-4 py-3");
 const wordmark = cva("text-title");
 const status = cva("flex items-center gap-2");
