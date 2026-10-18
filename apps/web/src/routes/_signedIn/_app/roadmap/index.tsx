@@ -1,8 +1,8 @@
 import { Container, ErrorState, Heading, LoadingState, Stack, Text, UnitCard } from "@impromptu/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BuildRoadmap } from "../../../../BuildRoadmap";
-import { roadmapQuery } from "../../../../queries";
+import { BuildRoadmap } from "../../../../components/roadmap/BuildRoadmap";
+import { roadmapQuery } from "../../../../lib/queries";
 
 export const Route = createFileRoute("/_signedIn/_app/roadmap/")({
   loader: ({ context }) => context.queryClient.prefetchQuery(roadmapQuery),

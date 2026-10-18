@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import type { UIMessage } from "ai";
 import { useEffect, useState, type FormEvent } from "react";
-import { useRealtimeCall } from "../../../../call";
-import { chatOptions } from "../../../../chat";
-import { useNextLesson } from "../../../../lessons";
-import { voiceMinutesQuery } from "../../../../queries";
-import { minutesLeft, resetsIn, useCallClock } from "../../../../voiceMinutes";
+import { useRealtimeCall } from "../../../../lib/call";
+import { chatOptions } from "../../../../lib/chat";
+import { useNextLesson } from "../../../../lib/lessons";
+import { voiceMinutesQuery } from "../../../../lib/queries";
+import { minutesLeft, resetsIn, useCallClock } from "../../../../lib/voiceMinutes";
 import {
   characters,
   fetchRoleplay,
@@ -21,16 +21,16 @@ import {
   type DebriefData,
   type Roleplay,
   type RoleplayKind,
-} from "../../../../roleplay";
+} from "../../../../components/roleplay/roleplay";
 
 /** One screen for a Roleplay from setup or one that closes a Unit: playing it, in text or by voice, then its Debrief. */
 export const Route = createFileRoute("/_signedIn/_practice/roleplays/$roleplayId")({
-  loader: async ({ params, context }) => {
+  loader: { staleReloadMode: "blocking", handler: async ({ params, context }) => {
     const roleplay = await fetchRoleplay(params.roleplayId);
     // A spoken Roleplay shows today's voice minutes from the first paint (and the cap, without asking for the microphone).
     if (roleplay?.status === "in_progress" && !roleplay.textMode) await context.queryClient.prefetchQuery(voiceMinutesQuery);
     return roleplay;
-  },
+  } },
   component: RoleplayScreen,
   errorComponent: RoleplayError,
 });

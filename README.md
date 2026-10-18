@@ -55,3 +55,6 @@ onboarding routing and the theme cookie in server-rendered HTML.
 Open `/design-system` for live tokens and component previews, with theme controls on a quiet surface.
 The guide works without signing in or configuring AI services. Shell previews open through links
 inside the guide; all actions use example content.
+
+See [the v1 acceptance audit](docs/v1-acceptance.md) for spec coverage, verification results and
+the remaining live-service release gates.

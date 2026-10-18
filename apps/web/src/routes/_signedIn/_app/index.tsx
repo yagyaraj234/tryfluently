@@ -17,10 +17,10 @@ import {
 import { Confetti } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { api } from "../../../api";
-import { BuildRoadmap } from "../../../BuildRoadmap";
-import { lessonRoute, useNextLesson } from "../../../lessons";
-import { progressQuery, roadmapQuery, type Unit } from "../../../queries";
+import { api } from "../../../lib/api";
+import { BuildRoadmap } from "../../../components/roadmap/BuildRoadmap";
+import { lessonRoute, useNextLesson } from "../../../lib/lessons";
+import { progressQuery, roadmapQuery, type Unit } from "../../../lib/queries";
 
 /** Where onboarding continues: no Goals and no Assessment → set Goals, proposed Goals → confirm them, otherwise Home. */
 function onboardingRoute(goals: { status: string }[], assessments: { status: string }[]) {

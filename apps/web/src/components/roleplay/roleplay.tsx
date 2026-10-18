@@ -3,8 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import type { InferResponseType } from "hono/client";
 import { useState } from "react";
-import { api } from "./api";
-import { progressQuery, roadmapQuery } from "./queries";
+import { api } from "../../lib/api";
 
 // What text and voice Roleplays share: names, ending through /end and the wait for the Debrief.
 
@@ -50,8 +49,7 @@ export function useRoleplayEnd(roleplayId: string) {
       const response = await api().api.roleplays[":id"].end.$post({ param: { id: roleplayId } });
       // 409: it already ended (another tab); reloading shows where it got to.
       if (!response.ok && (response.status as number) !== 409) return setEnding("failed");
-      void queryClient.invalidateQueries({ queryKey: roadmapQuery.queryKey });
-      void queryClient.invalidateQueries({ queryKey: progressQuery.queryKey });
+      void queryClient.invalidateQueries();
       await router.invalidate();
     } catch {
       setEnding("failed");

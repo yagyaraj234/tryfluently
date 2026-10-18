@@ -1,7 +1,8 @@
 import { schema } from "@impromptu/db";
 import type { UIMessage } from "ai";
 import { and, eq, gte, sql } from "drizzle-orm";
-import type { Deps, Schedule } from "./app";
+import { Hono } from "hono";
+import type { AppEnv, Deps, Schedule } from "./app";
 import { localDay } from "./progress";
 
 export type RealtimeEvent = { type: string; [key: string]: any };
@@ -72,7 +73,7 @@ const WRAP_UP_SECONDS = 60;
 const wrapUp = "\n\nAbout a minute is left. Start to wrap up now: ask no new questions, and close the conversation politely.";
 
 type SaveFailure = { error: unknown };
-type Live = { sideband?: Sideband; closed: Promise<SaveFailure | undefined>; purpose: CallPurpose; startedAt?: Date };
+type Live = { sideband?: Sideband; ready: Promise<void>; closed: Promise<SaveFailure | undefined>; purpose: CallPurpose; targetId?: string; startedAt?: Date };
 
 export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule }) {
   // ponytail: live calls are held in memory, so "one call per Learner" holds on a single API instance; move it to a DB lock to scale out.
@@ -106,13 +107,15 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
       sdp: string;
       instructions: string;
       purpose: CallPurpose;
+      targetId?: string;
       budgetSeconds?: number;
       onTranscript(t: UIMessage[]): Promise<unknown>;
     },
   ) {
     if (live.has(userId)) return { busy: true as const };
     let closed!: (failure?: SaveFailure) => void;
-    const entry: Live = { closed: new Promise((r) => (closed = r)), purpose: opts.purpose };
+    let ready!: () => void;
+    const entry: Live = { ready: new Promise((r) => (ready = r)), closed: new Promise((r) => (closed = r)), purpose: opts.purpose, targetId: opts.targetId };
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
 
     let call: { answer: string; callId: string };
@@ -121,6 +124,7 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
     } catch (e) {
       live.delete(userId);
       closed();
+      ready();
       throw e;
     }
 
@@ -188,6 +192,7 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
         if (failure) throw failure.error;
       },
     });
+    ready();
     entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions } });
     if (opts.budgetSeconds !== undefined) {
       const sideband = entry.sideband;
@@ -196,7 +201,7 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
           sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions + wrapUp } }),
         ),
         schedule(opts.budgetSeconds * 1000, () =>
-          hangup(userId).catch((error) => console.error("realtime timed hangup failed", error)),
+          hangup(userId, opts.targetId).catch((error) => console.error("realtime timed hangup failed", error)),
         ),
       );
     }
@@ -204,9 +209,10 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
   }
 
   // Hangs up the Learner's live call, if any, and waits until its transcript and usage are saved.
-  async function hangup(userId: string) {
+  async function hangup(userId: string, targetId?: string) {
     const entry = live.get(userId);
-    if (!entry) return;
+    if (!entry || (targetId !== undefined && entry.targetId !== targetId)) return;
+    await entry.ready;
     await entry.sideband?.hangup();
     const failure = await entry.closed;
     if (failure) throw failure.error;
@@ -221,3 +227,6 @@ export async function voiceMinutes(broker: RealtimeBroker, user: { id: string; t
   const used = await broker.roleplaySecondsToday(user);
   return { limitMinutes, usedSeconds: Math.round(used), remainingSeconds: Math.max(0, Math.round(limitMinutes * 60 - used)) };
 }
+
+export const voiceMinutesRoute = (broker: RealtimeBroker, limitMinutes: number) =>
+  new Hono<AppEnv>().get("/", async (c) => c.json(await voiceMinutes(broker, c.var.user, limitMinutes)));

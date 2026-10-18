@@ -1,8 +1,8 @@
 import { Button, ChoiceChips, EmptyState, Heading, Notice, Stack, Text } from "@impromptu/ui";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { api } from "../../../../api";
-import { roleplayKinds, tones, type RoleplayKind, type Tone } from "../../../../roleplay";
+import { api } from "../../../../lib/api";
+import { roleplayKinds, tones, type RoleplayKind, type Tone } from "../../../../components/roleplay/roleplay";
 
 /** Roleplay setup: the Goal, the kind (only General Fluency asks), the tone, and speaking or typing. */
 export const Route = createFileRoute("/_signedIn/_practice/roleplays/new")({ loader: () => confirmedGoals(), component: RoleplaySetup });

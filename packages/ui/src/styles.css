@@ -1,6 +1,6 @@
 /* The one stylesheet apps load: Tailwind locked to our tokens, plus the tokens themselves. */
-@import "tailwindcss" source(none);
-@import "./tokens.css";
+@import 'tailwindcss' source(none);
+@import './tokens.css';
 
 @source "./";
 
@@ -125,11 +125,11 @@
 
 @custom-variant dark {
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) & {
+    :root:not([data-theme='light']) & {
       @slot;
     }
   }
-  :root[data-theme="dark"] & {
+  :root[data-theme='dark'] & {
     @slot;
   }
 }
@@ -155,7 +155,13 @@
 }
 
 @keyframes celebrate {
-  0% { transform: scale(0.8) rotate(-12deg); }
-  50% { transform: scale(1.15) rotate(8deg); }
-  100% { transform: scale(1) rotate(0); }
+  0% {
+    transform: scale(0.8) rotate(-12deg);
+  }
+  50% {
+    transform: scale(1.15) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
 }

@@ -21,7 +21,8 @@ const lessons = {
   vocab: lesson("vocab", { messages: [user("Let's start."), { id: "a1", role: "assistant", parts: [step("vocabCard", vocabCard)] }] }),
   speak: lesson("speak", { messages: [user("Let's start."), { id: "a1", role: "assistant", parts: [step("speakPrompt", speakPrompt)] }] }),
   rewrite: lesson("rewrite", { messages: [user("Let's start."), { id: "a1", role: "assistant", parts: [step("rewrite", rewrite)] }] }),
-  done: lesson("done", { status: "completed" }),
+  done: lesson("done", { status: "completed", steps: [{ answeredAt: "2026-10-18" }, { answeredAt: "2026-10-18" }] }),
+  abandoned: lesson("abandoned", { status: "abandoned" }),
   roleplay: lesson("roleplay", { kind: "roleplay", roleplayKind: "mock_interview", tone: "standard" }),
 };
 
@@ -103,8 +104,15 @@ test("a finished Lesson shows Lesson complete with the Streak and the next actio
   const t = text(html);
   assert.match(t, /Lesson complete/);
   assert.match(t, /12 day streak/);
+  assert.match(t, /\+40 XP/);
   assert.match(t, /Next Lesson/);
   assert.match(html, /<a\b[^>]*href="\/"[^>]*>[^<]*Home/);
+});
+
+test("an abandoned Lesson offers Home without a completion reward", async () => {
+  const t = text(await page("/lessons/abandoned"));
+  assert.match(t, /This Lesson has ended/);
+  assert.doesNotMatch(t, /Lesson complete|\+\d+ XP/);
 });
 
 test("a Roleplay Lesson opens on the Roleplay screen", async () => {

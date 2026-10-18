@@ -1,5 +1,7 @@
 import { schema, type Db } from "@impromptu/db";
 import { and, count, eq, isNotNull } from "drizzle-orm";
+import { Hono } from "hono";
+import type { AppEnv, Deps } from "./app";
 
 const { lesson, step } = schema;
 
@@ -29,3 +31,6 @@ export async function progress(db: Db, user: { id: string; timezone: string }, n
 
   return { xp: 10 * answered!.n + 20 * completed.length, streak };
 }
+
+export const progressRoute = (deps: Pick<Deps, "db" | "now">) =>
+  new Hono<AppEnv>().get("/", async (c) => c.json(await progress(deps.db, c.var.user, deps.now())));

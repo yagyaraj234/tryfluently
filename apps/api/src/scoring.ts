@@ -1,6 +1,8 @@
 import { schema, type CefrLevel, type Skill, type Tx as Db } from "@impromptu/db";
 import type { UIMessage } from "ai";
 import { asc, desc, eq } from "drizzle-orm";
+import { Hono } from "hono";
+import type { AppEnv } from "./app";
 
 export const skills = ["fluency", "grammar", "vocabulary"] as const satisfies Skill[];
 
@@ -47,6 +49,11 @@ export const skillHistory = (db: Db, userId: string) =>
     .where(eq(schema.skillScore.userId, userId))
     .orderBy(asc(schema.skillScore.createdAt), asc(schema.skillScore.skill))
     .then((rows) => rows.map((row) => ({ ...row, ...scoreView(row.score) })));
+
+export const skillProfileRoutes = (db: Db) =>
+  new Hono<AppEnv>()
+    .get("/", async (c) => c.json(await skillProfile(db, c.var.user.id)))
+    .get("/history", async (c) => c.json(await skillHistory(db, c.var.user.id)));
 
 // Appends one skill_score row per measured skill, moving each score toward the new result:
 // new = old + α × (result − old). A skill's first measurement is taken as is.

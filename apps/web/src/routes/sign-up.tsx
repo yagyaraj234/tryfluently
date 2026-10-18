@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { signUp } from "../auth";
-import { AuthFooter, AuthScreen, loadProviders } from "../AuthScreen";
+import { signUp } from "../lib/auth";
+import { AuthFooter, AuthScreen, loadProviders } from "../components/auth/AuthScreen";
 
 export const Route = createFileRoute("/sign-up")({ loader: loadProviders, component: SignUp });
 

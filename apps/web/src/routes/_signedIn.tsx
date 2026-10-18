@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { api } from "../api";
+import { api } from "../lib/api";
 
 /**
  * Every route under `_signedIn/` needs a session; without one the visitor is sent to sign-in.

@@ -2,6 +2,7 @@ import { useChat } from "@ai-sdk/react";
 import {
   Button,
   ErrorState,
+  EmptyState,
   FillGapStep,
   LessonComplete,
   LoadingState,
@@ -22,11 +23,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import type { ToolUIPart, UIMessage } from "ai";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { api } from "../../../../api";
-import { answerStep, chatOptions } from "../../../../chat";
-import { lessonRoute, useNextLesson } from "../../../../lessons";
-import { progressQuery, roadmapQuery } from "../../../../queries";
-import { canHear, hearIt, useRecorder } from "../../../../voice";
+import { api } from "../../../../lib/api";
+import { answerStep, chatOptions } from "../../../../lib/chat";
+import { lessonRoute, useNextLesson } from "../../../../lib/lessons";
+import { progressQuery } from "../../../../lib/queries";
+import { canHear, hearIt, useRecorder } from "../../../../hooks/voice";
 
 async function fetchLesson(id: string) {
   const response = await api().api.lessons[":id"].$get({ param: { id } });
@@ -39,12 +40,13 @@ async function fetchLesson(id: string) {
 type Lesson = Awaited<ReturnType<typeof fetchLesson>>;
 
 export const Route = createFileRoute("/_signedIn/_practice/lessons/$lessonId")({
-  loader: async ({ params, context }) => {
-    // The XP before this sitting, so Lesson complete can show what it earned. Without it the XP gained is left out.
+  // useChat seeds history once per mount; don't mount it from stale route data on a return visit.
+  loader: { staleReloadMode: "blocking", handler: async ({ params, context }) => {
+    // The Streak is available on the completion screen without another loading boundary.
     const [lesson] = await Promise.all([fetchLesson(params.lessonId), context.queryClient.prefetchQuery(progressQuery)]);
     if (lesson.kind === "roleplay") throw redirect(lessonRoute(lesson));
     return lesson;
-  },
+  } },
   component: LessonScreen,
   errorComponent: LessonError,
 });
@@ -58,7 +60,11 @@ function LessonError({ error }: ErrorComponentProps) {
 function LessonScreen() {
   const lesson = Route.useLoaderData();
   // A new Lesson (from Lesson complete's "Next Lesson") gets a fresh player.
-  return lesson.status === "in_progress" ? <Player key={lesson.id} lesson={lesson} /> : <Complete />;
+  if (lesson.status === "abandoned")
+    return <EmptyState title="This Lesson has ended" description="Its Unit was skipped. Continue with your active Unit." action={<Button render={<Link to="/" />}>Back to Home</Button>} />;
+  return lesson.status === "in_progress"
+    ? <Player key={lesson.id} lesson={lesson} />
+    : <Complete xpGained={20 + 10 * lesson.steps.filter((s) => s.answeredAt).length} />;
 }
 
 // ---- Step types --------------------------------------------------------------------------------------------------
@@ -136,8 +142,10 @@ const NUDGE_LIMIT = 2;
 
 function Player({ lesson }: { lesson: Lesson }) {
   const queryClient = useQueryClient();
-  const [xpBefore] = useState(() => queryClient.getQueryData(progressQuery.queryKey)?.xp);
-  const chat = useChat({ id: lesson.id, ...chatOptions(`/api/lessons/${lesson.id}/chat`, lesson.messages) });
+  const chat = useChat({
+    id: lesson.id, ...chatOptions(`/api/lessons/${lesson.id}/chat`, lesson.messages),
+    onFinish: () => { void queryClient.invalidateQueries(progressQuery); },
+  });
   const { steps, pending, ended, feedbackFor } = read(chat.messages);
   const busy = chat.status === "submitted" || chat.status === "streaming";
 
@@ -194,8 +202,7 @@ function Player({ lesson }: { lesson: Lesson }) {
   // When the Lesson ends, the Roadmap and progress move on; refetch them for Lesson complete.
   useEffect(() => {
     if (!ended) return;
-    void queryClient.invalidateQueries({ queryKey: roadmapQuery.queryKey });
-    void queryClient.invalidateQueries({ queryKey: progressQuery.queryKey });
+    void queryClient.invalidateQueries();
   }, [ended, queryClient]);
 
   // Reload from the server (it keeps the history) and carry on from there.
@@ -244,7 +251,7 @@ function Player({ lesson }: { lesson: Lesson }) {
     );
   }
 
-  if (ended) return <Complete xpBefore={xpBefore} />;
+  if (ended) return <Complete xpGained={20 + 10 * steps.filter((s) => s.state === "output-available").length} />;
 
   if (!pending)
     return (
@@ -266,15 +273,15 @@ function Player({ lesson }: { lesson: Lesson }) {
 
 // ---- Lesson complete ---------------------------------------------------------------------------------------------
 
-/** The celebration. `xpBefore` is the XP when this sitting began; without it the XP gained isn't shown. */
-function Complete({ xpBefore }: { xpBefore?: number }) {
+/** XP belongs to the whole Lesson, including answers from before a resume. */
+function Complete({ xpGained }: { xpGained: number }) {
   const progress = useQuery(progressQuery);
   const next = useNextLesson();
   if (progress.isPending || progress.isFetching) return <LoadingState title="Adding up your XP" />;
   return (
     <Stack gap={4}>
       <LessonComplete
-        xpGained={progress.data && xpBefore !== undefined ? progress.data.xp - xpBefore : undefined}
+        xpGained={xpGained}
         streak={progress.data?.streak ?? 0}
         actions={
           <>

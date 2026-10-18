@@ -1,7 +1,7 @@
 import { Button, Card, Container, Heading, Notice, Screen, Stack, Text } from "@impromptu/ui";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { api } from "../../../api";
+import { api } from "../../../lib/api";
 
 /** Choosing a Voice or Written Assessment. Settings links here to retake it. */
 export const Route = createFileRoute("/_signedIn/assessments/new")({ component: ChooseAssessment });

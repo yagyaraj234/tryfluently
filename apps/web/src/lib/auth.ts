@@ -11,7 +11,9 @@ export const authClient = createAuthClient({
 export const signUp = (fields: { name: string; email: string; password: string }) =>
   authClient.signUp.email({ ...fields, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
 
-// ponytail: a Google sign-up keeps the default UTC timezone until the Learner changes it in Settings.
 /** Google sign-in and sign-up. Back on `/sign-in?error=…` if it fails. */
 export const signInWithGoogle = () =>
-  authClient.signIn.social({ provider: "google", callbackURL: "/", errorCallbackURL: "/sign-in" });
+  authClient.signIn.social({
+    provider: "google", callbackURL: "/", errorCallbackURL: "/sign-in",
+    additionalData: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+  });

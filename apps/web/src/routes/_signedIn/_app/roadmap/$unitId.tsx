@@ -17,8 +17,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { api } from "../../../../api";
-import { roadmapQuery, type Unit } from "../../../../queries";
+import { api } from "../../../../lib/api";
+import { roadmapQuery, type Unit } from "../../../../lib/queries";
 
 export const Route = createFileRoute("/_signedIn/_app/roadmap/$unitId")({
   loader: ({ context }) => context.queryClient.prefetchQuery(roadmapQuery),

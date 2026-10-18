@@ -1,8 +1,9 @@
 import { Button, Cluster, Dialog, EmptyState, ErrorState, LoadingState, Text } from "@impromptu/ui";
 import { Link, useBlocker, useRouter } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "./api";
+import { api } from "../../lib/api";
 
 // What the Written and Voice Assessments share: the 10-minute clock, ending through /end, leaving early,
 // and the screens shown while the Report is written.
@@ -40,6 +41,7 @@ export type Ending = "running" | "ending" | "failed" | "discarded";
  */
 export function useAssessmentSession(assessment: Assessment) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const left = useTimeLeft(assessment.startedAt);
   const [ending, setEnding] = useState<Ending>("running");
   const leftEarly = useRef(false);
@@ -56,11 +58,12 @@ export function useAssessmentSession(assessment: Assessment) {
       if (!response.ok) return setEnding("failed");
       const body = await response.json();
       if (body.status === "discarded") return setEnding("discarded");
+      void queryClient.invalidateQueries();
       await router.navigate({ to: "/assessments/$assessmentId/report", params: { assessmentId: assessment.id } });
     } catch {
       setEnding("failed");
     }
-  }, [assessment.id, router]);
+  }, [assessment.id, router, queryClient]);
 
   const timeUp = left !== undefined && left <= 0;
   useEffect(() => {

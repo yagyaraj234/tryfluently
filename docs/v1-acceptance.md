@@ -1,0 +1,102 @@
+# Impromptu v1 acceptance audit
+
+Reviewed 18 October 2026 against GitHub specs [#13](https://github.com/yagyaraj234/impromptu/issues/13), [#65](https://github.com/yagyaraj234/impromptu/issues/65), [#86](https://github.com/yagyaraj234/impromptu/issues/86), design tickets #56–#64, `GLOSSARY.md` and both ADRs.
+
+Local implementation and automated checks are complete. External-service and real-device checks below remain release gates. This is not a deployment or live-provider sign-off. Hosting remains outside the v1 specs.
+
+## Scope and evidence
+
+The only role is the signed-in Learner. Public routes are sign-in, sign-up and the new `/design-system` reference. The app uses Bun, Hono, Postgres, TanStack Start/Query and the shared UI package. This audit covers the implementation reviewed for v1.
+
+`PASS` identifies the specific evidence stated in each row. Source inspection, automated tests, synthetic browser flows and live service checks are separate kinds of evidence.
+
+### Backend spec #13
+
+| Stories | Behaviour | Status and evidence |
+|---|---|---|
+| 1–6 | Account, Google/email auth, timezone, sessions, deletion and route protection | PASS: `apps/api/test/auth.test.ts`; Google token exchange is faked. Includes initial OAuth timezone, preserving Settings choices, invalid timezone rejection, stale-session protection and ending a live call before deletion. Live Google redirect remains BLOCKED below. |
+| 7–13 | Goals, Context cap, Brief, proposal, confirmation and removal | PASS: `goals.test.ts`; browser verified the 20,001-character rejection, skipping setup and editing a proposed Goal kind. |
+| 14–31 | Written/Voice Assessments, structured items, Reports, retake/discard/partial rules, first email | PASS at HTTP/DB seams: `assessment.test.ts`, `assessment-items.test.ts`, `assessment-lifecycle.test.ts`, `voice-assessment.test.ts`. Browser completed Written Assessment → Report. Concurrent completion commits one set of learning results. Real voice and inbox delivery remain BLOCKED. |
+| 32–37 | Skill Profile, history, CEFR, moving average and fluency timing | PASS: assessment, lesson-judge, progress and voice tests. Browser observed grammar 42 → 45 → 48 across Assessment, Lesson and Roleplay; fluency remained unmeasured in text. |
+| 38–45 | Roadmap, mastery, 15-Lesson cap, skipping and revision | PASS: `roadmap.test.ts`, `roadmap-revision.test.ts`, `lesson-judge.test.ts`; browser built the Roadmap after confirming Goals. |
+| 46–58 | Lesson Steps, feedback, voice/text, resume, Focus Items and Reference Pronunciation | PASS at HTTP/DB seams: `lesson.test.ts`, `lesson-judge.test.ts`, `focus-items.test.ts`, `recording.test.ts`, `pronunciation.test.ts`. Browser resumed at Step 3 and completed a 3-Step Lesson. Real transcription/TTS remain BLOCKED. |
+| 59–68 | Roleplay setup, tone, voice/text, Debrief and Unit Roleplays | PASS: `roleplay.test.ts`, `roleplay-text.test.ts`, completion and voice-cap tests. Browser completed a text Client Call with an edited Goal, Friendly tone and labelled text-mode Debrief. Real voice remains BLOCKED. |
+| 69–71 | XP and Streak | PASS: `progress.test.ts`; browser observed +50 XP for the whole resumed Lesson, a 1-day Streak and 80 total XP after Roleplay. Completed Lesson reloads retain their reward; abandoned Lessons show no completion reward. |
+| 72–81 | Usage, daily caps, one call, credential isolation and model settings | PASS at faked service boundaries: `models.test.ts`, `realtime-cap.test.ts`, `realtime.test.ts`, recording/voice tests. Added call-target ownership and hangup-during-handshake regressions. Single API instance remains the supported topology. |
+
+Test paths above are relative to `apps/api/test/` unless stated otherwise.
+
+### UI foundation #65 and guide #56
+
+| Scope | Status and evidence |
+|---|---|
+| Tokens, themes and package exports (#65 stories 1–23) | PASS: `packages/ui/test/contract.test.ts`, `components.test.tsx`; CSS token previews render at `/design-system`. Explicit theme works before SSR paint. |
+| Layout/type/actions/forms (#65 stories 24–42) | PASS: UI layout, actions and forms suites. Buttons, links, Select items and Switch targets use the 44px minimum. |
+| Overlays, feedback, display and icons (#65 stories 43–52) | PASS: overlays, feedback and display suites; production browser opened Sheet and dismissed it with Escape. Dev browser verified Dialog focus returns to its opener. |
+| Styling and side-effect boundaries (#65 stories 53–61) | PASS: contract tests and lint. Apps only assemble UI components; the guide does not fetch app data or request microphone access. |
+| Design System guide (#56) | PASS: `/design-system` includes live colour/spacing/shape/type samples, interactive base/domain components, recording states, shell previews and a theme selector on a fixed quiet surface. `apps/web/tests/design-system.test.mjs` verifies SSR without auth or an API, theme, shell landmarks and error/404 fallbacks. |
+| Motion and writing decisions | PASS: `DESIGN.md` now specifies v1 copy, non-key desktop layouts, email design and motion. Celebration motion is gated by `prefers-reduced-motion: no-preference` and checked by the UI CSS contract test. |
+| First Report email design | PASS: escaped HTML and plain-text template tests; local HTML preview at 390px has no horizontal overflow and links to Home. Actual mailbox/client verification remains BLOCKED below. |
+
+### Web spec #86 and screen tickets #57–#64
+
+| Routes / flows | Status and evidence |
+|---|---|
+| `/sign-in`, `/sign-up`, `/goals`, `/assessments/new` | PASS: onboarding and SSR tests; synthetic browser sign-in, Context validation and Assessment choice. |
+| `/assessments/:id`, `/assessments/:id/report`, `/goals/confirm` | PASS: Assessment SSR/transport tests; synthetic browser streamed replies, answered fillGap/rewrite, displayed Report, changed Goal kind and confirmed it. Voice uses fake media/service tests. |
+| `/`, `/roadmap`, `/roadmap/:unitId` | PASS: shell and Roadmap tests; browser Home, saved Lesson resume and chrome XP. Starting a Lesson invalidates cached Roadmap data. |
+| `/lessons/:lessonId` | PASS: Lesson, chat and recording tests; synthetic browser Step → feedback → next Step → leave/resume → completion. Completion invalidates Skill Profile/history/Focus Items as well as XP and Roadmap. A second Lesson verified immediate Home resume and XP changing from 80 to 90 after one answered Step. |
+| `/roleplays/new`, `/roleplays/:roleplayId` | PASS: Roleplay, chat, call and voice-minutes tests; synthetic browser setup → text conversation → Debrief. Text-mode fluency disclaimer now renders. |
+| `/progress`, `/settings` | PASS: progress/settings tests; browser verified score history, Focus Items, theme, timezone, and optional-password deletion confirmation/cancel. Deletion itself is tested through HTTP, not performed on a real account. |
+| `/api/*` | PASS: pass-through tests cover method, body, query, cookies, streaming and `set-cookie`. |
+| Unknown routes / route failures | PASS: designed 404 with Home action and recoverable error state. SSR tests check HTTP status and omit upstream details. |
+| Conversation re-entry | PASS: Assessment, Lesson and Roleplay loaders use blocking stale reloads. `useChat` seeds once per mount, so a cached empty transcript must not mount before fresh history. Browser reproduced the failure and verified the saved Step resumes and accepts its answer after the fix. |
+
+## Current engineering checks
+
+| Check | Result |
+|---|---|
+| `bun run test --force` | PASS: API 159, UI 185, web 103; 447 tests, zero failures. Subsequent focused auth (8/8) and UI (186/186) runs cover the final validation and additional motion-contract check. |
+| `bun run typecheck --force` | PASS: all four workspaces. |
+| `bun run lint --force` | PASS: all three lint tasks. Generated routes and build output are excluded, while application source retains the styling boundary. |
+| `bun run build` | PASS: production client/server build; guide has its own route chunk. |
+| `git diff --check` | PASS: no whitespace errors. |
+| Production preview `/design-system` | PASS: HTTP 200, cold local TTFB approximately 1.65s; Sheet interaction works. No app console warnings/errors observed; the user's Chrome extension emits its own warning. |
+
+The 15-Lesson HTTP/DB integration test has a 15-second timeout: it exceeded Bun's five-second default while the independent web/UI workspaces ran in parallel. Its assertions are unchanged.
+
+## Accessibility and responsiveness
+
+| Check | Result |
+|---|---|
+| Native labels, descriptions, field errors, verdict words and status announcements | PASS: UI component tests and browser accessibility trees. |
+| Keyboard radio selection and modal Escape/focus restoration | PASS: browser checks; Base UI component tests cover callbacks and state. |
+| Colour contrast | PASS for checked light-theme text: Correct 4.66:1, Almost 5.05:1, Incorrect 4.80:1, CEFR B2 5.13:1. All six checked light CEFR cells exceed 4.5:1. Earlier values failed and were darkened in tokens and `DESIGN.md`. Both themes received visual review. |
+| Narrow layouts and overflow | PASS: Settings and guide at 320, 390, 768, 1024 and 1440px; Progress at 320px. No horizontal document overflow. Synthetic practice and onboarding flows were exercised at phone width. |
+| Reduced motion | PASS at CSS contract: one-shot animation only under `motion-safe:`; no animated route transition. |
+| Independent sections, loading, errors, offline and cap alternatives | PASS at source/test seams: shared states, web SSR tests, recorder/call fakes and guide previews. This does not claim every network failure was manually reproduced. |
+| Real screen reader, 200% browser zoom, iOS/Android hardware, deployed performance/Lighthouse | BLOCKED: those environments were not available in this run. |
+
+## Remaining release gates
+
+No configured service environment was present; the checkout contained only `.env.example`. A request for the existing local/staging environment was left with the owner. Do not use synthetic results as evidence of provider compatibility.
+
+1. **Google:** complete a real redirect/callback on the intended web origin; verify initial timezone and sign-out/re-authentication.
+2. **OpenAI Realtime:** use actual microphone/speaker hardware for a Voice Assessment and Roleplay. Check interruptions, transcription timing, sideband persistence, mute, wrap-up, cap hangup and closing during connection.
+3. **Transcription and Svara:** record a real answer, verify transcript/feedback, play Reference Pronunciation, retry failures and confirm recording caps with configured services.
+4. **Resend:** send the first Report to an explicitly approved test recipient; check sender setup, inbox delivery and Gmail/Outlook/mobile rendering. No real email was sent during this run.
+5. **Devices/accessibility:** finish the real screen-reader, zoom and phone checks above. Measure production performance on the intended target device/network before a public launch.
+
+The synthetic browser backend used the real test Postgres database and the production HTTP app with faked AI/mail/voice clients. Its clock was advanced for Assessment completion; preview-only timestamps were then aligned to preserve chronological score ordering. No production Learner data or credentials were used.
+
+## Tracker reconciliation
+
+| Issue | Disposition after review/merge |
+|---|---|
+| #56 | Guide implemented locally; close after it is merged/reviewed. |
+| #57–#64 | #86 explicitly replaced the separate prototype effort with designs implemented in working screens. Link their acceptance evidence above and close as superseded after review. |
+| #65 | Foundation plus remaining accessibility/motion fixes implemented; close after merge and review. |
+| #13 and #86 | Implementation is present, but keep live-service acceptance visible until the release gates pass. |
+| #51 | Close when the guide, screen reconciliation and release review are accepted. |
+
+GitHub issues were not closed for unmerged local work. Haptics, an OG/share image, native apps, translations, marketing, password reset/email verification, subscriptions, pronunciation scoring and hosting remain out of scope according to the existing v1 specs.

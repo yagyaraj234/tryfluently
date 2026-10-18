@@ -1,7 +1,7 @@
 import { Button, Card, Cluster, Container, EmptyState, ErrorState, Heading, LoadingState, Notice, Screen, Select, Stack, Text, type CefrLevel } from "@impromptu/ui";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { api } from "../../../api";
+import { api } from "../../../lib/api";
 
 /** Confirming the Goals and Target Levels the Assessment proposed. Once none are left, the Roadmap is built. */
 export const Route = createFileRoute("/_signedIn/goals/confirm")({ loader: () => proposedGoals(), component: ConfirmGoals });
@@ -28,6 +28,7 @@ function ConfirmGoals() {
   const [levels, setLevels] = useState<Record<string, TargetLevels>>(() =>
     Object.fromEntries(goals.map((g) => [g.id, g.targetLevels as TargetLevels])),
   );
+  const [chosenKinds, setChosenKinds] = useState(() => Object.fromEntries(goals.map((g) => [g.id, g.kind])));
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [confirmed, setConfirmed] = useState<string>();
@@ -55,13 +56,13 @@ function ConfirmGoals() {
       const param = { param: { id } };
       const response =
         action === "confirm"
-          ? await api().api.goals[":id"].confirm.$post({ ...param, json: { targetLevels: levels[id] } })
+          ? await api().api.goals[":id"].confirm.$post({ ...param, json: { kind: chosenKinds[id], targetLevels: levels[id] } })
           : await api().api.goals[":id"].$delete(param);
       // A 502 means the Goal was confirmed but the Roadmap couldn't be built.
       const roadmapFailed = (response.status as number) === 502;
       if (!response.ok && !roadmapFailed) throw new Error();
       const goal = goals.find((g) => g.id === id)!;
-      setConfirmed(`${kinds[goal.kind]} ${action === "confirm" ? "confirmed" : "removed"}.`);
+      setConfirmed(`${kinds[chosenKinds[id] ?? goal.kind]} ${action === "confirm" ? "confirmed" : "removed"}.`);
       setGoals((gs) => gs.filter((g) => g.id !== id));
       if (!last) return;
       // Confirming the last Goal builds the Roadmap as it confirms; removing it may have, so make sure.
@@ -108,7 +109,7 @@ function ConfirmGoals() {
             <Heading level={1}>Confirm your Goals</Heading>
             <Text>
               From your Assessment, your coach suggests these Goals and the CEFR Level to aim for on each skill. Change the Target
-              Levels if you like, then confirm each Goal or remove it.
+              Levels or Goal kinds if you like, then confirm each Goal or remove it.
             </Text>
           </Stack>
           {error && <Notice tone="error">{error}</Notice>}
@@ -117,8 +118,15 @@ function ConfirmGoals() {
             <Card key={goal.id}>
               <Stack gap={5}>
                 <Heading level={2} size="title">
-                  {kinds[goal.kind]}
+                  {kinds[chosenKinds[goal.id] ?? goal.kind]}
                 </Heading>
+                <Select
+                  label="Goal kind"
+                  options={Object.entries(kinds).map(([value, label]) => ({ value, label }))}
+                  value={chosenKinds[goal.id] ?? goal.kind}
+                  onValueChange={(value) => setChosenKinds((current) => ({ ...current, [goal.id]: value as keyof typeof kinds }))}
+                  disabled={busy !== undefined}
+                />
                 {skills.filter(({ skill }) => skill in (goal.targetLevels as TargetLevels)).map(({ skill, label }) => (
                   <Select
                     key={skill}

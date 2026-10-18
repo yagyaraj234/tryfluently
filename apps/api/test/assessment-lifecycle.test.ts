@@ -24,6 +24,17 @@ const setup = (reports: unknown[] = [], mailer = fakeMailer()) => {
 };
 
 describe("assessment lifecycle", () => {
+  test("two requests ending the same Assessment persist one Report and one set of learning results", async () => {
+    const { app, clock, mailer } = setup([reportReply(), reportReply()]);
+    const { cookie } = await signUp(app);
+    const id = await startAndChat(app, cookie);
+    clock.advance({ minutes: 10 });
+    const results = await Promise.all([0, 1].map(() => app.request(`/api/assessments/${id}/end`, json({}, cookie))));
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(await (await app.request("/api/skill-profile/history", get(cookie))).json()).toHaveLength(2);
+    expect(await (await app.request("/api/focus-items", get(cookie))).json()).toHaveLength(3);
+    expect(mailer.sent).toHaveLength(1);
+  });
   test("an attempt ended under 4 minutes is discarded without a Report and doesn't block a new one", async () => {
     const { app, clock } = setup();
     const { cookie } = await signUp(app);
@@ -116,7 +127,9 @@ describe("first-Report email", () => {
     const first = await takeWrittenAssessment(app, cookie, clock);
     expect(mailer.sent).toHaveLength(1);
     expect(mailer.sent[0]).toMatchObject({ to: me.email, subject: expect.stringContaining("Assessment Report") });
-    expect(mailer.sent[0]!.html).toContain(`${WEB_ORIGIN}/learn`);
+    expect(mailer.sent[0]!.html).toContain(`href="${WEB_ORIGIN}/"`);
+    expect(mailer.sent[0]!.text).toContain(`Start your first Lesson: ${WEB_ORIGIN}/`);
+    expect(mailer.sent[0]!.html).toContain("Fluency: Not measured yet");
     expect(mailer.sent[0]!.html).toContain("Past simple vs present perfect");
     expect((await read(app, cookie, first.id)).emailedAt).not.toBeNull();
 

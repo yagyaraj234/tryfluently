@@ -24,6 +24,17 @@ Start from the Learner's weaknesses and work toward their Target Levels.`;
 
 type Ctx = Pick<Deps, "db" | "now" | "models">;
 
+export const focusItemsRoute = (db: Deps["db"]) =>
+  new Hono<AppEnv>().get("/", async (c) =>
+    c.json(
+      await db
+        .select()
+        .from(focusItem)
+        .where(eq(focusItem.userId, c.var.user.id))
+        .orderBy(asc(focusItem.createdAt), asc(focusItem.label)),
+    ),
+  );
+
 // What the roadmap model sees: Goals (through their Briefs), the Skill Profile and open Focus Items.
 export async function learnerSituation({ db }: Pick<Deps, "db">, userId: string) {
   const [goals, profile, focus] = await Promise.all([
