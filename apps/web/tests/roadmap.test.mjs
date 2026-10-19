@@ -276,3 +276,8 @@ test("Home waits for current Lesson preparation and offers recovery after its le
   const expired = await page("/home", "expiredCurrent");
   assert.ok(buttons(expired).some((label) => /Start your next Lesson/.test(label)));
 });
+
+test("Home puts the progress summary before learning content in reading order", async () => {
+  const html = await page("/home");
+  assert.ok(html.indexOf('aria-label="Your profile"') < html.indexOf("Continue learning"));
+});

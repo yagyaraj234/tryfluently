@@ -6,7 +6,7 @@ const top = cva("flex items-baseline justify-between gap-3");
 const title = cva("text-body font-semibold");
 const count = cva("text-caption text-muted tabular-nums");
 const days = cva("grid grid-cols-7 gap-1.5");
-const day = cva("flex flex-col items-center gap-0.5 rounded-xl py-2 tabular-nums", {
+const day = cva("flex flex-col items-center gap-0.5 rounded-xl py-2 whitespace-nowrap tabular-nums", {
   variants: {
     state: {
       practised: "bg-primary text-on-primary",

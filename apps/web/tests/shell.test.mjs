@@ -38,17 +38,12 @@ const href = (a) => a.match(/href="([^"]*)"/)[1];
 
 test("every destination is in the navigation, as a link to its route", async () => {
   const html = await page("/home");
-  assert.deepEqual(links(html).map(href), ["/home", "/roadmap", "/roleplays", "/progress", "/settings"]);
-  assert.deepEqual(text(nav(html)).match(/Home|Roadmap|Progress|Settings/g), [
-    "Home",
-    "Roadmap",
-    "Progress",
-    "Settings",
-  ]);
+  assert.deepEqual(links(html).map(href), ["/home", "/roadmap", "/roleplays", "/progress", "/profile"]);
+  assert.deepEqual(text(nav(html)).match(/Home|Roadmap|Progress|Profile/g), ["Home", "Roadmap", "Progress", "Profile"]);
 });
 
 test("only the current destination is marked", async () => {
-  for (const path of ["/home", "/roadmap", "/roleplays", "/progress", "/settings"]) {
+  for (const path of ["/home", "/roadmap", "/roleplays", "/progress", "/profile"]) {
     const current = links(await page(path)).filter((a) => a.includes('aria-current="page"'));
     assert.deepEqual(current.map(href), [path]);
   }
@@ -59,7 +54,7 @@ test("the top bar names the current destination as the page's one heading", asyn
     ["/home", "Home"],
     ["/roadmap", "Roadmap"],
     ["/progress", "Progress"],
-    ["/settings", "Settings"],
+    ["/profile", "Profile"],
   ]) {
     const html = await page(path);
     assert.match(html.match(/<header[\s\S]*?<\/header>/)[0], new RegExp(`<h1[^>]*>${title}</h1>`), path);

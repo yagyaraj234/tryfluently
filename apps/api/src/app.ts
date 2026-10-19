@@ -1,6 +1,6 @@
 import { schema, type Db } from "@impromptu/db";
 import { betterAuth } from "better-auth";
-import { APIError, getOAuthState } from "better-auth/api";
+import { APIError, createAuthMiddleware, getOAuthState, getSessionFromCtx } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -98,6 +98,20 @@ export function createApp(deps: Deps) {
     socialProviders: env.GOOGLE_CLIENT_ID
       ? { google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET! } }
       : {},
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/delete-user" && ctx.path !== "/delete-user/callback") return;
+        const session = await getSessionFromCtx(ctx);
+        if (!session) return;
+        const account = await ctx.context.internalAdapter.findCredentialAccount(session.user.id);
+        if (account?.password && (ctx.path !== "/delete-user" || !ctx.body?.password)) {
+          throw new APIError("BAD_REQUEST", {
+            code: "PASSWORD_REQUIRED",
+            message: "Enter your password to delete your account.",
+          });
+        }
+      }),
+    },
     databaseHooks: {
       user: {
         create: {

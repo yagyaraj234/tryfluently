@@ -22,6 +22,7 @@ import { Route as SignedInAppRouteImport } from './routes/_signedIn/_app'
 import { Route as SignedInPracticeRouteImport } from './routes/_signedIn/_practice'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as SignedInAppHomeRouteImport } from './routes/_signedIn/_app/home'
+import { Route as SignedInAppProfileRouteImport } from './routes/_signedIn/_app/profile'
 import { Route as SignedInAppProgressRouteImport } from './routes/_signedIn/_app/progress'
 import { Route as SignedInAppRoleplaysRouteImport } from './routes/_signedIn/_app/roleplays'
 import { Route as SignedInAppSettingsRouteImport } from './routes/_signedIn/_app/settings'
@@ -96,6 +97,11 @@ const ApiSplatRoute = ApiSplatRouteImport.update({
 const SignedInAppHomeRoute = SignedInAppHomeRouteImport.update({
   id: '/home',
   path: '/home',
+  getParentRoute: () => SignedInAppRoute,
+} as any)
+const SignedInAppProfileRoute = SignedInAppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => SignedInAppRoute,
 } as any)
 const SignedInAppProgressRoute = SignedInAppProgressRouteImport.update({
@@ -181,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/home': typeof SignedInAppHomeRoute
+  '/profile': typeof SignedInAppProfileRoute
   '/progress': typeof SignedInAppProgressRoute
   '/roleplays': typeof SignedInAppRoleplaysRoute
   '/settings': typeof SignedInAppSettingsRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/verify-email': typeof VerifyEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/home': typeof SignedInAppHomeRoute
+  '/profile': typeof SignedInAppProfileRoute
   '/progress': typeof SignedInAppProgressRoute
   '/roleplays': typeof SignedInAppRoleplaysRoute
   '/settings': typeof SignedInAppSettingsRoute
@@ -235,6 +243,7 @@ export interface FileRoutesById {
   '/_signedIn/_practice': typeof SignedInPracticeRouteWithChildren
   '/api/$': typeof ApiSplatRoute
   '/_signedIn/_app/home': typeof SignedInAppHomeRoute
+  '/_signedIn/_app/profile': typeof SignedInAppProfileRoute
   '/_signedIn/_app/progress': typeof SignedInAppProgressRoute
   '/_signedIn/_app/roleplays': typeof SignedInAppRoleplaysRoute
   '/_signedIn/_app/settings': typeof SignedInAppSettingsRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/api/$'
     | '/home'
+    | '/profile'
     | '/progress'
     | '/roleplays'
     | '/settings'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/api/$'
     | '/home'
+    | '/profile'
     | '/progress'
     | '/roleplays'
     | '/settings'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/_signedIn/_practice'
     | '/api/$'
     | '/_signedIn/_app/home'
+    | '/_signedIn/_app/profile'
     | '/_signedIn/_app/progress'
     | '/_signedIn/_app/roleplays'
     | '/_signedIn/_app/settings'
@@ -436,6 +448,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignedInAppHomeRouteImport
       parentRoute: typeof SignedInAppRoute
     }
+    '/_signedIn/_app/profile': {
+      id: '/_signedIn/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof SignedInAppProfileRouteImport
+      parentRoute: typeof SignedInAppRoute
+    }
     '/_signedIn/_app/progress': {
       id: '/_signedIn/_app/progress'
       path: '/progress'
@@ -532,6 +551,7 @@ declare module '@tanstack/react-router' {
 
 interface SignedInAppRouteChildren {
   SignedInAppHomeRoute: typeof SignedInAppHomeRoute
+  SignedInAppProfileRoute: typeof SignedInAppProfileRoute
   SignedInAppProgressRoute: typeof SignedInAppProgressRoute
   SignedInAppRoleplaysRoute: typeof SignedInAppRoleplaysRoute
   SignedInAppSettingsRoute: typeof SignedInAppSettingsRoute
@@ -541,6 +561,7 @@ interface SignedInAppRouteChildren {
 
 const SignedInAppRouteChildren: SignedInAppRouteChildren = {
   SignedInAppHomeRoute: SignedInAppHomeRoute,
+  SignedInAppProfileRoute: SignedInAppProfileRoute,
   SignedInAppProgressRoute: SignedInAppProgressRoute,
   SignedInAppRoleplaysRoute: SignedInAppRoleplaysRoute,
   SignedInAppSettingsRoute: SignedInAppSettingsRoute,

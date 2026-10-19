@@ -8,24 +8,20 @@ import {
   Grid,
   Heading,
   LoadingState,
-  ProfileCard,
   Stack,
-  StatTile,
   Text,
   UnitCard,
   UnitIcon,
-  WeekStrip,
 } from "@impromptu/ui";
-import { Books, CheckCircle, Confetti } from "@phosphor-icons/react";
+import { Confetti } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { practicePreparationQuery } from "../../../lib/practice-preparation";
 import { api } from "../../../lib/api";
 import { BuildRoadmap } from "../../../components/roadmap/BuildRoadmap";
 import { LessonAction } from "../../../components/roadmap/LessonAction";
-import { progressQuery, roadmapQuery, skillProfileQuery, unitProgress, type Unit } from "../../../lib/queries";
-
-const skills = ["fluency", "grammar", "vocabulary"] as const;
+import { roadmapQuery, skillProfileQuery, unitProgress } from "../../../lib/queries";
+import { ProfileSummary } from "../../../components/profile/ProfileSummary";
 
 /** Where onboarding continues: no Goals and no Assessment → set Goals, proposed Goals → confirm them, otherwise Home. */
 function onboardingRoute(goals: { status: string }[], assessments: { status: string }[]) {
@@ -58,13 +54,9 @@ export const Route = createFileRoute("/_signedIn/_app/home")({
 
 function Home() {
   const roadmap = useQuery(roadmapQuery);
-  const { data: progress } = useQuery(progressQuery);
-  const { data: skillProfile } = useQuery(skillProfileQuery);
   const { learner } = Route.useRouteContext();
   const active = roadmap.data?.find((u) => u.status === "active");
   const upNext = roadmap.data?.filter((u) => u.status === "planned").slice(0, 4) ?? [];
-  const lessonsDone = roadmap.data?.flatMap((u) => u.lessons).filter((l) => l.status === "completed").length ?? 0;
-  const unitsActive = roadmap.data?.filter((u) => u.status === "active").length ?? 0;
 
   const continueSlot = roadmap.isPending ? (
     <LoadingState title="Loading your Roadmap" />
@@ -130,35 +122,7 @@ function Home() {
           )}
         </>
       }
-      rail={
-        progress && (
-          <>
-            <ProfileCard
-              name={learner.name}
-              levels={skills
-                .filter((s) => skillProfile?.[s])
-                .map((s) => ({ skill: s, level: skillProfile![s]!.level }))}
-              levelsRender={<Link to="/progress" aria-label="Your Skill Profile" />}
-              streak={progress.streak}
-              xp={progress.xp}
-              unitsMastered={roadmap.data?.filter((u) => u.status === "mastered").length ?? 0}
-            />
-            <WeekStrip week={progress.week} />
-            <Grid columns={2}>
-              <StatTile
-                icon={CheckCircle}
-                value={lessonsDone}
-                label={lessonsDone === 1 ? "Lesson done" : "Lessons done"}
-              />
-              <StatTile
-                icon={Books}
-                value={unitsActive}
-                label={unitsActive === 1 ? "Unit in progress" : "Units in progress"}
-              />
-            </Grid>
-          </>
-        )
-      }
+      rail={<ProfileSummary name={learner.name} />}
     />
   );
 }

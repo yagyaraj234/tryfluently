@@ -1,5 +1,5 @@
 import { AppShell, StreakChip, XpChip, type AppShellDestination } from "@impromptu/ui";
-import { ChartLineUp, GearSix, House, MapTrifold, Chats } from "@phosphor-icons/react";
+import { ChartLineUp, UserCircle, House, MapTrifold, Chats } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, useMatches } from "@tanstack/react-router";
 import { usePracticePreparation } from "../../lib/practice-preparation";
@@ -11,7 +11,7 @@ const destinations: AppShellDestination[] = [
   { label: "Roadmap", icon: MapTrifold, render: <Link to="/roadmap" /> },
   { label: "Roleplays", icon: Chats, render: <Link to="/roleplays" /> },
   { label: "Progress", icon: ChartLineUp, render: <Link to="/progress" /> },
-  { label: "Settings", icon: GearSix, render: <Link to="/settings" /> },
+  { label: "Profile", icon: UserCircle, render: <Link to="/profile" /> },
 ];
 
 declare module "@tanstack/react-router" {
@@ -21,7 +21,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
-/** The signed-in chrome around Home, Roadmap, Progress and Settings. */
+/** The signed-in chrome around Home, Roadmap, Progress and Profile. */
 export const Route = createFileRoute("/_signedIn/_app")({
   // Never throws: without progress the chrome just leaves the chips out.
   loader: ({ context }) => context.queryClient.prefetchQuery(progressQuery),
