@@ -1,4 +1,4 @@
-import { AuthLayout, Button, Notice, Stack, Text, TextField, TextLink, type AuthPoint } from "@impromptu/ui";
+import { AuthLayout, Button, Cluster, Notice, Stack, Text, TextField, TextLink, type AuthPoint } from "@impromptu/ui";
 import { Microphone, Path, Sparkle } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
@@ -111,9 +111,9 @@ export function AuthScreen(props: {
       alternative={
         props.google && (
           <Button variant="secondary" fullWidth onClick={google} disabled={pending}>
-            <div className="flex gap-3 items-center">
+            <Cluster gap={3} wrap={false}>
               <GoogleMark /> <span>Continue with Google</span>
-            </div>
+            </Cluster>
           </Button>
         )
       }

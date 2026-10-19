@@ -265,6 +265,7 @@ function VoiceCall({ roleplay, session, onTypeInstead }: VoiceProps) {
         <Heading level={1} size="title">
           {`Talk with your ${characters[kind].toLowerCase()}`}
         </Heading>
+        {roleplay.roleplayScenario && <Text tone="muted">{roleplay.roleplayScenario}</Text>}
         <Text>{`Say hello to start. Your ${characters[kind].toLowerCase()} stays in character until you end the ${roleplayKinds[kind]}. Your Debrief comes after.`}</Text>
       </Stack>
       <Cluster justify="center">
@@ -305,6 +306,7 @@ function TextRoleplay({ roleplay, onEnd }: { roleplay: Roleplay; onEnd: () => vo
     <Stack gap={6}>
       {/* Ending mid-reply would leave that turn out of the Debrief. */}
       <RoleplayBar roleplay={roleplay} onEnd={onEnd} disabled={busy} />
+      {roleplay.roleplayScenario && <Text tone="muted">{roleplay.roleplayScenario}</Text>}
       {messages.length === 0 && (
         <Text tone="muted">{`Say hello to start. Your ${characters[kind].toLowerCase()} stays in character until you end the ${roleplayKinds[kind]}. Your Debrief comes after.`}</Text>
       )}

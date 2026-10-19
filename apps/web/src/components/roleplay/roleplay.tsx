@@ -7,16 +7,39 @@ import { api } from "../../lib/api";
 
 // What text and voice Roleplays share: names, ending through /end and the wait for the Debrief.
 
-export type RoleplayKind = "mock_interview" | "client_call";
+export type RoleplayKind =
+  | "mock_interview"
+  | "client_call"
+  | "presentation"
+  | "team_meeting"
+  | "phone_call"
+  | "small_talk"
+  | "custom";
 export type Tone = "friendly" | "standard" | "tough";
 
 export const roleplayKinds: Record<RoleplayKind, string> = {
   mock_interview: "Mock Interview",
   client_call: "Client Call",
+  presentation: "Presentation",
+  team_meeting: "Team Meeting",
+  phone_call: "Phone Call",
+  small_talk: "Small Talk",
+  custom: "Custom Roleplay",
 };
+export const roleplayOptions = (Object.entries(roleplayKinds) as [RoleplayKind, string][])
+  .filter(([value]) => value !== "custom")
+  .map(([value, label]) => ({ value, label }));
 export const tones: Record<Tone, string> = { friendly: "Friendly", standard: "Standard", tough: "Tough" };
 /** Who the coach plays, as screen readers announce their lines. */
-export const characters: Record<RoleplayKind, string> = { mock_interview: "Interviewer", client_call: "Client" };
+export const characters: Record<RoleplayKind, string> = {
+  mock_interview: "Interviewer",
+  client_call: "Client",
+  presentation: "Audience member",
+  team_meeting: "Teammate",
+  phone_call: "Caller",
+  small_talk: "Conversation partner",
+  custom: "Counterpart",
+};
 
 type Client = ReturnType<typeof api>["api"]["lessons"][":id"];
 export type Roleplay = InferResponseType<Client["$get"], 200>;

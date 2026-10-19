@@ -196,7 +196,15 @@ export const unit = pgTable("unit", {
 
 export const lessonKind = pgEnum("lesson_kind", ["practice", "roleplay"]);
 export const lessonStatus = pgEnum("lesson_status", ["in_progress", "completed", "abandoned"]);
-export const roleplayKind = pgEnum("roleplay_kind", ["mock_interview", "client_call"]);
+export const roleplayKind = pgEnum("roleplay_kind", [
+  "mock_interview",
+  "client_call",
+  "presentation",
+  "team_meeting",
+  "phone_call",
+  "small_talk",
+  "custom",
+]);
 export const tone = pgEnum("tone", ["friendly", "standard", "tough"]);
 
 export const lesson = pgTable("lesson", {
@@ -208,6 +216,8 @@ export const lesson = pgTable("lesson", {
   title: text().notNull(),
   objective: text().notNull(),
   roleplayKind: roleplayKind(),
+  // The Learner's own situation for a custom Roleplay.
+  roleplayScenario: text(),
   tone: tone(),
   status: lessonStatus().notNull().default("in_progress"),
   objectiveProgress: integer(),

@@ -4,13 +4,13 @@ import { cva } from "class-variance-authority";
 import type { ReactElement, ReactNode } from "react";
 import { LogoMark } from "./Logo";
 
-// Phone: the top bar, then a tab bar stuck to the bottom. Desktop: the tab bar becomes a sidebar on the left.
+// Phone: status only, then a tab bar stuck to the bottom. Desktop: a top bar and a sidebar on the left.
 const shell = cva("flex min-h-dvh flex-col bg-canvas text-ink lg:flex-row");
 const body = cva("flex min-w-0 flex-1 flex-col");
 const header = cva(
-  "sticky top-0 z-sticky flex min-h-16 items-center justify-between gap-4 border-b border-line bg-paper/90 px-4 backdrop-blur-md reduce-transparency:bg-paper lg:px-8",
+  "sticky top-0 z-sticky flex min-h-12 items-center justify-end gap-4 px-4 lg:min-h-16 lg:justify-between lg:border-b lg:border-line lg:bg-paper/90 lg:px-8 lg:backdrop-blur-md lg:reduce-transparency:bg-paper",
 );
-const heading = cva("text-title");
+const heading = cva("sr-only lg:not-sr-only lg:text-title");
 // The landing page's logo, so the app and the site read as one product.
 const logo = cva("hidden items-center gap-2 px-3 pt-6 pb-8 text-xl font-bold tracking-tighter text-primary lg:flex");
 const menu = cva("hidden px-3 pb-2 text-label text-muted uppercase lg:block");

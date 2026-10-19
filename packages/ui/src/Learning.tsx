@@ -1,11 +1,12 @@
 import {
-  BookOpen,
+  BookOpenText,
+  ChatCircleText,
   Check,
   Lock,
   Microphone,
   MicrophoneSlash,
-  PencilSimple,
   PhoneDisconnect,
+  TextAa,
 } from "@phosphor-icons/react";
 import { Button as BaseButton } from "@base-ui/react/button";
 import { useRender } from "@base-ui/react/use-render";
@@ -235,9 +236,7 @@ export function RoadmapUnit({
         </div>
         <div className="shrink-0">{detail}</div>
       </div>
-      <ol className="mx-auto flex w-full max-w-sm flex-col gap-6 px-5 py-4 [&>li:nth-child(4n+2)]:translate-x-4 [&>li:nth-child(4n+3)]:translate-x-8">
-        {children}
-      </ol>
+      <ol className="mx-auto flex w-full max-w-sm flex-col px-2 py-4 sm:px-5">{children}</ol>
     </section>
   );
 }
@@ -260,11 +259,7 @@ export function RoadmapNode({
   onClick?: () => void;
 }) {
   const Icon =
-    state === "complete"
-      ? Check
-      : state === "locked"
-        ? Lock
-        : { vocabulary: BookOpen, grammar: PencilSimple, fluency: Microphone }[skill];
+    state === "complete" ? Check : { vocabulary: BookOpenText, grammar: TextAa, fluency: ChatCircleText }[skill];
   const interactive = state !== "locked" && Boolean(render || onClick);
   const circle = useRender({
     render: interactive ? (render ?? <BaseButton />) : <span />,
@@ -272,12 +267,28 @@ export function RoadmapNode({
       onClick: interactive ? onClick : undefined,
       "aria-label": interactive ? `${state === "complete" ? "Review" : "Open"} ${title}` : undefined,
       "aria-hidden": !interactive || undefined,
-      className: `flex size-14 shrink-0 items-center justify-center rounded-full border text-title shadow-card ${state === "active" ? "border-primary bg-primary-soft text-ink ring-2 ring-primary ring-offset-4 ring-offset-canvas" : state === "complete" ? "border-correct bg-correct-tint text-correct" : "border-line-strong bg-subtle text-muted"}`,
-      children: <Icon aria-hidden />,
+      className: `relative flex size-14 shrink-0 items-center justify-center rounded-full border text-title ${state === "active" ? "border-primary bg-primary-soft text-primary shadow-card ring-2 ring-primary ring-offset-4 ring-offset-canvas" : state === "complete" ? "border-correct bg-correct-tint text-correct" : "border-line bg-subtle text-muted"}`,
+      children: (
+        <>
+          <Icon aria-hidden size={24} weight={state === "complete" ? "bold" : "duotone"} />
+          {state === "locked" && (
+            <span
+              aria-hidden
+              className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full border border-line bg-canvas text-muted"
+            >
+              <Lock size={12} weight="bold" />
+            </span>
+          )}
+        </>
+      ),
     },
   });
   return (
-    <li className="flex min-w-0 items-start gap-4 pr-8">
+    <li className="group relative flex min-w-0 items-start gap-4 pb-8 last:pb-0">
+      <span
+        aria-hidden
+        className={`absolute top-14 bottom-0 left-[27px] border-l-2 group-last:hidden ${state === "complete" ? "border-correct" : "border-dashed border-line-strong"}`}
+      />
       {circle}
       <div className="flex min-w-0 flex-1 flex-col items-start gap-1 pt-2">
         <span className="sr-only">

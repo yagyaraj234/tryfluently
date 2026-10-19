@@ -120,10 +120,27 @@ describe("starting a Roleplay", () => {
   test("the Learner can pick the kind and the tone", async () => {
     const app = makeApp();
     const { cookie } = await learnerWithRoadmap();
-    expect(await startRoleplay(app, cookie, { kind: "client_call", tone: "tough" })).toMatchObject({
-      roleplayKind: "client_call",
+    expect(await startRoleplay(app, cookie, { kind: "presentation", tone: "tough" })).toMatchObject({
+      roleplayKind: "presentation",
       tone: "tough",
-      title: "Client Call",
+      title: "Presentation",
+    });
+  });
+
+  test("a Learner can describe their own Roleplay", async () => {
+    const app = makeApp();
+    const { cookie } = await learnerWithRoadmap();
+    expect(
+      await startRoleplay(app, cookie, {
+        scenario: "I need to ask my landlord to fix the heating and they keep delaying.",
+        tone: "friendly",
+      }),
+    ).toMatchObject({
+      kind: "roleplay",
+      roleplayKind: "custom",
+      roleplayScenario: "I need to ask my landlord to fix the heating and they keep delaying.",
+      tone: "friendly",
+      title: "Custom Roleplay",
     });
   });
 
@@ -133,8 +150,9 @@ describe("starting a Roleplay", () => {
     const general = (await (await app.request("/api/goals", json({ kind: "general_fluency" }, cookie))).json()) as any;
 
     expect((await app.request("/api/roleplays", json({ goalId: general.id }, cookie))).status).toBe(400);
+    expect((await app.request("/api/roleplays", json({ goalId: general.id, kind: "custom" }, cookie))).status).toBe(400);
     expect(
-      (await app.request("/api/roleplays", json({ goalId: general.id, kind: "client_call" }, cookie))).status,
+      (await app.request("/api/roleplays", json({ goalId: general.id, kind: "small_talk" }, cookie))).status,
     ).toBe(201);
   });
 

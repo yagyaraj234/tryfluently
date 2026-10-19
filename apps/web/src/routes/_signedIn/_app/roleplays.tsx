@@ -1,6 +1,7 @@
 import { Button, Card, Container, EmptyState, ErrorState, Heading, LoadingState, Stack, Text } from "@impromptu/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { roleplayKinds, type RoleplayKind } from "../../../components/roleplay/roleplay";
 import { roleplaysQuery } from "../../../lib/queries";
 
 export const Route = createFileRoute("/_signedIn/_app/roleplays")({
@@ -33,6 +34,7 @@ function Roleplays() {
                 <Heading level={2} size="title">
                   {session.title}
                 </Heading>
+                {session.roleplayScenario && <Text tone="muted">{session.roleplayScenario}</Text>}
                 <Text tone="muted">
                   {session.startedAt
                     ? new Date(session.startedAt).toLocaleDateString("en-GB", {
@@ -40,7 +42,7 @@ function Roleplays() {
                         timeZone: learner.timezone,
                       })
                     : "Not started"}{" "}
-                  · {session.roleplayKind === "client_call" ? "Client Call" : "Mock Interview"} · {session.tone} ·{" "}
+                  · {roleplayKinds[session.roleplayKind as RoleplayKind] ?? "Roleplay"} · {session.tone} ·{" "}
                   {session.textMode ? "Text" : "Voice"} ·{" "}
                   {session.status === "completed"
                     ? "Completed"

@@ -52,6 +52,12 @@ const debrief = {
 };
 const roleplays = {
   fresh: roleplay("fresh", { roleplayKind: "client_call", tone: "friendly" }),
+  custom: roleplay("custom", {
+    roleplayKind: "custom",
+    roleplayScenario: "I need to ask my landlord to fix the heating.",
+    tone: "friendly",
+    title: "Custom Roleplay",
+  }),
   // A Unit-closing Roleplay from /api/lessons/next: voice until the Learner types.
   closing: roleplay("closing", { textMode: false, unitId: "u1" }),
   spoken: roleplay("spoken", { textMode: false, messages: [say("assistant", "Hi, thanks for joining.")] }),
@@ -112,22 +118,30 @@ const text = (html) =>
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ");
 
-test("Roleplay setup offers the confirmed Goals, the tone and voice or text", async () => {
-  const t = text(await page("/roleplays/new"));
+test("Roleplay setup offers six situations, a free-text situation, the tone and voice or text", async () => {
+  const html = await page("/roleplays/new");
+  const t = text(html);
   assert.match(t, /Job Interview/);
   assert.doesNotMatch(t, /General Fluency/, "only confirmed Goals");
+  for (const situation of ["Mock Interview", "Client Call", "Presentation", "Team Meeting", "Phone Call", "Small Talk"]) {
+    assert.match(t, new RegExp(situation));
+  }
+  assert.match(t, /Or describe your own situation/);
+  assert.match(html, /<textarea/);
   for (const tone of ["Friendly", "Standard", "Tough"]) assert.match(t, new RegExp(tone));
   assert.match(t, /Speak/);
   assert.match(t, /Type/);
-  // A Job Interview Goal is always a Mock Interview, so there's nothing to choose.
-  assert.doesNotMatch(t, /Client Call/);
+  // A Job Interview Goal starts on a Mock Interview, but the Learner can pick another situation.
   assert.match(t, /Start the Mock Interview/);
 });
 
-test("for General Fluency the Learner chooses a Mock Interview or a Client Call", async () => {
+test("a General Fluency Goal shows every situation but starts with none selected", async () => {
   const t = text(await page("/roleplays/new", "ravi"));
-  assert.match(t, /Mock Interview/);
-  assert.match(t, /Client Call/);
+  for (const situation of ["Mock Interview", "Client Call", "Presentation", "Team Meeting", "Phone Call", "Small Talk"]) {
+    assert.match(t, new RegExp(situation));
+  }
+  assert.doesNotMatch(t, /Start the Mock Interview/);
+  assert.match(t, /Start the Roleplay/);
 });
 
 test("without a confirmed Goal, Roleplay setup sends the Learner to set one", async () => {
@@ -145,6 +159,13 @@ test("a text Roleplay is a chat with the character, with its kind, tone and an E
   assert.ok(buttons(html).includes("End"));
   assert.match(html, /<textarea/);
   assert.match(html, /role="log"/);
+});
+
+test("a custom Roleplay shows its situation and counterpart", async () => {
+  const t = text(await page("/roleplays/custom"));
+  assert.match(t, /Custom Roleplay · Friendly/);
+  assert.match(t, /I need to ask my landlord to fix the heating\./);
+  assert.match(t, /Your counterpart stays in character/);
 });
 
 test("a new text Roleplay waits for the Learner to say hello", async () => {
