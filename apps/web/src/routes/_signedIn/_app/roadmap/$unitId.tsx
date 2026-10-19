@@ -1,11 +1,9 @@
 import {
-  Button,
   Card,
   CardList,
   Chip,
   Cluster,
   Container,
-  Dialog,
   EmptyState,
   ErrorState,
   Heading,
@@ -17,11 +15,9 @@ import {
   UnitIcon,
   UnitStatusTag,
 } from "@impromptu/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { LessonAction } from "../../../../components/roadmap/LessonAction";
-import { api } from "../../../../lib/api";
 import { roadmapQuery, type Unit } from "../../../../lib/queries";
 
 export const Route = createFileRoute("/_signedIn/_app/roadmap/$unitId")({
@@ -93,58 +89,6 @@ function UnitDetails({ unit }: { unit: Unit }) {
           <Text tone="muted">No Lessons finished yet.</Text>
         )}
       </Stack>
-      {(unit.status === "active" || unit.status === "planned") && (
-        <SkipUnit unit={unit} />
-      )}
     </Stack>
-  );
-}
-
-function SkipUnit({ unit }: { unit: Unit }) {
-  const [open, setOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const skip = useMutation({
-    mutationFn: async () => {
-      const response = await api().api.roadmap.units[":id"].skip.$post({ param: { id: unit.id } });
-      // 409: already finished. Either way the Roadmap has moved on, so refetch it.
-      if (!response.ok && response.status !== 409) throw new Error(`Couldn't skip this Unit (${response.status})`);
-      await queryClient.invalidateQueries(roadmapQuery);
-    },
-    onSuccess: () => navigate({ to: "/roadmap" }),
-  });
-
-  return (
-    <>
-      <Cluster>
-        <Button variant="secondary" onClick={() => setOpen(true)}>
-          Skip this Unit
-        </Button>
-      </Cluster>
-      <Dialog
-        open={open}
-        // No closing while the Roadmap is being revised.
-        onOpenChange={(next) => !skip.isPending && setOpen(next)}
-        title={`Skip ${unit.title}?`}
-        description={
-          skip.isPending
-            ? undefined
-            : "It will be marked skipped and your Roadmap revised around it. You can't undo this."
-        }
-      >
-        {skip.isPending ? (
-          <LoadingState title="Revising your Roadmap" description="Planning your next Units without this one." />
-        ) : skip.isError ? (
-          <ErrorState title="Couldn't skip this Unit" description="Nothing changed. Try again." onRetry={() => skip.mutate()} />
-        ) : (
-          <Cluster justify="end">
-            <Button variant="secondary" onClick={() => setOpen(false)}>
-              Keep this Unit
-            </Button>
-            <Button onClick={() => skip.mutate()}>Skip Unit</Button>
-          </Cluster>
-        )}
-      </Dialog>
-    </>
   );
 }

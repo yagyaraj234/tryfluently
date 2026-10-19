@@ -93,10 +93,10 @@ describe("lesson chat with fillGap", () => {
 
     const calls = step.doStreamCalls;
     // Call n is made after n answers.
-    expect(toolNames(calls[0])).toEqual(["fillGap", "rewrite", "speakPrompt", "vocabCard"]);
-    expect(toolNames(calls[2])).toEqual(["fillGap", "giveFeedback", "rewrite", "speakPrompt", "vocabCard"]);
-    expect(toolNames(calls[3])).toEqual(["endLesson", "fillGap", "giveFeedback", "rewrite", "speakPrompt", "vocabCard"]);
-    expect(toolNames(calls[9])).toEqual(["endLesson", "fillGap", "giveFeedback", "rewrite", "speakPrompt", "vocabCard"]);
+    expect(toolNames(calls[0])).toEqual(["fillGap", "fillGaps", "reorder", "rewrite", "speakPrompt", "vocabCard"]);
+    expect(toolNames(calls[2])).toEqual(["fillGap", "fillGaps", "giveFeedback", "reorder", "rewrite", "speakPrompt", "vocabCard"]);
+    expect(toolNames(calls[3])).toEqual(["endLesson", "fillGap", "fillGaps", "giveFeedback", "reorder", "rewrite", "speakPrompt", "vocabCard"]);
+    expect(toolNames(calls[9])).toEqual(["endLesson", "fillGap", "fillGaps", "giveFeedback", "reorder", "rewrite", "speakPrompt", "vocabCard"]);
     expect(toolNames(calls[10])).toEqual(["endLesson", "giveFeedback"]);
     expect(calls[10]!.toolChoice).toEqual({ type: "required" });
 
@@ -221,4 +221,21 @@ describe("vocabCard and rewrite Steps", () => {
     const part = (await lessonOf(app, cookie, lesson.id)).messages.at(-1).parts.find((p: any) => p.type === "tool-vocabCard");
     expect(part.state).not.toBe("input-available");
   });
+});
+
+
+describe("structured Lesson Steps", () => {
+  for (const item of [
+    { tool: "fillGaps", input: { sentence: "I ___ here, and she ___ there.", answers: ["work", "works"], choices: ["work", "works"], teaching: { title: "Subject agreement", body: "Match each verb to its subject." } }, answer: '[" Work ","WORKS"]' },
+    { tool: "reorder", input: { prompt: "Arrange a polite request.", items: ["help?", "Could you"], order: [1, 0] }, answer: '[1,0]' },
+  ]) {
+    test(`${item.tool} persists teaching/input and the server's verdict`, async () => {
+      const { app } = lessonApp([[item], [feedback("incorrect"), fillGap()]]);
+      const { cookie } = await learnerWithRoadmap();
+      const { lesson } = await startLesson(app, cookie);
+      expect((await answerStep(app, cookie, lesson.id, { answer: item.answer })).status).toBe(200);
+      const saved = await lessonOf(app, cookie, lesson.id);
+      expect(saved.steps[0]).toMatchObject({ type: item.tool, input: item.input, feedback: { verdict: "correct" } });
+    });
+  }
 });

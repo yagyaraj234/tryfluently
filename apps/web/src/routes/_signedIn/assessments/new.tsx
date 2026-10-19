@@ -1,4 +1,4 @@
-import { Button, Card, Container, Heading, Notice, Screen, Stack, Text } from "@impromptu/ui";
+import { Button, Card, CoachAvatar, Container, Grid, Heading, Notice, Screen, Stack, Text } from "@impromptu/ui";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "../../../lib/api";
@@ -25,6 +25,7 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
 
 function ChooseAssessment() {
   const router = useRouter();
+  const [ready, setReady] = useState(false);
   const [starting, setStarting] = useState<Mode>();
   const [message, setMessage] = useState<{ tone: "error" | "info"; text: string }>();
 
@@ -53,26 +54,29 @@ function ChooseAssessment() {
       <Container width="prose">
         <Stack gap={8}>
           <Stack gap={3}>
-            <Heading level={1}>Take your Assessment</Heading>
+            <CoachAvatar small />
+            <Text size="label" tone="muted">Meet your AI coach</Text>
+            <Heading level={1}>How would you like to connect?</Heading>
             <Text>
               A conversation of up to 10 minutes with your coach, to find your level and the Goals that fit. Stay at least 4 minutes
               so it counts.
             </Text>
           </Stack>
           {message && <Notice tone={message.tone}>{message.text}</Notice>}
-          {modes.map(({ mode, title, about }) => (
+          {ready && <Notice tone="info">Find a quiet spot and check your microphone. When you join, your browser will ask for permission and your coach will begin the conversation.</Notice>}
+          <Grid>{modes.map(({ mode, title, about }) => (
             <Card key={mode}>
               <Stack gap={4} align="start">
                 <Heading level={2} size="title">
                   {title}
                 </Heading>
                 <Text>{about}</Text>
-                <Button onClick={() => start(mode)} disabled={starting !== undefined}>
-                  {starting === mode ? "Starting…" : `Start the ${title}`}
+                <Button onClick={() => mode === "voice" && !ready ? setReady(true) : start(mode)} disabled={starting !== undefined}>
+                  {starting === mode ? "Starting…" : mode === "voice" ? ready ? "Join voice conversation" : "Talk with my coach" : "Type with my coach"}
                 </Button>
               </Stack>
             </Card>
-          ))}
+          ))}</Grid>
         </Stack>
       </Container>
     </Screen>

@@ -1,6 +1,7 @@
 import {
+  CoachCall, LessonStage, RoadmapNode, RoadmapUnit, TeachingPage, FillGapsStep, ReorderStep,
   AnswerBox, AppShell, Button, Card, CefrScale, ChatTurn, Chip, ChoiceChips, Cluster, Container, Debrief, Dialog,
-  EmptyState, ErrorState, FillGapStep, FocusItemCard, Grid, Heading, IconButton, LessonComplete, LiveBar, LoadingState,
+  EmptyState, ErrorState, FillGapStep, FocusItemCard, Grid, Heading, IconButton, LessonComplete, LiveBar, LoadingState, VoiceOrb,
   Menu, Meter, Notice, OfflineBanner, PracticeShell, ProfileCard, ProgressBar, RecordButton, ReportStrengths, ReportWeakness,
   RewriteStep, ScoreHistory, Screen, Select, Sheet, Skeleton, SkillBar, SpeakPromptStep, Spinner, Split, Stack,
   StatTile, StepFeedback, StepHeader, StreakCard, StreakChip, Switch, Text, TextArea, TextField, TextLink, TokenReference,
@@ -13,7 +14,7 @@ import { saveTheme, type Theme } from "../lib/theme";
 
 export const Route = createFileRoute("/design-system")({
   validateSearch: (search: Record<string, unknown>) => ({
-    preview: search.preview === "app" || search.preview === "practice" ? search.preview : undefined,
+    preview: search.preview === "app" || search.preview === "practice" || search.preview === "learning" ? search.preview : undefined,
   }),
   head: () => ({ meta: [{ title: "Design System · Impromptu" }, { name: "robots", content: "noindex" }] }),
   component: Guide,
@@ -34,6 +35,7 @@ function Guide() {
   const [textMode, setTextMode] = useState(false);
 
   const home = <Button render={<Link to="/design-system" search={{ preview: undefined }} />}>Back to guide</Button>;
+  if (preview === "learning") return <LearningPreview />;
   if (preview === "app") return (
     <AppShell destinations={[
       { label: "Home", icon: House, render: <Link to="/design-system" search={{ preview: "app" }} /> },
@@ -64,6 +66,7 @@ function Guide() {
             <ChoiceChips label="Preview theme" options={themes} value={theme ?? "system"} onValueChange={pickTheme} />
             <Text tone="muted">Switch themes to review every example. Tab through controls to inspect focus; open overlays to check keyboard behaviour.</Text>
           </Stack>
+          <Button render={<Link to="/design-system" search={{ preview: "learning" }} />}>Preview the learning experience</Button>
           <TokenReference />
           <Example title="Typography">
             {(["label", "caption", "body", "title", "heading", "page", "hero"] as TextSize[]).map((size) => <Text key={size} size={size}>{size} · Speak with confidence</Text>)}
@@ -218,7 +221,47 @@ function Voice() {
       <VoiceAnswer label="Recorded vocabulary sentence" {...voice} prefer="text" onAnswer={answered} />
       <Cluster>{(["idle", "recording", "processing"] as const).map((state) => <RecordButton key={state} state={state} onStart={voice.onStart} onStop={voice.onStop} />)}</Cluster>
       {(["connecting", "live", "reconnecting"] as const).map((state) => <LiveBar key={state} state={state} title="Mock Interview · Standard" elapsed={120_000} left={60_000} muted={muted} onMutedChange={setMuted} onEnd={sample} />)}
+      <Cluster>{(["connecting", "ready", "listening", "thinking", "speaking"] as const).map((phase) => <VoiceOrb key={phase} phase={phase} label={phase} />)}</Cluster>
       <Notice tone="info">One minute left. Wrap up your answer.</Notice>
     </Example>
   );
+}
+
+
+function LearningPreview() {
+  const [view, setView] = useState("roadmap");
+  const [feedback, setFeedback] = useState<"correct" | "incorrect">();
+  const [muted, setMuted] = useState(false);
+  const [coach, setCoach] = useState<"ready" | "listening" | "thinking" | "speaking">("ready");
+  const router = useRouter();
+  const { theme } = Route.useRouteContext();
+  const options = ["roadmap", "teaching", "blanks", "reorder", "voice"].map((value) => ({ value, label: value[0]!.toUpperCase() + value.slice(1) }));
+  const next = () => { setFeedback(undefined); setView("teaching"); };
+  return <PracticeShell title="Learning experience · example content" closeRender={<Link to="/design-system" search={{ preview: undefined }} />}>
+    <Stack gap={6}>
+      <ChoiceChips label="Preview screen" options={options} value={view} onValueChange={(value) => { setView(value); setFeedback(undefined); }} />
+      <ChoiceChips label="Preview theme" options={themes} value={theme ?? "system"} onValueChange={async (value) => { saveTheme(value as Theme); await router.invalidate(); }} />
+      {view === "roadmap" && <Stack gap={10}>
+        <RoadmapUnit number={1} title="Tell your story" description="Introduce yourself with confidence" detail={<Chip>Active</Chip>}>
+          <RoadmapNode state="complete" title="A clear introduction" onClick={() => setView("teaching")} />
+          <RoadmapNode state="active" title="Words for your experience" skill="vocabulary" onClick={() => setView("teaching")} />
+          <RoadmapNode state="locked" title="Past projects, clear timelines" skill="grammar" />
+          <RoadmapNode state="locked" title="Explain your impact" skill="fluency" />
+        </RoadmapUnit>
+        <RoadmapUnit number={2} title="Make your ideas heard" description="Explain ideas clearly in a conversation" detail={<Chip>Planned</Chip>}>
+          <RoadmapNode state="locked" title="Choose precise verbs" skill="vocabulary" />
+          <RoadmapNode state="locked" title="Connect cause and effect" skill="grammar" />
+          <RoadmapNode state="locked" title="Pitch an idea" skill="fluency" />
+        </RoadmapUnit>
+      </Stack>}
+      {view === "teaching" && <TeachingPage title="A small change. A clearer request." body="A request gives the other person room to respond. Start with ‘Could you’ and say what you need. Add a little context when it helps." example="Could you share the notes before our call?" onNext={() => setView("blanks")} />}
+      {(view === "blanks" || view === "reorder") && <LessonStage>
+        <StepHeader type={view === "blanks" ? "Fill the blanks" : "Put it in order"} question={view === "blanks" ? "Complete the two requests." : "Arrange a polite request."} />
+        {feedback ? <StepFeedback verdict={feedback} corrected="Could you send the notes, please?" explanation="‘Could you’ makes a clear, polite request." nextLabel="Continue" onNext={next} />
+          : view === "blanks" ? <FillGapsStep sentence="___ you send the notes, ___?" choices={["please", "Could"]} onAnswer={(answer) => setFeedback(answer === '["Could","please"]' ? "correct" : "incorrect")} />
+          : <ReorderStep items={["the notes,", "Could you", "please?", "send"]} onAnswer={(answer) => setFeedback(answer === "[1,3,0,2]" ? "correct" : "incorrect")} />}
+      </LessonStage>}
+      {view === "voice" && <><ChoiceChips label="Preview coach state" value={coach} options={["ready", "listening", "thinking", "speaking"].map((value) => ({ value, label: value }))} onValueChange={(value) => setCoach(value as typeof coach)} /><CoachCall state={coach} connection="live" muted={muted} onMutedChange={setMuted} onEnd={next} speaker="coach" caption="Tell me about a situation where you’d like to feel more confident speaking English." /></>}
+    </Stack>
+  </PracticeShell>;
 }

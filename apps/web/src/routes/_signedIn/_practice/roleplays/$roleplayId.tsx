@@ -1,5 +1,5 @@
 import { useChat } from "@ai-sdk/react";
-import { Button, ChatTurn, Debrief, EmptyState, ErrorState, Heading, LiveBar, Notice, Spinner, Stack, Text, TextArea } from "@impromptu/ui";
+import { Button, ChatTurn, Cluster, Debrief, EmptyState, ErrorState, Heading, LiveBar, Notice, Spinner, Stack, Text, TextArea, VoiceOrb } from "@impromptu/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import type { UIMessage } from "ai";
@@ -100,6 +100,14 @@ function Capped({ limitMinutes, session, onTypeInstead }: VoiceProps & { limitMi
 
 const WARN_MS = 60_000;
 
+const orbLabels = (who: string) => ({
+  connecting: "Connecting…",
+  ready: `Your ${who} is listening`,
+  listening: "Listening to you…",
+  thinking: "Thinking…",
+  speaking: `Your ${who} is speaking`,
+});
+
 // A live call in character. Ending it (End, today's minutes running out, or a dropped call) goes through /end, which
 // hangs it up on the server and writes the Debrief.
 function VoiceCall({ roleplay, session, onTypeInstead }: VoiceProps) {
@@ -193,6 +201,9 @@ function VoiceCall({ roleplay, session, onTypeInstead }: VoiceProps) {
         </Heading>
         <Text>{`Say hello to start. Your ${characters[kind].toLowerCase()} stays in character until you end the ${roleplayKinds[kind]}, and your Debrief comes at the end.`}</Text>
       </Stack>
+      <Cluster justify="center">
+        <VoiceOrb phase={active ? call.conversation.phase : "connecting"} label={orbLabels(characters[kind].toLowerCase())[active ? call.conversation.phase : "connecting"]} />
+      </Cluster>
     </Stack>
   );
 }

@@ -15,7 +15,7 @@ const cell = cva("rounded-lg py-1 text-center text-caption font-bold", {
       C1: "bg-cefr-c1 text-on-primary",
       C2: "bg-cefr-c2 text-on-primary",
     },
-    current: { true: "outline-2 outline-offset-1 outline-ink motion-safe:animate-celebrate" },
+    current: { true: "outline-2 outline-offset-1 outline-ink" },
   },
 });
 

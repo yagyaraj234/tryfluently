@@ -1,6 +1,6 @@
 import { schema } from "@impromptu/db";
 import { NoObjectGeneratedError, Output } from "ai";
-import { and, asc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate } from "./ai";
@@ -9,18 +9,41 @@ import { cefrLevels, skillProfile, skills } from "./scoring";
 
 const { unit, goal, focusItem, lesson } = schema;
 
+const outlineItem = z.object({ title: z.string().min(1).max(100), objective: z.string().min(1).max(300), skill: z.enum(skills), kind: z.enum(["practice", "roleplay"]) });
+const outline = z.array(outlineItem).min(3).max(6);
+const validOutline = (items: z.infer<typeof outline>, roleplay: boolean) =>
+  items.filter((l) => l.kind === "practice").length >= 3 && items.filter((l) => l.kind === "practice").length <= 5 &&
+  items.filter((l) => l.kind === "roleplay").length === Number(roleplay) && (!roleplay || items.at(-1)?.kind === "roleplay") &&
+  new Set(items.map((l) => l.title.trim().toLowerCase())).size === items.length;
 export const unitOutput = z.object({
   title: z.string(),
   objective: z.string(),
   skills: z.array(z.enum(skills)).min(1),
   endsWithRoleplay: z.boolean(),
-});
+  lessonOutline: outline,
+}).refine((u) => validOutline(u.lessonOutline, u.endsWithRoleplay), "Each Unit needs distinct practice Lessons and its optional final Roleplay");
+export const outlineOutput = z.object({ units: z.array(z.object({ id: z.string(), lessonOutline: outline })).min(1).max(10) });
+
+const outlineInstructions = `Give each Unit 3–5 distinct practice Lesson outlines with short, specific titles and objectives.
+Vary the focus to fit the Unit and Learner: useful vocabulary, clearing up a misconception, rewriting, explaining an idea,
+or speaking confidently. Do not repeat generic titles or the same sequence in every Unit.
+Use kind practice, with skill grammar, vocabulary or fluency. If endsWithRoleplay, append exactly one final kind roleplay
+outline with a specific conversation title; otherwise include no roleplay. These are editable outlines, not generated Steps.`;
+
+function positionedOutline(items: z.infer<typeof outline>, start = 0) {
+  return items.map((item) => ({ ...item, position: start++ }));
+}
+
+export function readyForRoleplay(endsWithRoleplay: boolean, lessons: { status: string; kind: string; objectiveProgress: number | null }[]) {
+  const last = lessons.findLast((l) => l.status === "completed");
+  return endsWithRoleplay && last?.kind === "practice" && (last.objectiveProgress ?? 0) >= 80;
+}
 export const roadmapOutput = z.object({ units: z.array(unitOutput).min(8).max(10) });
 
 const roadmapInstructions = `You plan an English coaching Roadmap. Write 8–10 Units in order, each a focused topic with
 a concrete objective the Learner can meet, the skills it practises (fluency, grammar, vocabulary), and whether it ends
 with a Roleplay (a Mock Interview for a Job Interview Goal, a Client Call for a Client Communication Goal).
-Start from the Learner's weaknesses and work toward their Target Levels.`;
+Start from the Learner's weaknesses and work toward their Target Levels. ${outlineInstructions}`;
 
 type Ctx = Pick<Deps, "db" | "now" | "models">;
 
@@ -75,7 +98,7 @@ export async function buildRoadmap({ db, now, models }: Ctx, userId: string) {
   const at = now();
   await db
     .insert(unit)
-    .values(units.map((u, position) => ({ ...u, userId, position, status: position ? "planned" as const : "active" as const, createdAt: at })));
+    .values(units.map((u, position) => ({ ...u, lessonOutline: positionedOutline(u.lessonOutline), userId, position, status: position ? "planned" as const : "active" as const, createdAt: at })));
   return "built" as const;
 }
 
@@ -83,7 +106,7 @@ export const revisionOutput = z.object({ units: z.array(unitOutput).min(1).max(1
 
 const revisionInstructions = (task: string) => `You revise a Learner's English coaching Roadmap. Mastered, skipped and
 active Units are fixed. ${task} Each Unit is a focused topic with a concrete objective, the skills it practises
-(fluency, grammar, vocabulary), and whether it ends with a Roleplay.`;
+(fluency, grammar, vocabulary), and whether it ends with a Roleplay. ${outlineInstructions}`;
 
 const rewriteTask = `Rewrite the planned Units still to come (1–10 of them) to fit the Learner's current Skill Profile,
 open Focus Items and Target Levels, without repeating finished Units.`;
@@ -133,6 +156,7 @@ export async function reviseRoadmap({ db, now, models }: Ctx, userId: string) {
     await tx.insert(unit).values(
       revised.map((u, i) => ({
         ...u,
+        lessonOutline: positionedOutline(u.lessonOutline),
         userId,
         position: start + i,
         status: i === 0 && !hasActive ? ("active" as const) : ("planned" as const),
@@ -181,6 +205,36 @@ export async function progressUnit(deps: Ctx, id: string) {
 
 export const roadmap = (deps: Deps) =>
   new Hono<AppEnv>()
+    // Upgrade existing Roadmaps without rewriting Units, completed Lessons or active practice.
+    .post("/outline", async (c) => {
+      const userId = c.var.user.id;
+      const missing = (await deps.db.select().from(unit).where(and(eq(unit.userId, userId), sql`${unit.lessonOutline} = '[]'::jsonb`)))
+        .filter((u) => u.status === "active" || u.status === "planned").slice(0, 10);
+      if (!missing.length) return c.json({ status: "ready" });
+      const known = await deps.db.select({ unitId: lesson.unitId, title: lesson.title, kind: lesson.kind }).from(lesson).where(eq(lesson.userId, userId));
+      let plans: z.infer<typeof outlineOutput>;
+      try {
+        ({ output: plans } = await generate(deps, userId, {
+          model: deps.models.roadmap,
+          instructions: `${outlineInstructions} Return one entry per supplied Unit id. Plan future practice only; do not repeat known Lesson titles.`,
+          prompt: JSON.stringify({ learner: await learnerSituation(deps, userId), units: missing.map((u) => ({ id: u.id, title: u.title, objective: u.objective, skills: u.skills, endsWithRoleplay: u.endsWithRoleplay, knownLessons: known.filter((l) => l.unitId === u.id) })) }),
+          output: Output.object({ schema: outlineOutput }),
+        }));
+      } catch (e) {
+        if (NoObjectGeneratedError.isInstance(e)) return c.json({ error: "Your Lesson outlines couldn't be prepared. Try again." }, 502);
+        throw e;
+      }
+      if (plans.units.length !== missing.length || new Set(plans.units.map((u) => u.id)).size !== missing.length || plans.units.some((u) => !missing.some((m) => m.id === u.id) || !validOutline(u.lessonOutline, missing.find((m) => m.id === u.id)!.endsWithRoleplay)))
+        return c.json({ error: "Your Lesson outlines couldn't be prepared. Try again." }, 502);
+      await deps.db.transaction(async (tx) => {
+        for (const plan of plans.units) {
+          const start = (await tx.select({ id: lesson.id }).from(lesson).where(and(eq(lesson.unitId, plan.id), eq(lesson.kind, "practice")))).length;
+          await tx.update(unit).set({ lessonOutline: positionedOutline(plan.lessonOutline, start) })
+            .where(and(eq(unit.id, plan.id), eq(unit.userId, userId), sql`${unit.lessonOutline} = '[]'::jsonb`));
+        }
+      });
+      return c.json({ status: "ready" });
+    })
     // Every Unit in order, each with its Lessons (without their chat), so Home, the Roadmap and a Unit share one call.
     .get("/", async (c) => {
       const userId = c.var.user.id;
@@ -200,7 +254,10 @@ export const roadmap = (deps: Deps) =>
           .where(and(eq(lesson.userId, userId), isNotNull(lesson.unitId)))
           .orderBy(asc(lesson.position)),
       ]);
-      return c.json(units.map((u) => ({ ...u, lessons: lessons.filter((l) => l.unitId === u.id).map(({ unitId: _, ...l }) => l) })));
+      return c.json(units.map((u) => {
+        const inUnit = lessons.filter((l) => l.unitId === u.id).map(({ unitId: _, ...l }) => l);
+        return { ...u, roleplayReady: readyForRoleplay(u.endsWithRoleplay, inUnit), lessons: inUnit };
+      }));
     })
     .post("/units/:id/skip", async (c) => {
       const [row] = await deps.db

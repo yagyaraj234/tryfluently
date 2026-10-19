@@ -13,7 +13,8 @@ export type StreakChipProps = {
 /** The Streak in the app chrome: a flame and the number of days. */
 export function StreakChip({ days }: StreakChipProps) {
   return (
-    <Chip icon={Fire}>
+    <Chip>
+      <Fire aria-hidden weight="fill" className="text-skill-vocabulary" />
       <span className={chipNumber()}>{days}</span>
       <span className={hidden()}> day streak</span>
     </Chip>

@@ -59,7 +59,7 @@ _Avoid_: Sample audio
 ### Learning
 
 **Roadmap**:
-The Learner's planned outline of Units, built from their Goals and Skill Profile and revised as the Skill Profile changes.
+The Learner's planned outline of Units and their Lesson titles and objectives, built from their Goals and Skill Profile and revised as the Skill Profile changes. Lesson practice adapts when the Learner reaches it.
 _Avoid_: Curriculum, course, plan
 
 **Unit**:

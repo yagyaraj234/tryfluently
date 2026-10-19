@@ -59,13 +59,11 @@ test("a new Lesson waits while its first Step is prepared", async () => {
   assert.match(text(html), /Preparing your first Step/);
 });
 
-test("a resumed Lesson continues at the open Step, numbered after the ones already done", async () => {
+test("a resumed Lesson restores the last submitted feedback before continuing", async () => {
   const t = text(await page("/lessons/resumed"));
-  assert.match(t, /Fill the gap · Step 2 of ~5/);
-  assert.match(t, /They blank football on Sundays\./);
-  assert.doesNotMatch(t, /play/, "the answer key is never shown");
-  // Earlier feedback isn't shown again on resume.
-  assert.doesNotMatch(t, /Almost/);
+  assert.match(t, /Almost/);
+  assert.match(t, /We met the deadline/);
+  assert.match(t, /Continue/);
 });
 
 test("a vocabCard Step shows the word, meaning and example, and asks for the Learner's sentence", async () => {

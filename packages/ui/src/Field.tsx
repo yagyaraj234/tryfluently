@@ -3,7 +3,7 @@ import { Field } from '@base-ui/react/field';
 import type { ReactNode } from 'react';
 import { textSizeClasses } from './Text';
 
-export type ChoiceOption = { value: string; label: string };
+export type ChoiceOption = { value: string; label: string; description?: string };
 
 export const fieldLabelClasses = `${textSizeClasses.label} text-ink`;
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { CefrScale, FocusItemCard, ScoreHistory, SkillBar } from "@impromptu/ui";
+import { CefrScale, FocusItemCard, ScoreHistory, SkillBar, SkillProgressCard } from "@impromptu/ui";
 
 describe("SkillBar", () => {
   test("is a meter named by the skill, out of 100, that reads as the score and CEFR Level", () => {
@@ -67,5 +67,47 @@ describe("ScoreHistory", () => {
       ["16 Oct 2026", "58 · B2", "Lesson"],
       ["9 Oct 2026", "50 · B1", "Assessment"],
     ]);
+  });
+});
+
+describe("SkillProgressCard", () => {
+  test("plots measurements oldest first on a fixed 0–100 scale and keeps full history", () => {
+    const { container } = render(<SkillProgressCard skill="grammar" current={{ score: 58, level: "B2" }} unmeasured="Not yet measured" entries={[
+      { id: "2", date: "15 Oct 2026", score: 58, level: "B2", source: "lesson" },
+      { id: "1", date: "1 Oct 2026", score: 50, level: "B1", source: "assessment" },
+    ]} />);
+    expect(screen.getByText("+8 points since first score")).toBeDefined();
+    expect(screen.getByRole("img", { name: "Grammar scores, oldest to newest: 50, 58. Scale 0 to 100." })).toBeDefined();
+    const points = container.querySelector("polyline")!.getAttribute("points")!.split(" ").map((point) => point.split(",").map(Number));
+    expect(points[0]).toEqual([4, 36]);
+    expect(points[1]![0]).toBe(236);
+    expect(points[1]![1]).toBeCloseTo(30.88);
+    expect(container.querySelector("details")?.open).toBe(false);
+    expect(screen.getByRole("table", { name: "Grammar history", hidden: true })).toBeDefined();
+  });
+
+  test.each([0, 1])("%i measurements show a starting point without inventing a trend", (count) => {
+    render(<SkillProgressCard skill="vocabulary" current={{ score: 0, level: "A1" }} unmeasured="Not yet measured" entries={count ? [
+      { id: "1", date: "1 Oct 2026", score: 0, level: "A1", source: "assessment" },
+    ] : []} />);
+    expect(screen.getByText("Your starting point")).toBeDefined();
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.getByRole("meter").getAttribute("aria-valuenow")).toBe("0");
+  });
+
+  test.each([40, 50])("flat and falling scores stay accurate (%i)", (score) => {
+    render(<SkillProgressCard skill="fluency" current={{ score, level: "B1" }} unmeasured="Not yet measured" entries={[
+      { id: "2", date: "15 Oct 2026", score, level: "B1", source: "lesson" },
+      { id: "1", date: "1 Oct 2026", score: 50, level: "B1", source: "assessment" },
+    ]} />);
+    expect(screen.getByText(score === 50 ? "No change since first score" : "-10 points since first score")).toBeDefined();
+  });
+
+  test("unmeasured skill shows guidance without a score or trend", () => {
+    render(<SkillProgressCard skill="fluency" current={null} entries={[]} unmeasured="Take a Voice Assessment." />);
+    expect(screen.getByText("No fluency score yet")).toBeDefined();
+    expect(screen.getByText("Take a Voice Assessment.")).toBeDefined();
+    expect(screen.queryByRole("meter")).toBeNull();
+    expect(screen.queryByRole("img")).toBeNull();
   });
 });

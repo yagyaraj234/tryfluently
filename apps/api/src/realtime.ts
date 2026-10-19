@@ -19,13 +19,13 @@ export type Realtime = {
 
 const API = "https://api.openai.com/v1/realtime";
 
-export const openaiRealtime = (apiKey: string): Realtime => {
+export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Realtime => {
   const authorization = `Bearer ${apiKey}`;
   return {
     async createCall(sdp, session) {
       const body = new FormData();
       body.set("sdp", sdp);
-      body.set("session", JSON.stringify(session));
+      body.set("session", JSON.stringify({ ...session, model }));
       const res = await fetch(`${API}/calls`, { method: "POST", headers: { authorization }, body });
       if (!res.ok) throw new Error(`OpenAI Realtime ${res.status}: ${await res.text()}`);
       const callId = res.headers.get("location")?.split("/").pop();

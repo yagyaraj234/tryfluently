@@ -151,6 +151,7 @@ export const unit = pgTable("unit", {
   title: text().notNull(),
   objective: text().notNull(),
   skills: jsonb().$type<Skill[]>().notNull(),
+  lessonOutline: jsonb().$type<{ title: string; objective: string; skill: Skill; kind: "practice" | "roleplay"; position: number }[]>().notNull().default([]),
   endsWithRoleplay: boolean().notNull().default(false),
   status: unitStatus().notNull().default("planned"),
   createdAt: timestamp().notNull(),
@@ -182,7 +183,7 @@ export const lesson = pgTable("lesson", {
   completedAt: timestamp(),
 });
 
-export const stepType = pgEnum("step_type", ["vocabCard", "fillGap", "rewrite", "speakPrompt", "roleplayTurn"]);
+export const stepType = pgEnum("step_type", ["vocabCard", "fillGap", "rewrite", "speakPrompt", "roleplayTurn", "fillGaps", "reorder"]);
 export const stepMode = pgEnum("step_mode", ["voice", "text"]);
 
 export const step = pgTable("step", {

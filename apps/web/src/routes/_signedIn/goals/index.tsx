@@ -1,5 +1,5 @@
-import { Button, ChoiceChips, Container, Heading, Notice, Screen, Stack, Text, TextArea, TextLink } from "@impromptu/ui";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { Button, ChoiceChips, Cluster, Notice, Screen, Stack, StarterShell, Text, TextArea, TextField, TextLink } from "@impromptu/ui";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useRef, useState, type FormEvent } from "react";
 import { api } from "../../../lib/api";
 import { authClient } from "../../../lib/auth";
@@ -8,11 +8,17 @@ export const Route = createFileRoute("/_signedIn/goals/")({ component: Goals });
 
 type Kind = "job_interview" | "client_communication" | "general_fluency";
 
-const goals: { value: Kind; label: string; hint: string }[] = [
-  { value: "job_interview", label: "Job Interview", hint: "Paste your CV or the job description: the role, seniority and company." },
-  { value: "client_communication", label: "Client Communication", hint: "Describe your clients and the calls or meetings you have with them." },
-  { value: "general_fluency", label: "General Fluency", hint: "Tell us where you use English day to day." },
+const goals: { value: Kind; label: string; hint: string; description: string }[] = [
+  { value: "job_interview", label: "Job Interview", description: "Introduce yourself, share your experience, and answer with confidence.", hint: "Paste your CV or the job description: the role, seniority and company." },
+  { value: "client_communication", label: "Client Communication", description: "Clearer calls, stronger explanations, and better working relationships.", hint: "Describe your clients and the calls or meetings you have with them." },
+  { value: "general_fluency", label: "General Fluency", description: "Find your words and feel more at ease in everyday conversations.", hint: "Tell us where you use English day to day." },
 ];
+
+const situations: Record<Kind, string[]> = {
+  job_interview: ["Introducing myself", "Explaining my experience", "Answering tricky questions"],
+  client_communication: ["Leading a meeting", "Explaining an idea", "Handling a difficult conversation"],
+  general_fluency: ["Everyday conversations", "Speaking at work", "Meeting new people"],
+};
 
 /** The API's limit on Goal Context. */
 const MAX_CONTEXT = 20_000;
@@ -20,6 +26,9 @@ const tooLong = "Goal Context can be at most 20,000 characters. Trim it to the p
 
 function Goals() {
   const router = useRouter();
+  const [stage, setStage] = useState(1);
+  const [situation, setSituation] = useState<Partial<Record<Kind, string[]>>>({});
+  const [date, setDate] = useState("");
   const [picked, setPicked] = useState<Kind[]>([]);
   const [context, setContext] = useState<Partial<Record<Kind, string>>>({});
   const [rejected, setRejected] = useState<Kind>();
@@ -29,17 +38,22 @@ function Goals() {
   const created = useRef(new Map<Kind, string>());
   const confirmed = useRef(new Set<Kind>());
 
-  const over = picked.filter((kind) => (context[kind]?.length ?? 0) > MAX_CONTEXT);
+  const goalContext = (kind: Kind) => [
+    situation[kind]?.length ? `I want to practise: ${situation[kind]!.join(", ")}.` : "",
+    context[kind]?.trim(),
+    date ? `Something I am preparing for is on ${date}.` : "",
+  ].filter(Boolean).join("\n\n");
+  const over = picked.filter((kind) => goalContext(kind).length > MAX_CONTEXT);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!picked.length || over.length) return;
+    if (pending || stage !== 3 || !picked.length || over.length) return;
     setPending(true);
     setError(undefined);
     setRejected(undefined);
     try {
       for (const kind of picked.filter((k) => !confirmed.current.has(k))) {
-        const text = context[kind]?.trim() || undefined;
+        const text = goalContext(kind) || undefined;
         let id = created.current.get(kind);
         if (!id) {
           const response = await api().api.goals.$post({ json: { kind, context: text } });
@@ -79,51 +93,40 @@ function Goals() {
 
   return (
     <Screen>
-      <Container width="prose">
-        <Stack gap={8}>
-          <Stack gap={3}>
-            <Heading level={1}>What are you preparing for?</Heading>
-            <Text>Pick one or more Goals. Your Lessons and Roleplays are built around them.</Text>
+      <StarterShell step={stage}
+        title={stage === 1 ? "What brings you here?" : stage === 2 ? "Where would confidence help?" : "Make this path yours"}
+        description={stage === 1 ? "Choose the Goals that matter to you. We’ll shape your practice around them." : stage === 2 ? "Pick situations you recognise, or add your own context on the next screen." : "Tell your coach about anything specific. These details are optional."}>
+        <form onSubmit={submit}>
+          <Stack gap={6}>
+            {stage === 1 && <ChoiceChips multiple layout="cards" label="Your Goals" options={goals} value={picked} disabled={pending}
+              onValueChange={(value) => setPicked(value as Kind[])} />}
+            {stage === 2 && goals.filter((g) => picked.includes(g.value)).map((goal) => (
+              <ChoiceChips key={goal.value} multiple label={goal.label} disabled={pending}
+                options={situations[goal.value].map((value) => ({ value, label: value }))}
+                value={situation[goal.value] ?? []}
+                onValueChange={(value) => setSituation((s) => ({ ...s, [goal.value]: value }))} />
+            ))}
+            {stage === 3 && <>
+              {goals.filter((g) => picked.includes(g.value)).map((goal) => (
+                <TextArea key={goal.value} label={`${goal.label}: Goal Context (optional)`} placeholder={goal.hint} rows={4}
+                  value={context[goal.value] ?? ""} disabled={pending}
+                  onValueChange={(value) => setContext((c) => ({ ...c, [goal.value]: value }))}
+                  description={`${goalContext(goal.value).length.toLocaleString("en")} / ${MAX_CONTEXT.toLocaleString("en")} characters including your selections`}
+                  error={over.includes(goal.value) || rejected === goal.value ? tooLong : undefined} />
+              ))}
+              <TextField type="date" label="Is there a date you’re preparing for? (optional)" value={date} disabled={pending} onValueChange={setDate} />
+              <Text size="caption" tone="muted">Next, meet your coach. You can talk or type during your Assessment.</Text>
+            </>}
+            {error && <Notice tone="error">{error}</Notice>}
+            <Cluster>
+              {stage > 1 && <Button variant="secondary" type="button" disabled={pending} onClick={() => setStage((s) => s - 1)}>Back</Button>}
+              {stage < 3 ? <Button type="button" disabled={!picked.length} onClick={(event) => { event.preventDefault(); setStage((s) => s + 1); }}>Continue</Button>
+                : <Button type="submit" disabled={pending || !picked.length || over.length > 0}>{pending ? "Saving your Goals…" : "Meet my coach"}</Button>}
+            </Cluster>
           </Stack>
-          <form onSubmit={submit}>
-            <Stack gap={6}>
-              <ChoiceChips
-                multiple
-                label="Goals"
-                options={goals}
-                value={picked}
-                onValueChange={(value) => setPicked(value as Kind[])}
-              />
-              {goals
-                .filter((goal) => picked.includes(goal.value))
-                .map((goal) => {
-                  const length = context[goal.value]?.length ?? 0;
-                  return (
-                    <TextArea
-                      key={goal.value}
-                      label={`${goal.label}: Goal Context (optional)`}
-                      placeholder={goal.hint}
-                      rows={6}
-                      value={context[goal.value] ?? ""}
-                      onValueChange={(value) => setContext((c) => ({ ...c, [goal.value]: value }))}
-                      description={`${length.toLocaleString("en")} / ${MAX_CONTEXT.toLocaleString("en")} characters`}
-                      error={length > MAX_CONTEXT || rejected === goal.value ? tooLong : undefined}
-                    />
-                  );
-                })}
-              {error && <Notice tone="error">{error}</Notice>}
-              <Button type="submit" fullWidth disabled={pending || !picked.length || over.length > 0}>
-                {pending ? "Saving your Goals…" : "Continue"}
-              </Button>
-            </Stack>
-          </form>
-          <Stack gap={3} align="start">
-            <Text tone="muted">Not sure yet? Take the Assessment first and it will propose Goals for you.</Text>
-            <TextLink render={<Link to="/assessments/new" />}>Skip for now</TextLink>
-            <TextLink onClick={signOut} disabled={pending}>Sign out</TextLink>
-          </Stack>
-        </Stack>
-      </Container>
+        </form>
+        <TextLink onClick={signOut} disabled={pending}>Sign out</TextLink>
+      </StarterShell>
     </Screen>
   );
 }

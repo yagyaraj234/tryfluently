@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { startCall } from "../src/lib/call.ts";
+import { conversationEvent, startCall } from "../src/lib/call.ts";
 
 // A live voice call (Voice Assessment, voice Roleplay) against a fake microphone, RTCPeerConnection and API.
 function fakes({ microphone = "allowed", reply = () => new Response("answer-sdp", { status: 201, headers: { "content-type": "application/sdp" } }) } = {}) {
@@ -17,6 +17,7 @@ function fakes({ microphone = "allowed", reply = () => new Response("answer-sdp"
     closed = false;
     constructor() { peers.push(this); }
     addTrack(t, s) { this.added.push([t, s]); }
+    createDataChannel() { return this.channel = { close() { this.closed = true; } }; }
     async createOffer() { return { type: "offer", sdp: "offer-sdp" }; }
     async setLocalDescription(d) { this.local = d; }
     async setRemoteDescription(d) { this.remote = d; }
@@ -157,4 +158,47 @@ test("hanging up while the microphone is still being asked for never starts the 
   assert.equal(f.sent.length, 0);
   assert.equal(f.track.stopped, true);
   assert.equal(last().status, "ended");
+});
+
+
+test("coach presence and captions follow actual data-channel events, not a timer", async () => {
+  const f = fakes();
+  const changes = [];
+  const call = startCall("/call", { onChange: () => {}, onConversation: (state) => changes.push(state) }, f.deps);
+  await settle();
+  const channel = f.peers[0].channel;
+  const emit = (event) => channel.onmessage({ data: JSON.stringify(event) });
+  emit({ type: "input_audio_buffer.speech_started" });
+  assert.equal(changes.at(-1).phase, "listening");
+  emit({ type: "input_audio_buffer.speech_stopped" });
+  assert.equal(changes.at(-1).phase, "thinking");
+  emit({ type: "output_audio_buffer.started" });
+  emit({ type: "response.output_audio_transcript.delta", delta: "Hello " });
+  emit({ type: "response.output_audio_transcript.delta", delta: "there" });
+  assert.deepEqual(changes.at(-1), { phase: "speaking", speaker: "coach", caption: "Hello there" });
+  emit({ type: "response.done" });
+  assert.equal(changes.at(-1).phase, "speaking", "generation finishing does not mean audio has finished playing");
+  emit({ type: "conversation.item.input_audio_transcription.completed", transcript: "a late learner transcript" });
+  assert.equal(changes.at(-1).caption, "Hello there");
+  emit({ type: "output_audio_buffer.stopped" });
+  assert.equal(changes.at(-1).phase, "ready");
+  channel.onmessage({ data: "malformed" });
+  call.hangUp();
+  assert.equal(channel.closed, true);
+  const count = changes.length;
+  emit({ type: "input_audio_buffer.speech_started" });
+  assert.equal(changes.length, count);
+});
+
+test("caption events are bounded and ignore malformed payloads", () => {
+  const state = { phase: "ready" };
+  assert.equal(conversationEvent(state, null), state);
+  assert.equal(conversationEvent(state, { type: "response.output_audio_transcript.delta", delta: 42 }), state);
+  assert.equal(conversationEvent(state, { type: "response.output_audio_transcript.delta", delta: "x".repeat(3000) }).caption.length, 2000);
+});
+
+
+test("clearing the coach audio after interruption keeps the Learner's listening state", () => {
+  const listening = conversationEvent({ phase: "speaking", speaker: "coach" }, { type: "input_audio_buffer.speech_started" });
+  assert.equal(conversationEvent(listening, { type: "output_audio_buffer.cleared" }).phase, "listening");
 });

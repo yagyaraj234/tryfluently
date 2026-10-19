@@ -50,10 +50,11 @@ test("Google shows only when the API offers it", async () => {
   google = false;
 });
 
-test("setting Goals offers the three Goals, and skipping goes to choosing an Assessment", async () => {
+test("setting Goals offers visual choices with progress and no Skip action", async () => {
   const html = await page("/goals", "learner=new");
   for (const goal of ["Job Interview", "Client Communication", "General Fluency"]) assert.match(html, new RegExp(goal));
-  assert.match(html, /href="\/assessments\/new"/);
+  assert.match(html, /Getting to know you/);
+  assert.doesNotMatch(html, /Skip for now/);
   assert.match(html, /Sign out/);
 });
 

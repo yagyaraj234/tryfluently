@@ -9,7 +9,8 @@ export type XpChipProps = {
 /** The Learner's XP in the app chrome. */
 export function XpChip({ xp }: XpChipProps) {
   return (
-    <Chip tone="soft" icon={Lightning}>
+    <Chip tone="soft">
+      <Lightning aria-hidden weight="fill" className="text-skill-fluency" />
       <span className={chipNumber()}>{xp}</span> XP
     </Chip>
   );

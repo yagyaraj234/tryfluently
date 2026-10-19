@@ -43,6 +43,20 @@
       "when": 1792081221555,
       "tag": "0005_pronunciation_clip",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792344580948,
+      "tag": "0006_regular_mesmero",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792376823142,
+      "tag": "0007_graceful_thunderbird",
+      "breakpoints": true
     }
   ]
 }

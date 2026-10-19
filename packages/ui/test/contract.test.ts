@@ -49,6 +49,14 @@ describe("styles.css", () => {
     expect(css).toContain("--animate-celebrate");
     expect(css).toContain("@keyframes celebrate");
   });
+
+  test("orb reduced-motion override wins over inline amplitude and rings stay hidden without animation", async () => {
+    const css = await compileStyles(["motion-reduce:transform-none!", "opacity-0", "motion-safe:animate-orb-ring", "motion-safe:transition-transform", "motion-safe:duration-ui"]);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*[^{}]+\{\s*transform: none !important/);
+    expect(css).toMatch(/\.opacity-0\s*\{\s*opacity: 0/);
+    expect(css).toContain("@media (prefers-reduced-motion: no-preference)");
+    expect(css).toContain("--transition-duration-ui: 160ms");
+  });
 });
 
 describe("theming", () => {

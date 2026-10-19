@@ -1,15 +1,17 @@
 import {
   Button,
   Card,
-  CefrScale,
   Container,
   EmptyState,
   ErrorState,
   FocusItemCard,
   Heading,
   LoadingState,
-  ScoreHistory,
-  SkillBar,
+  ProgressOverview,
+  ProgressCheckIn,
+  SkillProgressCard,
+  Cluster,
+  Grid,
   Stack,
   Text,
   type Skill,
@@ -57,7 +59,7 @@ function Progress() {
   const day = (at: string) => new Date(at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone });
 
   return (
-    <Container>
+    <Container width="page">
       <Stack gap={8}>
         {all.some((q) => q.isError) ? (
           <ErrorState description="We couldn't load your progress." onRetry={() => all.forEach((q) => q.isError && q.refetch())} />
@@ -65,53 +67,57 @@ function Progress() {
           <LoadingState title="Loading your progress" />
         ) : (
           <>
-            <Stack gap={4}>
-              <Heading level={2}>Skill Profile</Heading>
-              {skills.map(({ skill, name, unmeasured }) => {
-                const current = profile.data[skill];
-                const entries = history.data
-                  .filter((h) => h.skill === skill)
-                  .reverse()
-                  .map((h) => ({ id: `${h.source}-${h.sourceId}`, date: day(h.createdAt), score: h.score, level: h.level, source: h.source }));
-                return (
-                  <Card key={skill}>
-                    {current ? (
-                      <Stack gap={5}>
-                        <SkillBar skill={skill} score={current.score} level={current.level} />
-                        <CefrScale label={`${name} CEFR Level`} level={current.level} />
-                        <ScoreHistory label={`${name} history`} entries={entries} />
-                      </Stack>
-                    ) : (
-                      <EmptyState title={`No ${name.toLowerCase()} score yet`} description={unmeasured} />
-                    )}
-                  </Card>
-                );
-              })}
-              <Retake assessments={assessments.data} timeZone={timeZone} />
+            <Stack gap={2}>
+              <Heading level={2}>Your practice, taking shape</Heading>
+              <Text tone="muted">See where you are, how your skills are changing, and what to practise next.</Text>
             </Stack>
-            <Stack gap={4}>
-              <Heading level={2}>Focus Items</Heading>
-              {focusItems.data.length ? (
-                // Open first; within each, the API's order (oldest first).
-                [...focusItems.data]
-                  .sort((a, b) => Number(a.status === "closed") - Number(b.status === "closed"))
-                  .map((item) => (
-                    <FocusItemCard
-                      key={item.id}
-                      label={item.label}
-                      kind={item.kind}
-                      status={item.status}
-                      hits={item.hits}
-                      hitsToClose={HITS_TO_CLOSE}
-                    />
-                  ))
-              ) : (
-                <EmptyState
-                  title="No Focus Items yet"
-                  description="Things to practise come from your Assessment Report, Debriefs and repeated mistakes."
+            <ProgressOverview
+              skills={skills.map(({ skill, unmeasured }) => (
+                <SkillProgressCard
+                  key={skill}
+                  skill={skill}
+                  current={profile.data[skill]}
+                  unmeasured={unmeasured}
+                  entries={history.data
+                    .filter((h) => h.skill === skill)
+                    .reverse()
+                    .map((h) => ({ id: `${h.source}-${h.sourceId}`, date: day(h.createdAt), score: h.score, level: h.level, source: h.source }))}
                 />
-              )}
-            </Stack>
+              ))}
+              focus={
+                <Stack gap={4}>
+                  <Stack gap={2}>
+                    <Cluster justify="between">
+                      <Heading level={2} size="title">Focus Items</Heading>
+                      <Text size="caption" tone="muted">
+                        {focusItems.data.filter((item) => item.status === "open").length} open · {focusItems.data.filter((item) => item.status === "closed").length} closed
+                      </Text>
+                    </Cluster>
+                    <Text size="caption" tone="muted">Small things to practise. Each correct use moves you closer to closing one.</Text>
+                  </Stack>
+                  {focusItems.data.length ? (
+                    <Grid columns={3}>
+                      {[...focusItems.data]
+                        .sort((a, b) => Number(a.status === "closed") - Number(b.status === "closed"))
+                        .map((item) => (
+                          <FocusItemCard key={item.id} label={item.label} kind={item.kind} status={item.status} hits={item.hits} hitsToClose={HITS_TO_CLOSE} />
+                        ))}
+                    </Grid>
+                  ) : (
+                    <Card>
+                      <EmptyState title="No Focus Items yet" description="Things to practise come from your Assessment Report, Debriefs and repeated mistakes." />
+                    </Card>
+                  )}
+                </Stack>
+              }
+              assessment={
+                <ProgressCheckIn action={<Retake assessments={assessments.data} timeZone={timeZone} />}>
+                  <Text size="label" tone="muted">Your next check-in</Text>
+                  <Heading level={2} size="title">See how far you’ve come</Heading>
+                  <Text size="caption" tone="muted">An Assessment gives you a fresh look at your skills.</Text>
+                </ProgressCheckIn>
+              }
+            />
           </>
         )}
       </Stack>

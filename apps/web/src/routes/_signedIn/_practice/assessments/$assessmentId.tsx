@@ -7,7 +7,8 @@ import {
   ErrorState,
   FillGapStep,
   Heading,
-  LiveBar,
+  CoachCall,
+  CoachAvatar,
   Notice,
   RewriteStep,
   Spinner,
@@ -18,9 +19,9 @@ import {
 } from "@impromptu/ui";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { UIMessage } from "ai";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../../../lib/api";
-import { AssessmentEnding, Discarded, LeaveDialog, LIMIT_MS, TimeLeft, useAssessmentSession, type Assessment } from "../../../../components/assessment/assessment";
+import { AssessmentEnding, Discarded, LeaveDialog, TimeLeft, useAssessmentSession, type Assessment } from "../../../../components/assessment/assessment";
 import { useRealtimeCall } from "../../../../lib/call";
 import { answerStep, chatOptions } from "../../../../lib/chat";
 
@@ -41,7 +42,7 @@ function AssessmentScreen() {
   const assessment = Route.useLoaderData();
   if (!assessment) return <EmptyState title="We couldn't find that Assessment" description="It may belong to another account." />;
   if (assessment.status === "discarded") return <Discarded />;
-  return assessment.mode === "written" ? <WrittenAssessment assessment={assessment} /> : <VoiceAssessment assessment={assessment} />;
+  return assessment.mode === "written" ? <WrittenAssessment key={assessment.id} assessment={assessment} /> : <VoiceAssessment key={assessment.id} assessment={assessment} />;
 }
 
 // A live call with the coach. Ending it (End, 10:00, leaving, or a dropped call) goes through /end, which hangs it up.
@@ -95,26 +96,12 @@ function VoiceAssessment({ assessment }: { assessment: Assessment }) {
       );
   else
     screen = (
-      <Stack gap={6}>
-        <LiveBar
-          state={call.status === "live" || call.status === "reconnecting" ? call.status : "connecting"}
-          title="Voice Assessment"
-          elapsed={session.left === undefined ? undefined : LIMIT_MS - session.left}
-          left={session.left}
-          muted={call.muted}
-          onMutedChange={call.mute}
-          onEnd={() => void session.finish()}
-        />
-        <Stack gap={3}>
-          <Heading level={1} size="title">
-            Talk with your coach
-          </Heading>
-          <Text>
-            Your coach starts the conversation. Speak as you would on a call, and interrupt whenever you like. Stay at least 4 minutes
-            so it counts.
-          </Text>
-        </Stack>
-      </Stack>
+      <CoachCall
+        connection={call.status === "live" || call.status === "reconnecting" ? call.status : "connecting"}
+        state={call.status === "live" ? call.conversation.phase : "ready"} caption={call.conversation.caption} speaker={call.conversation.speaker}
+        muted={call.muted} onMutedChange={call.mute} onEnd={() => void session.finish()}>
+        <TimeLeft left={session.left} />
+      </CoachCall>
     );
 
   return (
@@ -131,12 +118,22 @@ const isItem = (part: UIMessage["parts"][number]): part is ItemPart & UIMessage[
 
 function WrittenAssessment({ assessment }: { assessment: Assessment }) {
   const session = useAssessmentSession(assessment);
-  const { messages, sendMessage, addToolOutput, regenerate, status, error } = useChat(
-    chatOptions(`/api/assessments/${assessment.id}/chat`, assessment.transcript as unknown as UIMessage[]),
-  );
+  const { messages, sendMessage, addToolOutput, regenerate, status, error } = useChat({
+    id: assessment.id, ...chatOptions(`/api/assessments/${assessment.id}/chat`, assessment.transcript as unknown as UIMessage[]),
+  });
   const [draft, setDraft] = useState("");
   const busy = status === "submitted" || status === "streaming";
   const waiting = messages.at(-1)?.parts.find((p) => isItem(p) && p.state === "input-available");
+  const started = useRef(false);
+  useEffect(() => {
+    if (messages.length || started.current || session.ending !== "running") return;
+    const timer = setTimeout(() => {
+      started.current = true;
+      void sendMessage({ id: `assessment-start-${assessment.id}`, role: "user", parts: [{ type: "text", text: "I’m ready to start my Assessment. Please introduce yourself and begin." }] });
+    });
+    return () => clearTimeout(timer);
+  }, [assessment.id, messages.length, sendMessage, session.ending]);
+
 
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -158,13 +155,9 @@ function WrittenAssessment({ assessment }: { assessment: Assessment }) {
           </Button>
         </Cluster>
       </Cluster>
-      {messages.length === 0 && (
-        <Text tone="muted">
-          Your coach will ask you about yourself and your work, and give you a few short items to answer. Say hello to begin.
-        </Text>
-      )}
+      <Cluster wrap={false} gap={3}><CoachAvatar small /><Stack gap={1}><Heading level={1} size="title">Your conversation with Impromptu</Heading><Text size="caption" tone="muted">Your AI coach · one question at a time</Text></Stack></Cluster>
       <Stack gap={5}>
-        {messages.flatMap((message) =>
+        {messages.filter((message) => message.id !== `assessment-start-${assessment.id}`).flatMap((message) =>
           message.parts.map((part, i) => {
             const key = `${message.id}-${i}`;
             if (part.type === "text")
@@ -205,7 +198,7 @@ function WrittenAssessment({ assessment }: { assessment: Assessment }) {
       {!waiting && (
         <form onSubmit={send}>
           <Stack gap={3}>
-            <TextArea label="Your answer" value={draft} onValueChange={setDraft} rows={3} />
+            <TextArea label="Your message to your coach" placeholder="Take your time. Write as you would in a conversation…" value={draft} onValueChange={setDraft} rows={3} />
             <Button type="submit" disabled={busy || !draft.trim()}>
               Send
             </Button>
