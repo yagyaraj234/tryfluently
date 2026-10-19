@@ -4,7 +4,11 @@ import { startWeb } from "./helpers.mjs";
 
 let web;
 before(async () => {
-  web = await startWeb((req, res) => res.writeHead(503, { "content-type": "application/json" }).end(JSON.stringify({ error: "Private upstream detail" })));
+  web = await startWeb((req, res) =>
+    res
+      .writeHead(503, { "content-type": "application/json" })
+      .end(JSON.stringify({ error: "Private upstream detail" })),
+  );
 });
 after(() => web.close());
 
@@ -12,7 +16,17 @@ test("the Design System guide renders without auth or an available API, includin
   const response = await fetch(`${web.url}/design-system`);
   assert.equal(response.status, 200);
   const html = await response.text();
-  for (const content of ["Colour tokens", "Typography", "Forms", "Overlays and toasts", "Lesson Steps", "Voice and recording", "Roadmap and progress", "Assessment Report", "Lesson complete"]) {
+  for (const content of [
+    "Colour tokens",
+    "Typography",
+    "Forms",
+    "Overlays and toasts",
+    "Lesson Steps",
+    "Voice and recording",
+    "Roadmap and progress",
+    "Assessment Report",
+    "Lesson complete",
+  ]) {
     assert.ok(html.includes(content), content);
   }
   assert.match(html, /--color-primary/);

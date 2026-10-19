@@ -5,8 +5,22 @@ import { startWeb } from "./helpers.mjs";
 // Asha took a Written Assessment (no fluency yet) and some Lessons. `assessed=recently` locks the retake.
 const day = 86_400_000;
 const history = [
-  { skill: "grammar", score: 50, level: "B1", source: "assessment", sourceId: "a1", createdAt: "2026-10-01T09:00:00.000Z" },
-  { skill: "vocabulary", score: 40, level: "B1", source: "assessment", sourceId: "a1", createdAt: "2026-10-01T09:00:00.000Z" },
+  {
+    skill: "grammar",
+    score: 50,
+    level: "B1",
+    source: "assessment",
+    sourceId: "a1",
+    createdAt: "2026-10-01T09:00:00.000Z",
+  },
+  {
+    skill: "vocabulary",
+    score: 40,
+    level: "B1",
+    source: "assessment",
+    sourceId: "a1",
+    createdAt: "2026-10-01T09:00:00.000Z",
+  },
   { skill: "grammar", score: 58, level: "B2", source: "lesson", sourceId: "l1", createdAt: "2026-10-14T18:30:00.000Z" },
 ];
 const focusItems = [
@@ -18,11 +32,17 @@ let web;
 
 before(async () => {
   web = await startWeb((req, res) => {
-    const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
+    const json = (status, body) =>
+      res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     const cookie = req.headers.cookie ?? "";
     if (!/learner=/.test(cookie)) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha", timezone: "Asia/Kolkata" });
     if (req.url === "/api/progress") return json(200, { xp: 340, streak: 12 });
+    if (req.url === "/api/reports")
+      return json(200, [
+        { id: "l1", title: "Daily routines", kind: "lesson", at: "2026-10-19T09:00:00Z" },
+        { id: "a1", title: "Written Assessment", kind: "assessment", at: "2026-10-01T09:00:00Z" },
+      ]);
     if (req.url === "/api/skill-profile")
       return json(200, { fluency: null, grammar: { score: 58, level: "B2" }, vocabulary: { score: 40, level: "B1" } });
     if (req.url === "/api/skill-profile/history") return json(200, history);
@@ -43,7 +63,8 @@ async function page(path, cookie = "learner=asha") {
   return response.text();
 }
 
-const meters = (html) => (html.match(/<[^>]*role="meter"[^>]*>/g) ?? []).map((tag) => tag.match(/aria-valuetext="([^"]*)"/)[1]);
+const meters = (html) =>
+  (html.match(/<[^>]*role="meter"[^>]*>/g) ?? []).map((tag) => tag.match(/aria-valuetext="([^"]*)"/)[1]);
 const text = (html) => html.replace(/<!--.*?-->/g, "").replace(/<[^>]+>/g, "");
 
 test("each measured skill shows its score and CEFR Level", async () => {
@@ -87,10 +108,14 @@ test("the Assessment can be retaken from Progress", async () => {
 
 test("while the retake is locked, Progress shows when it opens", async () => {
   const body = text(await page("/progress", "learner=asha; assessed=recently"));
-  const opens = new Date(Date.now() + 5 * day).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+  const opens = new Date(Date.now() + 5 * day).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
   assert.match(body, new RegExp(`next Assessment opens on [A-Za-z]+,? ${opens}`));
 });
-
 
 test("overview summarises real changes and Focus Item status, with full history collapsed", async () => {
   const html = await page("/progress");
@@ -99,4 +124,11 @@ test("overview summarises real changes and Focus Item status, with full history 
   assert.match(html, /aria-label="Grammar scores, oldest to newest: 50, 58. Scale 0 to 100."/);
   assert.match(html, /<details[^>]*><summary[^>]*>Score history<\/summary>/);
   assert.doesNotMatch(html, /<details[^>]* open/);
+});
+
+test("Progress links to saved Assessment and Lesson reports", async () => {
+  const html = await page("/progress");
+  assert.match(text(html), /Reports/);
+  assert.match(html, /href="\/lessons\/l1"/);
+  assert.match(html, /href="\/assessments\/a1\/report"/);
 });

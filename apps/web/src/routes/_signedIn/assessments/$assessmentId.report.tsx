@@ -1,5 +1,4 @@
 import {
-  Button,
   Card,
   CefrScale,
   Container,
@@ -17,17 +16,21 @@ import {
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { GoalReview, proposedGoals } from "../../../components/assessment/GoalReview";
 import { api } from "../../../lib/api";
+import { BuildRoadmap } from "../../../components/roadmap/BuildRoadmap";
+import { practicePreparationQuery } from "../../../lib/practice-preparation";
 import type { Report } from "../../../components/assessment/assessment";
 
 /** The Assessment Report reveal. */
 export const Route = createFileRoute("/_signedIn/assessments/$assessmentId/report")({
-  loader: async ({ params }) => {
+  loader: async ({ params, context }) => {
     const response = await api().api.assessments[":id"].$get({ param: { id: params.assessmentId } });
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`Couldn't load your Assessment Report (${response.status})`);
     const assessment = await response.json();
     if (assessment.status !== "completed") throw redirect({ to: "/assessments/$assessmentId", params });
-    return { report: assessment.report as unknown as Report, goals: await proposedGoals().catch(() => null) };
+    const goals = await proposedGoals().catch(() => null);
+    if (goals?.length === 0) await context.queryClient.prefetchQuery(practicePreparationQuery);
+    return { report: assessment.report as unknown as Report, goals };
   },
   component: AssessmentReport,
 });
@@ -49,7 +52,7 @@ function AssessmentReport() {
               <CefrScale label="Overall CEFR Level" level={report.overallLevel} />
               {report.partial && (
                 <Notice tone="info">
-                  This Report is partial: you left before the end, so it's based on less of your English than usual.
+                  You left before the end, so this Report is partial. It is based on less of your English than usual.
                 </Notice>
               )}
             </Stack>
@@ -98,8 +101,16 @@ function AssessmentReport() {
                 <Text>{report.firstUnit.objective}</Text>
               </Stack>
             </Card>
-            {data!.goals === null ? <Notice tone="error">Your Assessment Report is ready, but your Goal suggestions couldn’t be loaded. <TextLink render={<Link to="/goals/confirm" />}>Review your Goals</TextLink></Notice>
-              : data!.goals.length ? <GoalReview initialGoals={data!.goals} /> : <Button fullWidth render={<Link to="/roadmap" />}>See my Roadmap</Button>}
+            {data!.goals === null ? (
+              <Notice tone="error">
+                Your Assessment Report is ready, but your Goal suggestions couldn’t be loaded.{" "}
+                <TextLink render={<Link to="/goals/confirm" />}>Review your Goals</TextLink>
+              </Notice>
+            ) : data!.goals.length ? (
+              <GoalReview initialGoals={data!.goals} />
+            ) : (
+              <BuildRoadmap />
+            )}
           </Stack>
         ) : (
           <EmptyState title="We couldn't find that Assessment Report" description="It may belong to another account." />

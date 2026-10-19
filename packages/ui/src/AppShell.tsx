@@ -52,7 +52,7 @@ export function AppShell({ destinations, title, status: statusSlot, children }: 
       <nav className={nav()}>
         <span className={logo()}>
           <LogoMark className="size-7 text-ink" />
-          get fluency
+          <span className="text-ink"> fluently</span>
         </span>
         <span className={menu()}>Menu</span>
         <ul className={list()}>
@@ -82,7 +82,7 @@ function Destination({ label, icon: Icon, render }: AppShellDestination) {
           <span className={icon()}>
             <Icon aria-hidden />
           </span>
-          {label}
+          <span className="whitespace-nowrap max-lg:text-xs max-lg:tracking-normal">{label}</span>
         </>
       ),
     },

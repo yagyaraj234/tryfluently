@@ -21,21 +21,26 @@ export const kenpathSpeech = (baseUrl: string, apiKey: string, model: string): S
 
 const { pronunciationClip: clip } = schema;
 
-const query = (defaultVoice: string) => z.object({
-  text: z.string().trim().min(1).max(200),
-  voice: z
-    .string()
-    .regex(/^[a-z0-9_-]{1,32}$/i)
-    .default(defaultVoice),
-});
+const query = (defaultVoice: string) =>
+  z.object({
+    text: z.string().trim().min(1).max(200),
+    voice: z
+      .string()
+      .regex(/^[a-z0-9_-]{1,32}$/i)
+      .default(defaultVoice),
+  });
 
 export const pronunciation = ({ db, speech }: Deps, defaultVoice?: string) => {
   const route = new Hono<AppEnv>();
-  if (!defaultVoice) return route.get("/", (c) => c.json({ error: "Reference Pronunciation needs KENPATH_VOICE configured." }, 503));
+  if (!defaultVoice)
+    return route.get("/", (c) => c.json({ error: "Reference Pronunciation needs KENPATH_VOICE configured." }, 503));
   return route.get("/", zValidator("query", query(defaultVoice)), async (c) => {
     const { text, voice } = c.req.valid("query");
     const audio = (a: { audio: Uint8Array; contentType: string }) =>
-      c.body(a.audio as Uint8Array<ArrayBuffer>, 200, { "content-type": a.contentType, "cache-control": "private, max-age=86400" });
+      c.body(a.audio as Uint8Array<ArrayBuffer>, 200, {
+        "content-type": a.contentType,
+        "cache-control": "private, max-age=86400",
+      });
 
     const [cached] = await db
       .select()
@@ -51,7 +56,10 @@ export const pronunciation = ({ db, speech }: Deps, defaultVoice?: string) => {
       console.error("Reference Pronunciation failed", e);
       return c.json({ error: "The audio couldn't be made right now. Try again." }, 502);
     }
-    await db.insert(clip).values({ text, voice, ...made }).onConflictDoNothing();
+    await db
+      .insert(clip)
+      .values({ text, voice, ...made })
+      .onConflictDoNothing();
     return audio(made);
   });
 };

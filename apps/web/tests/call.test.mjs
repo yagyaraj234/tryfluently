@@ -3,8 +3,17 @@ import { test } from "node:test";
 import { conversationEvent, startCall } from "../src/lib/call.ts";
 
 // A live voice call (Voice Assessment, voice Roleplay) against a fake microphone, RTCPeerConnection and API.
-function fakes({ microphone = "allowed", reply = () => new Response("answer-sdp", { status: 201, headers: { "content-type": "application/sdp" } }) } = {}) {
-  const track = { enabled: true, stopped: false, stop() { this.stopped = true; } };
+function fakes({
+  microphone = "allowed",
+  reply = () => new Response("answer-sdp", { status: 201, headers: { "content-type": "application/sdp" } }),
+} = {}) {
+  const track = {
+    enabled: true,
+    stopped: false,
+    stop() {
+      this.stopped = true;
+    },
+  };
   const stream = { getTracks: () => [track] };
   const sent = [];
   const played = [];
@@ -15,22 +24,47 @@ function fakes({ microphone = "allowed", reply = () => new Response("answer-sdp"
     connectionState = "new";
     added = [];
     closed = false;
-    constructor() { peers.push(this); }
-    addTrack(t, s) { this.added.push([t, s]); }
-    createDataChannel() { return this.channel = { close() { this.closed = true; } }; }
-    async createOffer() { return { type: "offer", sdp: "offer-sdp" }; }
-    async setLocalDescription(d) { this.local = d; }
-    async setRemoteDescription(d) { this.remote = d; }
-    close() { this.closed = true; this.connectionState = "closed"; }
+    constructor() {
+      peers.push(this);
+    }
+    addTrack(t, s) {
+      this.added.push([t, s]);
+    }
+    createDataChannel() {
+      return (this.channel = {
+        close() {
+          this.closed = true;
+        },
+      });
+    }
+    async createOffer() {
+      return { type: "offer", sdp: "offer-sdp" };
+    }
+    async setLocalDescription(d) {
+      this.local = d;
+    }
+    async setRemoteDescription(d) {
+      this.remote = d;
+    }
+    close() {
+      this.closed = true;
+      this.connectionState = "closed";
+    }
     // Test helpers: what the browser would do.
-    become(state) { this.connectionState = state; this.onconnectionstatechange?.(); }
-    remoteTrack(remote) { this.ontrack?.({ streams: [remote] }); }
+    become(state) {
+      this.connectionState = state;
+      this.onconnectionstatechange?.();
+    }
+    remoteTrack(remote) {
+      this.ontrack?.({ streams: [remote] });
+    }
   }
 
   const deps = {
     getUserMedia: (constraints) => {
       assert.deepEqual(constraints, { audio: true });
-      if (microphone === "denied") return Promise.reject(Object.assign(new Error("denied"), { name: "NotAllowedError" }));
+      if (microphone === "denied")
+        return Promise.reject(Object.assign(new Error("denied"), { name: "NotAllowedError" }));
       if (microphone === "later") return new Promise((resolve) => (grant = () => resolve(stream)));
       return Promise.resolve(stream);
     },
@@ -136,13 +170,20 @@ test("a refused call (409 already live) fails with the response, and releases th
   const f = fakes({ reply: () => Response.json({ error: "You already have a live voice call" }, { status: 409 }) });
   const { last } = start(f);
   await settle();
-  assert.deepEqual(last(), { status: "failed", response: { status: 409, body: { error: "You already have a live voice call" } } });
+  assert.deepEqual(last(), {
+    status: "failed",
+    response: { status: 409, body: { error: "You already have a live voice call" } },
+  });
   assert.equal(f.track.stopped, true);
   assert.equal(f.peers[0].closed, true);
 });
 
 test("a network error fails without a response", async () => {
-  const f = fakes({ reply: () => { throw new TypeError("fetch failed"); } });
+  const f = fakes({
+    reply: () => {
+      throw new TypeError("fetch failed");
+    },
+  });
   const { last } = start(f);
   await settle();
   assert.deepEqual(last(), { status: "failed" });
@@ -159,7 +200,6 @@ test("hanging up while the microphone is still being asked for never starts the 
   assert.equal(f.track.stopped, true);
   assert.equal(last().status, "ended");
 });
-
 
 test("coach presence and captions follow actual data-channel events, not a timer", async () => {
   const f = fakes();
@@ -194,11 +234,17 @@ test("caption events are bounded and ignore malformed payloads", () => {
   const state = { phase: "ready" };
   assert.equal(conversationEvent(state, null), state);
   assert.equal(conversationEvent(state, { type: "response.output_audio_transcript.delta", delta: 42 }), state);
-  assert.equal(conversationEvent(state, { type: "response.output_audio_transcript.delta", delta: "x".repeat(3000) }).caption.length, 2000);
+  assert.equal(
+    conversationEvent(state, { type: "response.output_audio_transcript.delta", delta: "x".repeat(3000) }).caption
+      .length,
+    2000,
+  );
 });
 
-
 test("clearing the coach audio after interruption keeps the Learner's listening state", () => {
-  const listening = conversationEvent({ phase: "speaking", speaker: "coach" }, { type: "input_audio_buffer.speech_started" });
+  const listening = conversationEvent(
+    { phase: "speaking", speaker: "coach" },
+    { type: "input_audio_buffer.speech_started" },
+  );
   assert.equal(conversationEvent(listening, { type: "output_audio_buffer.cleared" }).phase, "listening");
 });

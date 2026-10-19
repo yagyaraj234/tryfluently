@@ -44,7 +44,15 @@ export type DebriefProps = {
 };
 
 /** The feedback at the end of a Roleplay: the overall impression, each question, phrases to learn and skill changes. */
-export function Debrief({ textMode, overallImpression, questions, phrasesToLearn, skillChanges, onHear, actions }: DebriefProps) {
+export function Debrief({
+  textMode,
+  overallImpression,
+  questions,
+  phrasesToLearn,
+  skillChanges,
+  onHear,
+  actions,
+}: DebriefProps) {
   const changes = Object.entries(skillChanges) as [Skill, { from: number | null; to: number }][];
   return (
     <div className={column()}>

@@ -1,0 +1,15 @@
+# Dependencies and build output
+node_modules
+dist
+.output
+.turbo
+.tanstack
+coverage
+
+# Generated files
+apps/web/src/routeTree.gen.ts
+packages/db/migrations
+
+# Tooling worktrees and lockfiles
+.claude
+bun.lock

@@ -15,18 +15,35 @@ async function setup() {
 }
 
 const opts = (onTranscript: (t: UIMessage[]) => Promise<unknown>) => ({
-  sdp: "v=0", instructions: "Speak English", purpose: "roleplay" as const, budgetSeconds: 900, onTranscript,
+  sdp: "v=0",
+  instructions: "Speak English",
+  purpose: "roleplay" as const,
+  budgetSeconds: 900,
+  onTranscript,
 });
-const utterance = (id: string) => ({ type: "conversation.item.input_audio_transcription.completed", item_id: id, transcript: id });
+const utterance = (id: string) => ({
+  type: "conversation.item.input_audio_transcription.completed",
+  item_id: id,
+  transcript: id,
+});
 
 describe("Realtime close failures", () => {
   test("hangup requested during the SDP handshake waits for the call, then closes it", async () => {
     const { userId } = await setup();
     const realtime = fakeRealtime();
     const connected = Promise.withResolvers<void>();
-    const broker = realtimeBroker({ db: testDb, now: makeClock(), schedule: fakeTimers().schedule, realtime: {
-      ...realtime, createCall: async (...args) => { await connected.promise; return realtime.createCall(...args); },
-    } });
+    const broker = realtimeBroker({
+      db: testDb,
+      now: makeClock(),
+      schedule: fakeTimers().schedule,
+      realtime: {
+        ...realtime,
+        createCall: async (...args) => {
+          await connected.promise;
+          return realtime.createCall(...args);
+        },
+      },
+    });
     const start = broker.start(userId, { ...opts(async () => {}), targetId: "roleplay" });
     const ending = broker.hangup(userId, "roleplay");
     connected.resolve();
@@ -53,14 +70,18 @@ describe("Realtime close failures", () => {
   test("an end-call tool falls back when the closing audio event is missing", async () => {
     const { userId, realtime, timers, broker } = await setup();
     await broker.start(userId, { ...opts(async () => {}), endTool: "end_call" });
-    await realtime.sideband().emit({ type: "response.function_call_arguments.done", name: "end_call", response_id: "response_1" });
+    await realtime
+      .sideband()
+      .emit({ type: "response.function_call_arguments.done", name: "end_call", response_id: "response_1" });
     await timers.fire(5_000);
     expect(realtime.sideband().hungUp).toBe(true);
   });
   test("a failed transcript save propagates from hangup, still logs usage and releases the call", async () => {
     const { userId, realtime, timers, broker } = await setup();
     const error = new Error("transcript unavailable");
-    const options = opts(async () => { throw error; });
+    const options = opts(async () => {
+      throw error;
+    });
     await broker.start(userId, options);
     realtime.sideband().emit(utterance("first"));
     await expect(broker.hangup(userId)).rejects.toBe(error);
@@ -74,10 +95,13 @@ describe("Realtime close failures", () => {
     const { userId, realtime, broker } = await setup();
     let calls = 0;
     let saved: UIMessage[] = [];
-    await broker.start(userId, opts(async (transcript) => {
-      if (++calls === 1) throw new Error("temporary save failure");
-      saved = transcript;
-    }));
+    await broker.start(
+      userId,
+      opts(async (transcript) => {
+        if (++calls === 1) throw new Error("temporary save failure");
+        saved = transcript;
+      }),
+    );
     realtime.sideband().emit(utterance("first"));
     realtime.sideband().emit(utterance("second"));
     await broker.hangup(userId);
@@ -100,11 +124,19 @@ describe("Realtime close failures", () => {
   test("duplicate close waits for pending saves and writes usage once", async () => {
     const { userId, realtime, broker } = await setup();
     const gate = Promise.withResolvers<void>();
-    await broker.start(userId, opts(async () => gate.promise));
+    await broker.start(
+      userId,
+      opts(async () => gate.promise),
+    );
     realtime.sideband().emit(utterance("first"));
     const first = realtime.sideband().close();
     let finished = false;
-    const second = realtime.sideband().close().then(() => { finished = true; });
+    const second = realtime
+      .sideband()
+      .close()
+      .then(() => {
+        finished = true;
+      });
     await Promise.resolve();
     expect(finished).toBe(false);
     gate.resolve();

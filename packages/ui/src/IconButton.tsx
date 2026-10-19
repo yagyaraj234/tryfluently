@@ -19,6 +19,9 @@ export type IconButtonProps = Omit<ComponentProps<"button">, "className" | "styl
 export function IconButton({ icon: Icon, label, render, ...props }: IconButtonProps) {
   return useRender({
     render: render ?? <BaseButton />,
-    props: mergeProps<"button">({ className: iconButton(), "aria-label": label, children: <Icon aria-hidden /> }, props),
+    props: mergeProps<"button">(
+      { className: iconButton(), "aria-label": label, children: <Icon aria-hidden /> },
+      props,
+    ),
   });
 }

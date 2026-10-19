@@ -11,7 +11,12 @@ const debrief: DebriefProps = {
       strongerPhrasing: "I've been working here since 2020.",
       languageIssues: ["Present perfect continuous with since"],
     },
-    { question: "Why this role?", quote: "Because I like the product.", strongerPhrasing: "I'm drawn to the product.", languageIssues: [] },
+    {
+      question: "Why this role?",
+      quote: "Because I like the product.",
+      strongerPhrasing: "I'm drawn to the product.",
+      languageIssues: [],
+    },
   ],
   phrasesToLearn: ["walk you through", "on the same page", "a quick win"],
   skillChanges: { grammar: { from: 54, to: 58 }, vocabulary: { from: null, to: 61 } },
@@ -41,11 +46,11 @@ describe("Debrief", () => {
     const onHear = mock();
     render(<Debrief {...debrief} onHear={onHear} />);
     const phrases = screen.getByRole("list", { name: "Phrases to learn" });
-    expect(within(phrases).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
-      "walk you throughHear it",
-      "on the same pageHear it",
-      "a quick winHear it",
-    ]);
+    expect(
+      within(phrases)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["walk you throughHear it", "on the same pageHear it", "a quick winHear it"]);
     fireEvent.click(within(phrases).getAllByRole("button", { name: "Hear it" })[1]!);
     expect(onHear).toHaveBeenCalledWith("on the same page");
   });
@@ -58,7 +63,11 @@ describe("Debrief", () => {
   test("shows each skill change from → to, and a first score as new", () => {
     render(<Debrief {...debrief} />);
     const changes = screen.getByRole("list", { name: "Skill changes" });
-    expect(within(changes).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Grammar54 → 58", "VocabularyNew → 61"]);
+    expect(
+      within(changes)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["Grammar54 → 58", "VocabularyNew → 61"]);
   });
 
   test("leaves out skill changes when none were measured, and shows the actions", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { answerStep, feedback, fillGap, learnerWithRoadmap, lessonPlan } from "./fixtures";
+import { answerStep, feedback, fillGap, learnerWithLegacyRoadmap as learnerWithRoadmap, lessonPlan } from "./fixtures";
 import { get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, type TestApp, type Turn } from "./helpers";
 
 const end = { tool: "endLesson", input: {} };
@@ -12,7 +12,10 @@ const judgeReply = {
 
 // A Lesson finished after 3 answers, or one left after `answers` answers.
 const finished: Turn[] = [[fillGap()], [feedback(), fillGap()], [feedback(), fillGap()], [feedback(), end]];
-const halfDone = (answers: number): Turn[] => [[fillGap()], ...Array.from({ length: answers }, () => [feedback(), fillGap()])];
+const halfDone = (answers: number): Turn[] => [
+  [fillGap()],
+  ...Array.from({ length: answers }, () => [feedback(), fillGap()]),
+];
 
 // An app that plays the given Lessons in order.
 function appFor(lessons: Turn[][], clock: ReturnType<typeof makeClock>) {
@@ -24,11 +27,14 @@ function appFor(lessons: Turn[][], clock: ReturnType<typeof makeClock>) {
 
 async function playLesson(app: TestApp, cookie: string, turns: Turn[]) {
   const lesson = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
-  await (await app.request(`/api/lessons/${lesson.id}/chat`, json({ message: userMessage("Let's start") }, cookie))).text();
+  await (
+    await app.request(`/api/lessons/${lesson.id}/chat`, json({ message: userMessage("Let's start") }, cookie))
+  ).text();
   for (let i = 1; i < turns.length; i++) await answerStep(app, cookie, lesson.id, { answer: "goes" });
 }
 
-const progressOf = async (app: TestApp, cookie: string) => (await (await app.request("/api/progress", get(cookie))).json()) as any;
+const progressOf = async (app: TestApp, cookie: string) =>
+  (await (await app.request("/api/progress", get(cookie))).json()) as any;
 
 describe("XP and Streak", () => {
   test("XP is 10 per answered Step plus 20 per completed Lesson; an Assessment earns nothing", async () => {
@@ -41,7 +47,11 @@ describe("XP and Streak", () => {
     await playLesson(app, cookie, halfDone(1));
 
     // 4 answered Steps × 10 + 1 completed Lesson × 20
-    expect(await progressOf(app, cookie)).toMatchObject({ xp: 60, streak: 1 });
+    expect(await progressOf(app, cookie)).toMatchObject({
+      xp: 60,
+      streak: 1,
+      learning: { completedLessons: 1, plannedLessons: 2 },
+    });
   });
 
   test("the Streak counts consecutive local days with a completed Lesson", async () => {

@@ -52,7 +52,10 @@ export function useAssessmentSession(assessment: Assessment) {
     running.current = false;
     setEnding("ending");
     try {
-      const response = await api().api.assessments[":id"].end.$post({ param: { id: assessment.id }, json: { left: leftEarly.current } });
+      const response = await api().api.assessments[":id"].end.$post({
+        param: { id: assessment.id },
+        json: { left: leftEarly.current },
+      });
       // Already ended (another tab, or the server wrapped it up): reload to show where it got to.
       if ((response.status as number) === 409) return void (await router.invalidate());
       if (!response.ok) return setEnding("failed");
@@ -70,7 +73,11 @@ export function useAssessmentSession(assessment: Assessment) {
     if (timeUp && ending === "running") void end();
   }, [timeUp, ending, end]);
 
-  const blocker = useBlocker({ shouldBlockFn: () => running.current, enableBeforeUnload: () => running.current, withResolver: true });
+  const blocker = useBlocker({
+    shouldBlockFn: () => running.current,
+    enableBeforeUnload: () => running.current,
+    withResolver: true,
+  });
 
   return {
     /** Milliseconds left, once the clock runs. */
@@ -118,7 +125,12 @@ export function AssessmentEnding({ session }: { session: Session }) {
         retryLabel="Write my Report"
       />
     );
-  return <LoadingState title="Writing your Assessment Report…" description="Your coach is reading your answers. This takes up to a minute." />;
+  return (
+    <LoadingState
+      title="Writing your Assessment Report…"
+      description="Your coach is reading your answers. This takes up to a minute."
+    />
+  );
 }
 
 export function Discarded() {

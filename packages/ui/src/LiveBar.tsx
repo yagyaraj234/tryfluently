@@ -10,10 +10,14 @@ const bar = cva("sticky top-0 z-sticky flex flex-wrap items-center gap-3 rounded
 const dot = cva("size-3 shrink-0 rounded-full", {
   variants: { live: { true: "bg-live motion-safe:animate-pulse", false: "border border-line bg-subtle" } },
 });
-const label = cva("text-label font-bold uppercase", { variants: { live: { true: "text-live-text", false: "text-muted" } } });
+const label = cva("text-label font-bold uppercase", {
+  variants: { live: { true: "text-live-text", false: "text-muted" } },
+});
 const about = cva("flex flex-1 flex-wrap items-center gap-3");
 const title = cva("text-body font-bold text-ink");
-const time = cva("text-caption font-bold tabular-nums", { variants: { live: { true: "text-live-text", false: "text-muted" } } });
+const time = cva("text-caption font-bold tabular-nums", {
+  variants: { live: { true: "text-live-text", false: "text-muted" } },
+});
 const actions = cva("flex items-center gap-3");
 
 const minutes = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -37,7 +41,17 @@ export type LiveBarProps = {
 };
 
 /** The top of a live voice call: whether it's live, the time so far and left, mute and End. */
-export function LiveBar({ state, title: name, elapsed, left, leftLabel = "left", muted, onMutedChange, onEnd, endLabel = "End" }: LiveBarProps) {
+export function LiveBar({
+  state,
+  title: name,
+  elapsed,
+  left,
+  leftLabel = "left",
+  muted,
+  onMutedChange,
+  onEnd,
+  endLabel = "End",
+}: LiveBarProps) {
   const live = state === "live";
   return (
     <div className={bar({ live })}>
@@ -47,7 +61,9 @@ export function LiveBar({ state, title: name, elapsed, left, leftLabel = "left",
           {states[state]}
         </span>
         <span className={title()}>{name}</span>
-        {elapsed !== undefined && <span className={time({ live })}>{minutes(Math.max(0, Math.floor(elapsed / 1000)))}</span>}
+        {elapsed !== undefined && (
+          <span className={time({ live })}>{minutes(Math.max(0, Math.floor(elapsed / 1000)))}</span>
+        )}
         {left !== undefined && (
           <span className={time({ live })}>
             {minutes(Math.max(0, Math.ceil(left / 1000)))} {leftLabel}
@@ -55,7 +71,12 @@ export function LiveBar({ state, title: name, elapsed, left, leftLabel = "left",
         )}
       </div>
       <div className={actions()}>
-        <IconButton icon={muted ? MicrophoneSlash : Microphone} label="Mute" aria-pressed={muted} onClick={() => onMutedChange(!muted)} />
+        <IconButton
+          icon={muted ? MicrophoneSlash : Microphone}
+          label="Mute"
+          aria-pressed={muted}
+          onClick={() => onMutedChange(!muted)}
+        />
         <Button variant="secondary" onClick={onEnd}>
           {endLabel}
         </Button>

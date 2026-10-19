@@ -1,22 +1,52 @@
 import { describe, expect, test } from "bun:test";
 import { schema } from "@impromptu/db";
 import { and, eq } from "drizzle-orm";
-import { answerStep, feedback, fillGap, learnerWithRoadmap, lessonPlan } from "./fixtures";
-import { fakeTranscriber, get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, WEB_ORIGIN, type TestApp, type Turn } from "./helpers";
+import { answerStep, feedback, fillGap, learnerWithLegacyRoadmap as learnerWithRoadmap, lessonPlan } from "./fixtures";
+import {
+  fakeTranscriber,
+  get,
+  json,
+  makeApp,
+  makeClock,
+  mockModel,
+  mockTurns,
+  userMessage,
+  WEB_ORIGIN,
+  type TestApp,
+  type Turn,
+} from "./helpers";
 import { testDb } from "./setup";
 
-const speakPrompt = { tool: "speakPrompt", input: { question: "Tell me about your morning routine.", targetSeconds: 60 } };
-const vocabCard = { tool: "vocabCard", input: { word: "deadline", meaning: "the time something is due", example: "The deadline is Friday." } };
+const speakPrompt = {
+  tool: "speakPrompt",
+  input: { question: "Tell me about your morning routine.", targetSeconds: 60 },
+};
+const vocabCard = {
+  tool: "vocabCard",
+  input: { word: "deadline", meaning: "the time something is due", example: "The deadline is Friday." },
+};
 const rewrite = { tool: "rewrite", input: { sentence: "I am very very happy.", aim: "Sound more natural." } };
 const end = { tool: "endLesson", input: {} };
 const said = "I usually start my day with a short walk and then check my emails.";
 
-type Opts = { judge?: unknown; transcriber?: ReturnType<typeof fakeTranscriber>; clock?: ReturnType<typeof makeClock>; minutes?: number };
+type Opts = {
+  judge?: unknown;
+  transcriber?: ReturnType<typeof fakeTranscriber>;
+  clock?: ReturnType<typeof makeClock>;
+  minutes?: number;
+};
 
 function voiceApp(turns: Turn[], { judge, transcriber = fakeTranscriber(), clock = makeClock(), minutes }: Opts = {}) {
   const step = mockTurns(...turns);
   step.doGenerate = mockModel(lessonPlan(), lessonPlan()).doGenerate;
-  const judgeModel = mockModel(judge ?? { skills: { fluency: null, grammar: null, vocabulary: null }, objectiveProgress: 50, summary: "Spoke about routines.", focusItems: null });
+  const judgeModel = mockModel(
+    judge ?? {
+      skills: { fluency: null, grammar: null, vocabulary: null },
+      objectiveProgress: 50,
+      summary: "Spoke about routines.",
+      focusItems: null,
+    },
+  );
   const app = makeApp({
     now: clock,
     transcriber,
@@ -28,7 +58,9 @@ function voiceApp(turns: Turn[], { judge, transcriber = fakeTranscriber(), clock
 
 async function startLesson(app: TestApp, cookie: string) {
   const lesson = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
-  await (await app.request(`/api/lessons/${lesson.id}/chat`, json({ message: userMessage("Let's start") }, cookie))).text();
+  await (
+    await app.request(`/api/lessons/${lesson.id}/chat`, json({ message: userMessage("Let's start") }, cookie))
+  ).text();
   return lesson;
 }
 
@@ -42,7 +74,11 @@ function record(
   const form = new FormData();
   if (audio) form.append("audio", audio, "answer.webm");
   form.append("seconds", String(seconds));
-  return app.request(`/api/lessons/${lessonId}/recordings`, { method: "POST", headers: { cookie, origin: WEB_ORIGIN }, body: form });
+  return app.request(`/api/lessons/${lessonId}/recordings`, {
+    method: "POST",
+    headers: { cookie, origin: WEB_ORIGIN },
+    body: form,
+  });
 }
 
 const lessonOf = async (app: TestApp, cookie: string, id: string) =>
@@ -50,7 +86,10 @@ const lessonOf = async (app: TestApp, cookie: string, id: string) =>
 
 describe("recorded voice Steps", () => {
   test("a speakPrompt round-trips: recording → transcript and timing → giveFeedback → stored Step", async () => {
-    const { app, step, transcriber } = voiceApp([[speakPrompt], [feedback("almost", "I usually start my day with a short walk."), fillGap()]]);
+    const { app, step, transcriber } = voiceApp([
+      [speakPrompt],
+      [feedback("almost", "I usually start my day with a short walk."), fillGap()],
+    ]);
     const { cookie } = await learnerWithRoadmap();
     const lesson = await startLesson(app, cookie);
 
@@ -80,13 +119,19 @@ describe("recorded voice Steps", () => {
     ["vocabCard", vocabCard],
     ["rewrite", rewrite],
   ] as const)("a %s Step accepts a recorded answer", async (type, stepCall) => {
-    const { app } = voiceApp([[stepCall], [feedback(), fillGap()]], { transcriber: fakeTranscriber("We missed the deadline.") });
+    const { app } = voiceApp([[stepCall], [feedback(), fillGap()]], {
+      transcriber: fakeTranscriber("We missed the deadline."),
+    });
     const { cookie } = await learnerWithRoadmap();
     const lesson = await startLesson(app, cookie);
 
     const { recordingId } = (await (await record(app, cookie, lesson.id, 4)).json()) as any;
     await answerStep(app, cookie, lesson.id, { recordingId });
-    expect((await lessonOf(app, cookie, lesson.id)).steps[0]).toMatchObject({ type, mode: "voice", output: { answer: "We missed the deadline." } });
+    expect((await lessonOf(app, cookie, lesson.id)).steps[0]).toMatchObject({
+      type,
+      mode: "voice",
+      output: { answer: "We missed the deadline." },
+    });
   });
 
   test("switching a voice Step to text is recorded on the Step", async () => {
@@ -95,7 +140,11 @@ describe("recorded voice Steps", () => {
     const lesson = await startLesson(app, cookie);
 
     await answerStep(app, cookie, lesson.id, { answer: "I walk, then I read my emails." });
-    expect((await lessonOf(app, cookie, lesson.id)).steps[0]).toMatchObject({ type: "speakPrompt", mode: "text", timing: null });
+    expect((await lessonOf(app, cookie, lesson.id)).steps[0]).toMatchObject({
+      type: "speakPrompt",
+      mode: "text",
+      timing: null,
+    });
   });
 
   test("the client can't pass off its own transcript: only recordings this Learner made for this Lesson count", async () => {
@@ -171,7 +220,12 @@ describe("fluency from voice Steps only", () => {
     summary: "Talked about routines.",
     focusItems: null,
   };
-  const threeSteps = (stepCall: Turn[number]): Turn[] => [[stepCall], [feedback(), stepCall], [feedback(), stepCall], [feedback(), end]];
+  const threeSteps = (stepCall: Turn[number]): Turn[] => [
+    [stepCall],
+    [feedback(), stepCall],
+    [feedback(), stepCall],
+    [feedback(), end],
+  ];
 
   test("a Lesson done entirely in text doesn't change fluency, even if the judge scores it", async () => {
     const { app, clock } = voiceApp(threeSteps(speakPrompt), { judge: fluentJudge });
@@ -195,7 +249,9 @@ describe("fluency from voice Steps only", () => {
       await answerStep(app, cookie, lesson.id, { recordingId });
     }
 
-    expect(((await (await app.request("/api/skill-profile", get(cookie))).json()) as any).fluency).toMatchObject({ score: 90 });
+    expect(((await (await app.request("/api/skill-profile", get(cookie))).json()) as any).fluency).toMatchObject({
+      score: 90,
+    });
     expect(JSON.stringify(judgeModel.doGenerateCalls[0]!.prompt)).toContain("wpm");
   });
 });

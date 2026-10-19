@@ -12,8 +12,7 @@ const item = cva(
 
 /** Either an action (`onSelect`) or a link (`render`, for example a router link), never both. */
 export type MenuItem = { label: string } & (
-  | { onSelect: () => void; render?: never }
-  | { render: ReactElement; onSelect?: never }
+  { onSelect: () => void; render?: never } | { render: ReactElement; onSelect?: never }
 );
 
 export type MenuProps = {

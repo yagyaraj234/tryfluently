@@ -1,22 +1,35 @@
 import { Meter as BaseMeter } from "@base-ui/react/meter";
 import { useRender } from "@base-ui/react/use-render";
-import { BookOpenText, ChatCircleText, CheckCircle, CircleDashed, MapPin, Play, SkipForward, Target, TextAa } from "@phosphor-icons/react";
+import {
+  BookOpenText,
+  ChatCircleText,
+  CheckCircle,
+  CircleDashed,
+  MapPin,
+  Play,
+  SkipForward,
+  Target,
+  TextAa,
+} from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import type { ReactElement, ReactNode } from "react";
 import { Card } from "./Card";
 import { skillNames } from "./SkillBar";
 import { Text } from "./Text";
 
-const tag = cva("inline-flex shrink-0 items-center gap-1 rounded-full border border-line px-2.5 py-0.5 text-label font-semibold tracking-normal", {
-  variants: {
-    status: {
-      planned: "bg-paper text-ink",
-      active: "bg-primary text-on-primary",
-      mastered: "bg-correct-tint text-correct",
-      skipped: "bg-subtle text-muted",
+const tag = cva(
+  "inline-flex shrink-0 items-center gap-1 rounded-full border border-line px-2.5 py-0.5 text-label font-semibold tracking-normal",
+  {
+    variants: {
+      status: {
+        planned: "bg-paper text-ink",
+        active: "bg-primary text-on-primary",
+        mastered: "bg-correct-tint text-correct",
+        skipped: "bg-subtle text-muted",
+      },
     },
   },
-});
+);
 
 const statuses = {
   planned: { word: "Planned", icon: CircleDashed },
@@ -54,11 +67,15 @@ const cover = cva(
   "relative isolate -mx-4 -mt-4 grid h-32 place-items-center overflow-hidden rounded-t-2xl bg-linear-160 from-brand-mid to-brand-deep text-hero text-on-brand",
 );
 const coverGlow = cva("absolute -top-1/2 -right-1/4 z-behind size-3/4 rounded-full bg-brand-hi/60 blur-3xl");
-const coverBadge = cva("absolute top-3 left-3 rounded-full bg-on-brand/16 px-2.5 py-0.5 text-label text-on-brand uppercase");
+const coverBadge = cva(
+  "absolute top-3 left-3 rounded-full bg-on-brand/16 px-2.5 py-0.5 text-label text-on-brand uppercase",
+);
 const meta = cva("flex items-center justify-between gap-3 text-caption text-muted");
 const metaItem = cva("inline-flex items-center gap-1.5");
 const track = cva("h-2 overflow-hidden rounded-full bg-subtle");
-const indicator = cva("block h-full rounded-full bg-primary motion-safe:transition-all motion-safe:duration-ui motion-safe:ease-ui");
+const indicator = cva(
+  "block h-full rounded-full bg-primary motion-safe:transition-all motion-safe:duration-ui motion-safe:ease-ui",
+);
 
 const skillIcons = { fluency: ChatCircleText, grammar: TextAa, vocabulary: BookOpenText };
 
@@ -72,7 +89,7 @@ export type UnitCardProps = {
   number?: number;
   /** The Unit's first skill, which picks its icon. */
   skill?: keyof typeof skillIcons;
-  /** How close the latest finished Lesson came to the objective (0–100), and how many Lessons are done. */
+  /** Percentage of outlined Lessons completed (0–100), and how many Lessons are done. */
   progress?: { value: number; lessonsDone: number };
   /** A cobalt cover with the Unit's icon on top of the card, for Units the Learner hasn't started. */
   cover?: boolean;
@@ -98,10 +115,24 @@ export function UnitIcon({ skill }: UnitIconProps) {
 }
 
 /** One Unit on the Roadmap: its icon, title, objective and status, and optionally its progress and an action. */
-export function UnitCard({ title, objective, status, level = 2, number, skill, progress, cover: hasCover, action, render }: UnitCardProps) {
+export function UnitCard({
+  title,
+  objective,
+  status,
+  level = 2,
+  number,
+  skill,
+  progress,
+  cover: hasCover,
+  action,
+  render,
+}: UnitCardProps) {
   const H = `h${level}` as const;
   const Icon = skill ? skillIcons[skill] : MapPin;
-  const titleElement = useRender({ render: action && render ? render : <span />, props: { className: titleLink(), children: title } });
+  const titleElement = useRender({
+    render: action && render ? render : <span />,
+    props: { className: titleLink(), children: title },
+  });
   // A cover already shows the number.
   const label = [!hasCover && number && `Unit ${number}`, skill && skillNames[skill]].filter(Boolean).join(" · ");
   return (
@@ -147,7 +178,7 @@ function ObjectiveMeter({ value, lessonsDone }: { value: number; lessonsDone: nu
         </span>
         <BaseMeter.Label className={metaItem()}>
           <Target aria-hidden />
-          {`${value}% to the objective`}
+          {`${value}% completed`}
         </BaseMeter.Label>
       </div>
     </BaseMeter.Root>

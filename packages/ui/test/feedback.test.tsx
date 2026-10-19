@@ -82,8 +82,12 @@ describe("Notice", () => {
 
   test("takes no className or style", () => {
     // @ts-expect-error className is not a prop
-    <Notice tone="info" className="x">Hi</Notice>;
+    <Notice tone="info" className="x">
+      Hi
+    </Notice>;
     // @ts-expect-error style is not a prop
-    <Notice tone="info" style={{}}>Hi</Notice>;
+    <Notice tone="info" style={{}}>
+      Hi
+    </Notice>;
   });
 });

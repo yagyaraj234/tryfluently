@@ -2,6 +2,7 @@ import {
   boolean,
   customType,
   integer,
+  index,
   jsonb,
   pgEnum,
   pgTable,
@@ -31,7 +32,9 @@ export const session = pgTable("session", {
   token: text().notNull().unique(),
   ipAddress: text(),
   userAgent: text(),
-  userId: text().notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
 });
@@ -40,7 +43,9 @@ export const account = pgTable("account", {
   id: text().primaryKey(),
   accountId: text().notNull(),
   providerId: text().notNull(),
-  userId: text().notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   accessToken: text(),
   refreshToken: text(),
   idToken: text(),
@@ -61,8 +66,14 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp().notNull().defaultNow(),
 });
 
-const id = () => text().primaryKey().$defaultFn(() => crypto.randomUUID());
-const learner = () => text().notNull().references(() => user.id, { onDelete: "cascade" });
+const id = () =>
+  text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID());
+const learner = () =>
+  text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" });
 
 export type Skill = "fluency" | "grammar" | "vocabulary";
 export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
@@ -74,6 +85,8 @@ export const goal = pgTable("goal", {
   id: id(),
   userId: learner(),
   kind: goalKind().notNull(),
+  // The Learner's Goal in their own words. Kind stays as an internal category for Roleplay defaults.
+  statement: text(),
   // Raw Goal Context, kept only so the Brief can be regenerated. Prompts use `brief`.
   contextRaw: text(),
   brief: text(),
@@ -109,6 +122,27 @@ export const assessment = pgTable("assessment", {
   report: jsonb().$type<Record<string, unknown>>(),
   emailedAt: timestamp(),
 });
+
+// Durable follow-up work committed with an Assessment's Report.
+export const assessmentJob = pgTable(
+  "assessment_job",
+  {
+    assessmentId: text()
+      .notNull()
+      .references(() => assessment.id, { onDelete: "cascade" }),
+    userId: learner(),
+    kind: text().$type<"report_email" | "practice">().notNull(),
+    status: text().$type<"pending" | "running" | "done" | "failed">().notNull().default("pending"),
+    attempts: integer().notNull().default(0),
+    availableAt: timestamp().notNull().defaultNow(),
+    lockedAt: timestamp(),
+    token: text(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.assessmentId, t.kind] }),
+    index("assessment_job_status_available_idx").on(t.status, t.availableAt),
+  ],
+);
 
 export const skill = pgEnum("skill", ["fluency", "grammar", "vocabulary"]);
 export const scoreSource = pgEnum("score_source", ["assessment", "lesson"]);
@@ -151,7 +185,10 @@ export const unit = pgTable("unit", {
   title: text().notNull(),
   objective: text().notNull(),
   skills: jsonb().$type<Skill[]>().notNull(),
-  lessonOutline: jsonb().$type<{ title: string; objective: string; skill: Skill; kind: "practice" | "roleplay"; position: number }[]>().notNull().default([]),
+  lessonOutline: jsonb()
+    .$type<{ title: string; objective: string; skill: Skill; kind: "practice" | "roleplay"; position: number }[]>()
+    .notNull()
+    .default([]),
   endsWithRoleplay: boolean().notNull().default(false),
   status: unitStatus().notNull().default("planned"),
   createdAt: timestamp().notNull(),
@@ -179,11 +216,25 @@ export const lesson = pgTable("lesson", {
   // UI messages of the Lesson chat, so it can resume; checked against the tool schemas in the API.
   messages: jsonb().$type<unknown[]>().notNull().default([]),
   debrief: jsonb().$type<Record<string, unknown>>(),
-  startedAt: timestamp().notNull(),
+  preparation: text().$type<"preparing" | "ready" | "failed">(),
+  preparationToken: text(),
+  preparationAt: timestamp(),
+  material: jsonb().$type<{ title: string; body: string; example: string | null }[]>(),
+  phase: text().$type<"learning" | "assessment">(),
+  report: jsonb().$type<Record<string, unknown>>(),
+  startedAt: timestamp(),
   completedAt: timestamp(),
 });
 
-export const stepType = pgEnum("step_type", ["vocabCard", "fillGap", "rewrite", "speakPrompt", "roleplayTurn", "fillGaps", "reorder"]);
+export const stepType = pgEnum("step_type", [
+  "vocabCard",
+  "fillGap",
+  "rewrite",
+  "speakPrompt",
+  "roleplayTurn",
+  "fillGaps",
+  "reorder",
+]);
 export const stepMode = pgEnum("step_mode", ["voice", "text"]);
 
 export const step = pgTable("step", {
@@ -215,3 +266,9 @@ export const pronunciationClip = pgTable(
   },
   (t) => [primaryKey({ columns: [t.text, t.voice] })],
 );
+
+export const learnerMemory = pgTable("learner_memory", {
+  userId: learner().primaryKey(),
+  summary: text().notNull(),
+  updatedAt: timestamp().notNull(),
+});

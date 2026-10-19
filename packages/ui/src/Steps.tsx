@@ -41,7 +41,9 @@ export function StepHeader({ type, question, progress }: StepHeaderProps) {
     <div className={header()}>
       {progress ? (
         <Progress.Root value={progress.position - 1} max={progress.total} className={bar()}>
-          <Progress.Label className={label()}>{`${type} · Step ${progress.position} of ~${progress.total}`}</Progress.Label>
+          <Progress.Label
+            className={label()}
+          >{`${type} · Step ${progress.position} of ~${progress.total}`}</Progress.Label>
           <Progress.Track className={labelledBarParts.track()}>
             <Progress.Indicator className={labelledBarParts.indicator()} />
           </Progress.Track>
@@ -96,25 +98,82 @@ export type FillGapsStepProps = Answerable & { sentence: string; choices?: strin
 
 export function FillGapsStep({ sentence, choices, ...props }: FillGapsStepProps) {
   const parts = sentence.split(/_{2,}/);
-  const [values, setValues] = useState<string[]>(() => props.answered ? JSON.parse(props.answered) : Array(parts.length - 1).fill(""));
+  const [values, setValues] = useState<string[]>(() =>
+    props.answered ? JSON.parse(props.answered) : Array(parts.length - 1).fill(""),
+  );
   const [active, setActive] = useState(0);
   const locked = props.answered !== undefined || props.pending;
   const complete = values.every((v) => v.trim());
   function fill(index: number, value: string) {
     if (locked) return;
-    setValues((previous) => previous.map((v, n) => n === index ? value : v));
+    setValues((previous) => previous.map((v, n) => (n === index ? value : v)));
   }
   return (
-    <form className={form()} onSubmit={(e) => { e.preventDefault(); if (!locked && complete) props.onAnswer(JSON.stringify(values.map((v) => v.trim()))); }}>
-      <p className="text-title leading-loose text-ink">{parts.map((part, i) => <span key={i}>{part}{i < parts.length - 1 && (
-        <button type="button" aria-label={`Blank ${i + 1}: ${values[i] || "empty"}`} aria-pressed={active === i} disabled={locked} onClick={() => setActive(i)}
-          className="mx-1 inline-block min-h-11 min-w-16 rounded-lg border border-dashed border-line-strong bg-subtle px-2 text-ink aria-pressed:border-primary aria-pressed:bg-primary-soft">{values[i] || <span aria-hidden>…</span>}</button>
-      )}</span>)}</p>
-      {props.answered === undefined && <div className="mt-auto flex flex-col gap-4 pt-10">
-        {choices?.length ? <><Text size="caption" tone="muted">Choose words for blank {active + 1}. Select a blank to change it.</Text><div className="flex flex-wrap gap-3">{choices.map((choice, i) => <Button key={i} type="button" variant="secondary" disabled={locked} onClick={() => { fill(active, choice); setActive((active + 1) % values.length); }}>{choice}</Button>)}</div></>
-          : values.map((value, i) => <TextField key={i} label={`Blank ${i + 1}`} value={value} onValueChange={(v) => fill(i, v)} disabled={locked} maxLength={200} />)}
-        <SendButton pending={props.pending} answer={complete ? JSON.stringify(values) : ""} />
-      </div>}
+    <form
+      className={form()}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!locked && complete) props.onAnswer(JSON.stringify(values.map((v) => v.trim())));
+      }}
+    >
+      <p className="text-title leading-loose text-ink">
+        {parts.map((part, i) => (
+          <span key={i}>
+            {part}
+            {i < parts.length - 1 && (
+              <button
+                type="button"
+                aria-label={`Blank ${i + 1}: ${values[i] || "empty"}`}
+                aria-pressed={active === i}
+                disabled={locked}
+                onClick={() => setActive(i)}
+                className="mx-1 inline-block min-h-11 min-w-16 rounded-lg border border-dashed border-line-strong bg-subtle px-2 text-ink aria-pressed:border-primary aria-pressed:bg-primary-soft"
+              >
+                {values[i] || <span aria-hidden>…</span>}
+              </button>
+            )}
+          </span>
+        ))}
+      </p>
+      {props.answered === undefined && (
+        <div className="mt-auto flex flex-col gap-4 pt-10">
+          {choices?.length ? (
+            <>
+              <Text size="caption" tone="muted">
+                Choose words for blank {active + 1}. Select a blank to change it.
+              </Text>
+              <div className="flex flex-wrap gap-3">
+                {choices.map((choice, i) => (
+                  <Button
+                    key={i}
+                    type="button"
+                    variant="secondary"
+                    disabled={locked}
+                    onClick={() => {
+                      fill(active, choice);
+                      setActive((active + 1) % values.length);
+                    }}
+                  >
+                    {choice}
+                  </Button>
+                ))}
+              </div>
+            </>
+          ) : (
+            values.map((value, i) => (
+              <TextField
+                key={i}
+                label={`Blank ${i + 1}`}
+                value={value}
+                onValueChange={(v) => fill(i, v)}
+                disabled={locked}
+                maxLength={200}
+              />
+            ))
+          )}
+          <SendButton pending={props.pending} answer={complete ? JSON.stringify(values) : ""} />
+        </div>
+      )}
     </form>
   );
 }
@@ -122,7 +181,9 @@ export function FillGapsStep({ sentence, choices, ...props }: FillGapsStepProps)
 export type ReorderStepProps = Answerable & { items: string[] };
 
 export function ReorderStep({ items, ...props }: ReorderStepProps) {
-  const [order, setOrder] = useState<number[]>(() => props.answered ? JSON.parse(props.answered) : items.map((_, i) => i));
+  const [order, setOrder] = useState<number[]>(() =>
+    props.answered ? JSON.parse(props.answered) : items.map((_, i) => i),
+  );
   const [dragging, setDragging] = useState<number>();
   const [announcement, setAnnouncement] = useState("");
   const rows = useRef(new Map<number, HTMLLIElement>());
@@ -142,17 +203,67 @@ export function ReorderStep({ items, ...props }: ReorderStepProps) {
     setAnnouncement(`${items[order[from]!]} moved to position ${to + 1}`);
   }
   return (
-    <form className={form()} onSubmit={(e) => { e.preventDefault(); if (!locked) props.onAnswer(JSON.stringify(order)); }}>
-      <Text size="caption" tone="muted">Drag to arrange, or use the up and down buttons.</Text>
-      <p role="status" className="sr-only">{announcement}</p>
-      <ol className="flex flex-col gap-3">{order.map((item, index) => (
-        <li key={item} ref={(node) => { if (node) rows.current.set(item, node); else rows.current.delete(item); }} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (dragging !== undefined) move(dragging, index); setDragging(undefined); }}
-          className="flex items-center gap-3 rounded-xl border border-line-strong bg-paper p-3 text-body text-ink">
-          <span draggable={!locked} onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(index)); setDragging(index); }} onDragEnd={() => setDragging(undefined)} className="cursor-grab text-muted"><DotsSixVertical aria-hidden /></span>
-          <span className="text-caption tabular-nums text-muted">{index + 1}</span><span className="min-w-0 flex-1">{items[item]}</span>
-          {props.answered === undefined && <div className="flex shrink-0 gap-1"><IconButton icon={ArrowUp} label={`Move ${items[item]} up`} disabled={locked || index === 0} onClick={() => move(index, index - 1)} /><IconButton icon={ArrowDown} label={`Move ${items[item]} down`} disabled={locked || index === order.length - 1} onClick={() => move(index, index + 1)} /></div>}
-        </li>
-      ))}</ol>
+    <form
+      className={form()}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!locked) props.onAnswer(JSON.stringify(order));
+      }}
+    >
+      <Text size="caption" tone="muted">
+        Drag to arrange, or use the up and down buttons.
+      </Text>
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
+      <ol className="flex flex-col gap-3">
+        {order.map((item, index) => (
+          <li
+            key={item}
+            ref={(node) => {
+              if (node) rows.current.set(item, node);
+              else rows.current.delete(item);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragging !== undefined) move(dragging, index);
+              setDragging(undefined);
+            }}
+            className="flex items-center gap-3 rounded-xl border border-line-strong bg-paper p-3 text-body text-ink"
+          >
+            <span
+              draggable={!locked}
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/plain", String(index));
+                setDragging(index);
+              }}
+              onDragEnd={() => setDragging(undefined)}
+              className="cursor-grab text-muted"
+            >
+              <DotsSixVertical aria-hidden />
+            </span>
+            <span className="text-caption tabular-nums text-muted">{index + 1}</span>
+            <span className="min-w-0 flex-1">{items[item]}</span>
+            {props.answered === undefined && (
+              <div className="flex shrink-0 gap-1">
+                <IconButton
+                  icon={ArrowUp}
+                  label={`Move ${items[item]} up`}
+                  disabled={locked || index === 0}
+                  onClick={() => move(index, index - 1)}
+                />
+                <IconButton
+                  icon={ArrowDown}
+                  label={`Move ${items[item]} down`}
+                  disabled={locked || index === order.length - 1}
+                  onClick={() => move(index, index + 1)}
+                />
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
       {props.answered === undefined && <SendButton pending={props.pending} answer={JSON.stringify(order)} />}
     </form>
   );
@@ -266,7 +377,13 @@ export function FillGapStep({ sentence, choices, ...props }: FillGapStepProps) {
               onValueChange={setAnswer}
             />
           ) : (
-            <TextField label="Your answer" value={answer} onValueChange={setAnswer} maxLength={2000} autoComplete="off" />
+            <TextField
+              label="Your answer"
+              value={answer}
+              onValueChange={setAnswer}
+              maxLength={2000}
+              autoComplete="off"
+            />
           )}
           <SendButton pending={props.pending} answer={answer} />
         </>
@@ -275,11 +392,14 @@ export function FillGapStep({ sentence, choices, ...props }: FillGapStepProps) {
   );
 }
 
-const panel = cva("sticky bottom-0 z-sticky mt-auto flex flex-col items-stretch gap-5 rounded-2xl border border-line p-6 text-ink shadow-card", {
-  variants: {
-    verdict: { correct: "bg-correct-tint", almost: "bg-almost-tint", incorrect: "bg-incorrect-tint" },
+const panel = cva(
+  "sticky bottom-0 z-sticky mt-auto flex flex-col items-stretch gap-5 rounded-2xl border border-line p-6 text-ink shadow-card",
+  {
+    variants: {
+      verdict: { correct: "bg-correct-tint", almost: "bg-almost-tint", incorrect: "bg-incorrect-tint" },
+    },
   },
-});
+);
 const corrected = cva("text-body font-bold");
 const actions = cva("flex flex-wrap gap-3 [&>button:last-child]:flex-1");
 
@@ -347,7 +467,8 @@ export type VoiceProps = {
 
 const unavailable: Record<Extract<RecordingState, { status: "unavailable" }>["reason"], string> = {
   capped: "You've used today's recorded minutes. Answer in text for now; recording opens again tomorrow.",
-  denied: "Impromptu isn't allowed to use your microphone. Allow it in your browser's site settings to record, or answer in text.",
+  denied:
+    "Impromptu isn't allowed to use your microphone. Allow it in your browser's site settings to record, or answer in text.",
   "no-microphone": "We couldn't find a microphone to record with. Connect one to record, or answer in text.",
   unsupported: "This browser can't record audio. Answer in text, or try another browser.",
 };
@@ -380,7 +501,17 @@ export type VoiceAnswerProps = Answerable &
  * An answer the Learner records, with "Type instead". At the recorded-minutes cap, or without a usable
  * microphone, it explains why and switches to text.
  */
-export function VoiceAnswer({ recording, onStart, onStop, onRetry, label, prefer = "voice", hint, targetSeconds, ...answer }: VoiceAnswerProps) {
+export function VoiceAnswer({
+  recording,
+  onStart,
+  onStop,
+  onRetry,
+  label,
+  prefer = "voice",
+  hint,
+  targetSeconds,
+  ...answer
+}: VoiceAnswerProps) {
   const [typing, setTyping] = useState(prefer === "text");
   if (answer.answered !== undefined) return <Text>{answer.answered}</Text>;
 
@@ -436,7 +567,9 @@ export function VoiceAnswer({ recording, onStart, onStop, onRetry, label, prefer
           <p role="status" className={liveLabel()}>
             Recording
           </p>
-          <span className={timer()}>{targetSeconds ? `${clock(recording.seconds)} / ${clock(targetSeconds)}` : clock(recording.seconds)}</span>
+          <span className={timer()}>
+            {targetSeconds ? `${clock(recording.seconds)} / ${clock(targetSeconds)}` : clock(recording.seconds)}
+          </span>
           <Meter.Root value={Math.round(recording.level * 100)} aria-label="Microphone level" className={level()}>
             <Meter.Track className={levelTrack()}>
               <Meter.Indicator className={levelBar()} />
@@ -457,12 +590,21 @@ export type SpeakPromptStepProps = Omit<VoiceAnswerProps, "hint" | "prefer" | "t
 
 /** A speakPrompt Step: the Learner records a long answer to the StepHeader question, or types instead. */
 export function SpeakPromptStep({ targetSeconds, ...props }: SpeakPromptStepProps) {
-  return <VoiceAnswer {...props} targetSeconds={targetSeconds} hint={<Text tone="muted">{`Aim for about ${targetSeconds} seconds`}</Text>} />;
+  return (
+    <VoiceAnswer
+      {...props}
+      targetSeconds={targetSeconds}
+      hint={<Text tone="muted">{`Aim for about ${targetSeconds} seconds`}</Text>}
+    />
+  );
 }
 
 const turn = cva("max-w-prose whitespace-pre-wrap text-body text-ink", {
   variants: {
-    from: { coach: "self-start rounded-2xl rounded-tl-sm border border-line bg-paper px-5 py-4", learner: "self-end rounded-2xl rounded-tr-sm bg-primary-soft px-5 py-4" },
+    from: {
+      coach: "self-start rounded-2xl rounded-tl-sm border border-line bg-paper px-5 py-4",
+      learner: "self-end rounded-2xl rounded-tr-sm bg-primary-soft px-5 py-4",
+    },
   },
 });
 
@@ -470,15 +612,28 @@ export type ChatTurnProps = {
   from: "coach" | "learner";
   /** Who is speaking, for screen readers: the character in a Roleplay, for example "Interviewer". @default "Coach" or "You" */
   name?: string;
+  /** The reply is still streaming: show the typing caret after the text. */
+  streaming?: boolean;
   children: ReactNode;
 };
 
-/** One line of a written conversation with the coach. Place turns in a Stack; the Learner's sit on the right. */
-export function ChatTurn({ from, name = from === "coach" ? "Coach" : "You", children }: ChatTurnProps) {
+/** One line of a written conversation with the coach. Place turns in a ChatThread; the Learner's sit on the right. */
+export function ChatTurn({
+  from,
+  name = from === "coach" ? "Coach" : "You",
+  streaming = false,
+  children,
+}: ChatTurnProps) {
   return (
-    <p className={turn({ from })}>
+    <p className={turn({ from })} aria-busy={streaming || undefined}>
       <span className="sr-only">{`${name}: `}</span>
       {children}
+      {streaming && (
+        <span
+          aria-hidden
+          className="ml-0.5 inline-block h-5 w-0.5 translate-y-1 rounded-full bg-primary motion-safe:animate-blink"
+        />
+      )}
     </p>
   );
 }

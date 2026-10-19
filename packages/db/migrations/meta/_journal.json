@@ -57,6 +57,34 @@
       "when": 1792376823142,
       "tag": "0007_graceful_thunderbird",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792386675845,
+      "tag": "0008_good_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792405909748,
+      "tag": "0009_acoustic_the_executioner",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792406190655,
+      "tag": "0010_dear_nighthawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792413212684,
+      "tag": "0011_daily_roxanne_simpson",
+      "breakpoints": true
     }
   ]
 }

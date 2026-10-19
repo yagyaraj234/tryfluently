@@ -7,7 +7,8 @@ let web;
 
 before(async () => {
   web = await startWeb((req, res) => {
-    const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
+    const json = (status, body) =>
+      res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha", timezone: "UTC" });
     if (req.url === "/api/goals") return json(200, [{ status: "confirmed" }]);
@@ -16,7 +17,8 @@ before(async () => {
       if (/progress=broken/.test(req.headers.cookie)) return json(500, { error: "Internal Server Error" });
       return json(200, { xp: 340, streak: 12, week: [] });
     }
-    if (req.url === "/api/lessons/1") return json(200, { id: "1", kind: "practice", status: "in_progress", messages: [], steps: [] });
+    if (req.url === "/api/lessons/1")
+      return json(200, { id: "1", kind: "practice", status: "in_progress", messages: [], steps: [] });
     json(404, { error: "Not found" });
   });
 });
@@ -36,19 +38,29 @@ const href = (a) => a.match(/href="([^"]*)"/)[1];
 
 test("every destination is in the navigation, as a link to its route", async () => {
   const html = await page("/home");
-  assert.deepEqual(links(html).map(href), ["/home", "/roadmap", "/progress", "/settings"]);
-  assert.deepEqual(text(nav(html)).match(/Home|Roadmap|Progress|Settings/g), ["Home", "Roadmap", "Progress", "Settings"]);
+  assert.deepEqual(links(html).map(href), ["/home", "/roadmap", "/roleplays", "/progress", "/settings"]);
+  assert.deepEqual(text(nav(html)).match(/Home|Roadmap|Progress|Settings/g), [
+    "Home",
+    "Roadmap",
+    "Progress",
+    "Settings",
+  ]);
 });
 
 test("only the current destination is marked", async () => {
-  for (const path of ["/home", "/roadmap", "/progress", "/settings"]) {
+  for (const path of ["/home", "/roadmap", "/roleplays", "/progress", "/settings"]) {
     const current = links(await page(path)).filter((a) => a.includes('aria-current="page"'));
     assert.deepEqual(current.map(href), [path]);
   }
 });
 
 test("the top bar names the current destination as the page's one heading", async () => {
-  for (const [path, title] of [["/home", "Home"], ["/roadmap", "Roadmap"], ["/progress", "Progress"], ["/settings", "Settings"]]) {
+  for (const [path, title] of [
+    ["/home", "Home"],
+    ["/roadmap", "Roadmap"],
+    ["/progress", "Progress"],
+    ["/settings", "Settings"],
+  ]) {
     const html = await page(path);
     assert.match(html.match(/<header[\s\S]*?<\/header>/)[0], new RegExp(`<h1[^>]*>${title}</h1>`), path);
     assert.equal(html.match(/<h1\b/g).length, 1, path);

@@ -25,12 +25,12 @@ Use **`useChat` + `streamText` with one tool per Step type**. Each Step (vocab c
 
 ### Option comparison
 
-| Primitive | What it gives | Fit for Steps |
-| --- | --- | --- |
-| `streamText` + tools, `useChat` | Typed `tool-<name>` parts with a lifecycle (`input-streaming`, `input-available`, `output-available`, `output-error`, plus approval states), message history, client-side tools, `addToolOutput` (https://ai-sdk.dev/docs/ai-sdk-ui/generative-user-interfaces, https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-tool-usage; states from `ai@7.0.141` `dist/index.d.ts`) | **Best.** A lesson is a turn-based conversation: Step, then answer, then next Step. The model picks which Step type to show next. |
-| `streamText` + `output: Output.object`, `useObject` | One partial object that streams in (`object`, `submit`, `isLoading`, `stop`, `error`) over a text stream (`createTextStreamResponse` + `toTextStream`) (https://ai-sdk.dev/docs/ai-sdk-ui/object-generation) | Good for one-shot generation with no history, such as a lesson summary. It has no message history and no tool lifecycle, so we would rebuild both for Steps. |
-| Custom data parts (`createUIMessageStream`, `writer.write({ type: 'data-<name>', id, data })`) | Server-pushed typed parts. Writing to the same `id` updates the part in place. `transient: true` parts reach only `onData` (https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data) | Useful alongside tools for progress or status, such as "generating step 3 of 8" or a score update. Not a replacement for tools. |
-| `useChat` with a custom `ChatTransport` | Swap HTTP for something else. The interface is `sendMessages(...)` and `reconnectToStream(...)`, both returning `ReadableStream<UIMessageChunk>` (`ai@7.0.141` `dist/index.d.ts`, `interface ChatTransport`). v7 also ships `DirectChatTransport` and WebSocket transport types (same file). | Not needed. `DefaultChatTransport` already accepts `api`, `headers`, `credentials`, `body`, `prepareSendMessagesRequest` (https://ai-sdk.dev/docs/ai-sdk-ui/transport) and a custom `fetch` (`HttpChatTransportInitOptions.fetch` in `ai@7.0.141` `dist/index.d.ts`). |
+| Primitive                                                                                      | What it gives                                                                                                                                                                                                                                                                                                                                                     | Fit for Steps                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `streamText` + tools, `useChat`                                                                | Typed `tool-<name>` parts with a lifecycle (`input-streaming`, `input-available`, `output-available`, `output-error`, plus approval states), message history, client-side tools, `addToolOutput` (https://ai-sdk.dev/docs/ai-sdk-ui/generative-user-interfaces, https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-tool-usage; states from `ai@7.0.141` `dist/index.d.ts`) | **Best.** A lesson is a turn-based conversation: Step, then answer, then next Step. The model picks which Step type to show next.                                                                                                                                     |
+| `streamText` + `output: Output.object`, `useObject`                                            | One partial object that streams in (`object`, `submit`, `isLoading`, `stop`, `error`) over a text stream (`createTextStreamResponse` + `toTextStream`) (https://ai-sdk.dev/docs/ai-sdk-ui/object-generation)                                                                                                                                                      | Good for one-shot generation with no history, such as a lesson summary. It has no message history and no tool lifecycle, so we would rebuild both for Steps.                                                                                                          |
+| Custom data parts (`createUIMessageStream`, `writer.write({ type: 'data-<name>', id, data })`) | Server-pushed typed parts. Writing to the same `id` updates the part in place. `transient: true` parts reach only `onData` (https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data)                                                                                                                                                                                     | Useful alongside tools for progress or status, such as "generating step 3 of 8" or a score update. Not a replacement for tools.                                                                                                                                       |
+| `useChat` with a custom `ChatTransport`                                                        | Swap HTTP for something else. The interface is `sendMessages(...)` and `reconnectToStream(...)`, both returning `ReadableStream<UIMessageChunk>` (`ai@7.0.141` `dist/index.d.ts`, `interface ChatTransport`). v7 also ships `DirectChatTransport` and WebSocket transport types (same file).                                                                      | Not needed. `DefaultChatTransport` already accepts `api`, `headers`, `credentials`, `body`, `prepareSendMessagesRequest` (https://ai-sdk.dev/docs/ai-sdk-ui/transport) and a custom `fetch` (`HttpChatTransportInitOptions.fetch` in `ai@7.0.141` `dist/index.d.ts`). |
 
 ### Why tools map well onto Steps
 
@@ -73,24 +73,42 @@ Use **`useChat` + `streamText` with one tool per Step type**. Each Step (vocab c
 ```ts
 // apps/api: tools shared by type with the web app
 export const stepTools = {
-  vocabCard: tool({ description: 'Show a vocabulary card', inputSchema: z.object({ word: z.string(), definition: z.string(), example: z.string() }) }),
-  fillGap:   tool({ description: 'Ask a fill-the-gap question', inputSchema: z.object({ sentence: z.string(), answer: z.string() }) }), // no execute: client answers
-}
-export type LessonMessage = UIMessage<never, never, InferUITools<typeof stepTools>>
+  vocabCard: tool({
+    description: "Show a vocabulary card",
+    inputSchema: z.object({ word: z.string(), definition: z.string(), example: z.string() }),
+  }),
+  fillGap: tool({
+    description: "Ask a fill-the-gap question",
+    inputSchema: z.object({ sentence: z.string(), answer: z.string() }),
+  }), // no execute: client answers
+};
+export type LessonMessage = UIMessage<never, never, InferUITools<typeof stepTools>>;
 
-const app = new Hono().post('/lesson/chat', zValidator('json', z.object({ messages: z.array(z.unknown()) })), async (c) => {
-  const messages = await validateUIMessages<LessonMessage>({ messages: c.req.valid('json').messages, tools: stepTools })
-  const result = streamText({ model, instructions, tools: stepTools, messages: await convertToModelMessages(messages) })
-  return createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) })
-})
+const app = new Hono().post(
+  "/lesson/chat",
+  zValidator("json", z.object({ messages: z.array(z.unknown()) })),
+  async (c) => {
+    const messages = await validateUIMessages<LessonMessage>({
+      messages: c.req.valid("json").messages,
+      tools: stepTools,
+    });
+    const result = streamText({
+      model,
+      instructions,
+      tools: stepTools,
+      messages: await convertToModelMessages(messages),
+    });
+    return createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) });
+  },
+);
 ```
 
 ```tsx
 // apps/web
 const { messages, addToolOutput } = useChat<LessonMessage>({
-  transport: new DefaultChatTransport({ api: client.lesson.chat.$url().toString(), credentials: 'include' }),
+  transport: new DefaultChatTransport({ api: client.lesson.chat.$url().toString(), credentials: "include" }),
   sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-})
+});
 // render: part.type === 'tool-vocabCard' -> <VocabCard {...part.input} />, and so on; switch on part.state
 ```
 

@@ -69,7 +69,7 @@ function UnitDetails({ unit }: { unit: Unit }) {
             ))}
           </Cluster>
           <Text tone="muted">
-            {unit.endsWithRoleplay ? "Ends with a Roleplay once you're close to the objective." : "No Roleplay in this Unit."}
+            {unit.endsWithRoleplay ? "Ends with a Roleplay after its practice Lessons." : "No Roleplay in this Unit."}
           </Text>
           {unit.status === "active" && <LessonAction unit={unit} />}
         </Stack>
@@ -82,7 +82,20 @@ function UnitDetails({ unit }: { unit: Unit }) {
         {past.length ? (
           <CardList>
             {past.map((l) => (
-              <Meter key={l.id} label={l.title} value={l.objectiveProgress ?? 0} />
+              <Stack key={l.id} gap={2}>
+                <TextLink
+                  render={
+                    l.kind === "roleplay" ? (
+                      <Link to="/roleplays/$roleplayId" params={{ roleplayId: l.id }} />
+                    ) : (
+                      <Link to="/lessons/$lessonId" params={{ lessonId: l.id }} />
+                    )
+                  }
+                >
+                  {l.title}
+                </TextLink>
+                <Meter label="Objective progress" value={l.objectiveProgress ?? 0} />
+              </Stack>
             ))}
           </CardList>
         ) : (

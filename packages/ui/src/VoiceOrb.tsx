@@ -29,7 +29,10 @@ const tint = cva("absolute inset-0 transition-opacity duration-ui");
 export function VoiceOrb({ phase, label }: VoiceOrbProps) {
   const look = looks[phase];
   const learner = phase === "listening";
-  const wave = (i: number): CSSProperties => ({ animationDuration: `${5 * (1 + i * 0.45)}s`, animationDirection: i === 1 ? "reverse" : "normal" });
+  const wave = (i: number): CSSProperties => ({
+    animationDuration: `${5 * (1 + i * 0.45)}s`,
+    animationDirection: i === 1 ? "reverse" : "normal",
+  });
   return (
     <div className="flex flex-col items-center gap-6">
       <div className={frame()} aria-hidden>
@@ -40,13 +43,25 @@ export function VoiceOrb({ phase, label }: VoiceOrbProps) {
           </>
         )}
         <div className={body({ dim: phase === "connecting" })}>
-          <span className={tint()} style={{ background: "radial-gradient(circle at 35% 30%, var(--color-brand-hi), var(--color-brand) 55%, var(--color-brand-deep))" }} />
           <span
             className={tint()}
-            style={{ opacity: learner ? 1 : 0, background: "radial-gradient(circle at 35% 30%, #ffc2d6, var(--color-live) 55%, #b30f4d)" }}
+            style={{
+              background:
+                "radial-gradient(circle at 35% 30%, var(--color-brand-hi), var(--color-brand) 55%, var(--color-brand-deep))",
+            }}
+          />
+          <span
+            className={tint()}
+            style={{
+              opacity: learner ? 1 : 0,
+              background: "radial-gradient(circle at 35% 30%, #ffc2d6, var(--color-live) 55%, #b30f4d)",
+            }}
           />
           <svg viewBox="0 0 200 200" className="absolute inset-0 size-full">
-            <g className="motion-safe:transition-transform motion-safe:duration-ui motion-safe:ease-press motion-reduce:transform-none!" style={{ transform: `scaleY(${look.amp})`, transformOrigin: "50% 62%" }}>
+            <g
+              className="motion-safe:transition-transform motion-safe:duration-ui motion-safe:ease-press motion-reduce:transform-none!"
+              style={{ transform: `scaleY(${look.amp})`, transformOrigin: "50% 62%" }}
+            >
               {[
                 { a: 22, y: 100, o: 0.16 },
                 { a: 16, y: 112, o: 0.13 },

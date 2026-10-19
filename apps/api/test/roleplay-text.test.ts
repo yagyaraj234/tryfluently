@@ -2,7 +2,18 @@ import { describe, expect, test } from "bun:test";
 import { schema } from "@impromptu/db";
 import { and, eq } from "drizzle-orm";
 import { learnerWithRoadmap } from "./fixtures";
-import { fakeRealtime, get, json, makeApp, makeClock, mockChat, mockModel, userMessage, WEB_ORIGIN, type TestApp } from "./helpers";
+import {
+  fakeRealtime,
+  get,
+  json,
+  makeApp,
+  makeClock,
+  mockChat,
+  mockModel,
+  userMessage,
+  WEB_ORIGIN,
+  type TestApp,
+} from "./helpers";
 import { testDb } from "./setup";
 
 const debrief = {
@@ -16,7 +27,11 @@ const debrief = {
     },
   ],
   // The judge may still return fluency; a text-mode Roleplay must ignore it.
-  skills: { grammar: { score: 62, evidence: [] }, vocabulary: { score: 55, evidence: [] }, fluency: { score: 90, evidence: [] } },
+  skills: {
+    grammar: { score: 62, evidence: [] },
+    vocabulary: { score: 55, evidence: [] },
+    fluency: { score: 90, evidence: [] },
+  },
   phrasesToLearn: ["I've been working in … for …", "One challenge I faced was …", "That's a great question."],
   objectiveProgress: 70,
   summary: "Text Mock Interview: good structure, tense slips.",
@@ -28,7 +43,8 @@ const sdp = (cookie: string) => ({
   body: "v=0\r\n",
 });
 
-const goalOf = async (app: TestApp, cookie: string) => ((await (await app.request("/api/goals", get(cookie))).json()) as any[])[0];
+const goalOf = async (app: TestApp, cookie: string) =>
+  ((await (await app.request("/api/goals", get(cookie))).json()) as any[])[0];
 
 const startRoleplay = async (app: TestApp, cookie: string, body: Record<string, unknown> = {}) => {
   const goal = await goalOf(app, cookie);
@@ -42,7 +58,10 @@ async function chat(app: TestApp, cookie: string, id: string, text: string) {
 
 describe("text-mode Roleplay", () => {
   test("a Roleplay started in text runs as a chat in character and ends with a Debrief labelled text mode", async () => {
-    const step = mockChat("Thanks for coming in. Tell me about yourself.", "Tell me about a time you disagreed with a teammate.");
+    const step = mockChat(
+      "Thanks for coming in. Tell me about yourself.",
+      "Tell me about a time you disagreed with a teammate.",
+    );
     const judge = mockModel(debrief);
     const app = makeApp({ models: { step, judge } });
     const { cookie, id: learnerId } = await learnerWithRoadmap();
@@ -83,7 +102,10 @@ describe("text-mode Roleplay", () => {
 
   test("a text-mode Roleplay moves grammar and vocabulary but never fluency", async () => {
     const clock = makeClock();
-    const app = makeApp({ now: clock, models: { step: mockChat("Tell me about yourself."), judge: mockModel(debrief) } });
+    const app = makeApp({
+      now: clock,
+      models: { step: mockChat("Tell me about yourself."), judge: mockModel(debrief) },
+    });
     const { cookie } = await learnerWithRoadmap(clock);
     clock.advance({ minutes: 1 });
     const roleplay = await startRoleplay(app, cookie, { textMode: true });
@@ -106,7 +128,9 @@ describe("text-mode Roleplay", () => {
     expect(roleplay.textMode).toBe(false);
 
     expect((await chat(app, cookie, roleplay.id, "Hi")).res.status).toBe(200);
-    expect(await (await app.request(`/api/lessons/${roleplay.id}`, get(cookie))).json()).toMatchObject({ textMode: true });
+    expect(await (await app.request(`/api/lessons/${roleplay.id}`, get(cookie))).json()).toMatchObject({
+      textMode: true,
+    });
 
     expect((await app.request(`/api/roleplays/${roleplay.id}/call`, sdp(cookie))).status).toBe(409);
     expect(realtime.calls).toHaveLength(0);
@@ -118,7 +142,9 @@ describe("text-mode Roleplay", () => {
     const { cookie } = await learnerWithRoadmap();
     const roleplay = await startRoleplay(app, cookie);
     await app.request(`/api/roleplays/${roleplay.id}/call`, sdp(cookie));
-    realtime.sideband().emit({ type: "response.output_audio_transcript.done", item_id: "c1", transcript: "Tell me about yourself." });
+    realtime
+      .sideband()
+      .emit({ type: "response.output_audio_transcript.done", item_id: "c1", transcript: "Tell me about yourself." });
 
     expect((await chat(app, cookie, roleplay.id, "Hi")).res.status).toBe(409);
   });
@@ -129,7 +155,10 @@ describe("text-mode Roleplay", () => {
     const ravi = await learnerWithRoadmap();
     const roleplay = await startRoleplay(app, asha.cookie, { textMode: true });
 
-    const bad = await app.request(`/api/roleplays/${roleplay.id}/chat`, json({ message: { role: "user", parts: "hi" } }, asha.cookie));
+    const bad = await app.request(
+      `/api/roleplays/${roleplay.id}/chat`,
+      json({ message: { role: "user", parts: "hi" } }, asha.cookie),
+    );
     expect(bad.status).toBe(400);
     expect((await chat(app, ravi.cookie, roleplay.id, "Hi")).res.status).toBe(404);
   });

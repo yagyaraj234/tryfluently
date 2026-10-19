@@ -14,7 +14,10 @@ export type Realtime = {
   // Posts the browser's SDP offer with the owner's key; the answer goes back to the browser, the call id stays here.
   createCall(sdp: string, session: RealtimeSession): Promise<{ answer: string; callId: string }>;
   // Opens the server's sideband connection to a live call.
-  attach(callId: string, handlers: { onEvent(e: RealtimeEvent): void | Promise<void>; onClose(): void | Promise<void> }): Sideband;
+  attach(
+    callId: string,
+    handlers: { onEvent(e: RealtimeEvent): void | Promise<void>; onClose(): void | Promise<void> },
+  ): Sideband;
 };
 
 const API = "https://api.openai.com/v1/realtime";
@@ -35,9 +38,14 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
     attach(callId, { onEvent, onClose }) {
       // Bun's WebSocket takes headers, which browsers' doesn't.
       const ws = new WebSocket(`${API}?call_id=${callId}`, { headers: { authorization } } as any);
-      ws.onmessage = (m) => void Promise.resolve(onEvent(JSON.parse(String(m.data)))).catch((error) => console.error("realtime event failed", error));
+      ws.onmessage = (m) =>
+        void Promise.resolve(onEvent(JSON.parse(String(m.data)))).catch((error) =>
+          console.error("realtime event failed", error),
+        );
       ws.onclose = () => {
-        void Promise.resolve().then(onClose).catch((error) => console.error("realtime close failed", error));
+        void Promise.resolve()
+          .then(onClose)
+          .catch((error) => console.error("realtime close failed", error));
       };
       const send = (event: object) =>
         ws.readyState === WebSocket.OPEN
@@ -70,12 +78,25 @@ export type CallPurpose = "assessment" | "roleplay";
 // Starts and tracks Realtime calls: one live call per Learner, transcripts and voice timing collected from the
 // sideband, and an ai_usage row written when the call closes. No audio is kept.
 const WRAP_UP_SECONDS = 60;
-const wrapUp = "\n\nAbout a minute is left. Start to wrap up now: ask no new questions, and close the conversation politely.";
+const wrapUp =
+  "\n\nAbout a minute is left. Start to wrap up now: ask no new questions, and close the conversation politely.";
 
 type SaveFailure = { error: unknown };
-type Live = { sideband?: Sideband; ready: Promise<void>; closed: Promise<SaveFailure | undefined>; purpose: CallPurpose; targetId?: string; startedAt?: Date };
+type Live = {
+  sideband?: Sideband;
+  ready: Promise<void>;
+  closed: Promise<SaveFailure | undefined>;
+  purpose: CallPurpose;
+  targetId?: string;
+  startedAt?: Date;
+};
 
-export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule }) {
+export function realtimeBroker({
+  db,
+  now,
+  realtime,
+  schedule,
+}: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule }) {
   // ponytail: live calls are held in memory, so "one call per Learner" holds on a single API instance; move it to a DB lock to scale out.
   const live = new Map<string, Live>();
 
@@ -117,7 +138,12 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
     if (live.has(userId)) return { busy: true as const };
     let closed!: (failure?: SaveFailure) => void;
     let ready!: () => void;
-    const entry: Live = { ready: new Promise((r) => (ready = r)), closed: new Promise((r) => (closed = r)), purpose: opts.purpose, targetId: opts.targetId };
+    const entry: Live = {
+      ready: new Promise((r) => (ready = r)),
+      closed: new Promise((r) => (closed = r)),
+      purpose: opts.purpose,
+      targetId: opts.targetId,
+    };
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
 
     let call: { answer: string; callId: string };
@@ -164,10 +190,16 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
     entry.sideband = realtime.attach(call.callId, {
       async onEvent(e) {
         if (e.type === "input_audio_buffer.speech_started") timing.set(e.item_id, { speechStartMs: e.audio_start_ms });
-        else if (e.type === "input_audio_buffer.speech_stopped") timing.set(e.item_id, { ...timing.get(e.item_id), speechEndMs: e.audio_end_ms });
+        else if (e.type === "input_audio_buffer.speech_stopped")
+          timing.set(e.item_id, { ...timing.get(e.item_id), speechEndMs: e.audio_end_ms });
         else if (e.type === "conversation.item.input_audio_transcription.completed") {
           const t = timing.get(e.item_id);
-          add({ id: e.item_id, role: "user", parts: [{ type: "text", text: e.transcript }], ...(t && { metadata: t }) });
+          add({
+            id: e.item_id,
+            role: "user",
+            parts: [{ type: "text", text: e.transcript }],
+            ...(t && { metadata: t }),
+          });
         } else if (e.type === "response.output_audio_transcript.done")
           add({ id: e.item_id, role: "assistant", parts: [{ type: "text", text: e.transcript }] });
         else if (e.type === "response.done" && e.response?.usage) {
@@ -175,7 +207,12 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
           usage.inputTokens += u.input_tokens ?? 0;
           usage.cachedInputTokens += u.input_token_details?.cached_tokens ?? 0;
           usage.outputTokens += u.output_tokens ?? 0;
-        } else if (opts.endTool && e.type === "response.function_call_arguments.done" && e.name === opts.endTool && !endResponseId) {
+        } else if (
+          opts.endTool &&
+          e.type === "response.function_call_arguments.done" &&
+          e.name === opts.endTool &&
+          !endResponseId
+        ) {
           endResponseId = e.response_id;
           // The model should have spoken its closing line; do not leave the call open if that audio event is missing.
           cancelEndFallback = schedule(5_000, endFromTool);
@@ -216,7 +253,10 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
       const sideband = entry.sideband;
       timers.push(
         schedule(Math.max(0, opts.budgetSeconds - WRAP_UP_SECONDS) * 1000, () =>
-          sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions + wrapUp } }),
+          sideband.send({
+            type: "session.update",
+            session: { type: "realtime", instructions: opts.instructions + wrapUp },
+          }),
         ),
         schedule(opts.budgetSeconds * 1000, () =>
           hangup(userId, opts.targetId).catch((error) => console.error("realtime timed hangup failed", error)),
@@ -241,9 +281,17 @@ export function realtimeBroker({ db, now, realtime, schedule }: Pick<Deps, "db" 
 export type RealtimeBroker = ReturnType<typeof realtimeBroker>;
 
 // The day's Roleplay voice budget for a free Learner.
-export async function voiceMinutes(broker: RealtimeBroker, user: { id: string; timezone: string }, limitMinutes: number) {
+export async function voiceMinutes(
+  broker: RealtimeBroker,
+  user: { id: string; timezone: string },
+  limitMinutes: number,
+) {
   const used = await broker.roleplaySecondsToday(user);
-  return { limitMinutes, usedSeconds: Math.round(used), remainingSeconds: Math.max(0, Math.round(limitMinutes * 60 - used)) };
+  return {
+    limitMinutes,
+    usedSeconds: Math.round(used),
+    remainingSeconds: Math.max(0, Math.round(limitMinutes * 60 - used)),
+  };
 }
 
 export const voiceMinutesRoute = (broker: RealtimeBroker, limitMinutes: number) =>

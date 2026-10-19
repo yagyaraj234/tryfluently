@@ -30,9 +30,15 @@ export function ScoreHistory({ label, entries }: ScoreHistoryProps) {
     <table aria-label={label} className={table()}>
       <thead>
         <tr>
-          <th scope="col" className={head()}>Date</th>
-          <th scope="col" className={head()}>Score</th>
-          <th scope="col" className={head()}>From</th>
+          <th scope="col" className={head()}>
+            Date
+          </th>
+          <th scope="col" className={head()}>
+            Score
+          </th>
+          <th scope="col" className={head()}>
+            From
+          </th>
         </tr>
       </thead>
       <tbody>

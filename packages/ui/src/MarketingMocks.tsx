@@ -45,7 +45,8 @@ export function MarketingPanel({ label, top, bottom, road, children }: PanelProp
   );
 }
 
-const glass = "rounded-2xl border border-on-brand/28 bg-on-brand/18 backdrop-blur-md reduce-transparency:bg-on-brand/30 reduce-transparency:backdrop-blur-none";
+const glass =
+  "rounded-2xl border border-on-brand/28 bg-on-brand/18 backdrop-blur-md reduce-transparency:bg-on-brand/30 reduce-transparency:backdrop-blur-none";
 // The waveform bars move out of step with each other.
 const waveBars = [
   "motion-safe:[animation-delay:-0.13s]",
@@ -63,8 +64,14 @@ export function RoleplayMock() {
       role="img"
       aria-label="A Roleplay: Maya, a friendly colleague, asks about the weekend while the Learner answers by voice."
     >
-      <span aria-hidden className="absolute -top-1/4 -right-1/4 z-behind size-3/4 rounded-full bg-brand-hi/70 blur-3xl" />
-      <span aria-hidden className="absolute -right-15 -bottom-20 z-behind size-65 rounded-full bg-brand-hi/35 blur-3xl" />
+      <span
+        aria-hidden
+        className="absolute -top-1/4 -right-1/4 z-behind size-3/4 rounded-full bg-brand-hi/70 blur-3xl"
+      />
+      <span
+        aria-hidden
+        className="absolute -right-15 -bottom-20 z-behind size-65 rounded-full bg-brand-hi/35 blur-3xl"
+      />
       <div className="grid gap-3.5">
         <div className="flex items-center justify-between gap-3">
           <span className={`${glass} rounded-full px-2.75 py-1.25 text-xs font-semibold`}>Roleplay · Small talk</span>
@@ -90,15 +97,18 @@ export function RoleplayMock() {
           Hi! How was your weekend? Did you do anything fun?
         </div>
         <p className="px-1 text-sm text-on-brand/92">
-          <span className="mr-2 text-xs font-semibold tracking-wider uppercase opacity-70">You</span>On Saturday we went to the lake and it was{" "}
-          <b className="rounded-md bg-on-brand/22 px-1">really</b> relaxing
+          <span className="mr-2 text-xs font-semibold tracking-wider uppercase opacity-70">You</span>On Saturday we went
+          to the lake and it was <b className="rounded-md bg-on-brand/22 px-1">really</b> relaxing
           <i className="ml-0.5 inline-block h-4 w-0.5 bg-on-brand align-middle motion-safe:animate-blink" />
         </p>
       </div>
       <div className="flex items-center gap-3 self-center rounded-full bg-white py-2 pr-2 pl-4 text-sm font-semibold text-black shadow-float">
         <span className="flex h-5.5 items-center gap-0.75">
           {waveBars.map((delay) => (
-            <b key={delay} className={`h-full w-0.75 scale-y-45 rounded-full bg-brand motion-safe:animate-wave ${delay}`} />
+            <b
+              key={delay}
+              className={`h-full w-0.75 scale-y-45 rounded-full bg-brand motion-safe:animate-wave ${delay}`}
+            />
           ))}
         </span>
         <span className="tabular-nums">Listening… 0:42</span>
@@ -114,7 +124,10 @@ function Segments({ filled }: { filled: number }) {
   return (
     <div className="grid flex-1 grid-cols-10 gap-0.75">
       {Array.from({ length: 10 }, (_, i) => (
-        <i key={i} className={`h-4.5 rounded-sm ${i < filled ? "bg-linear-to-b from-brand-hi to-primary" : "bg-line"}`} />
+        <i
+          key={i}
+          className={`h-4.5 rounded-sm ${i < filled ? "bg-linear-to-b from-brand-hi to-primary" : "bg-line"}`}
+        />
       ))}
     </div>
   );
@@ -122,7 +135,11 @@ function Segments({ filled }: { filled: number }) {
 
 export function ReportMock() {
   return (
-    <div className={cardClassesStatic} role="img" aria-label="An Assessment Report: fluency B1, grammar B2, vocabulary B1, and the weak spot to fix first.">
+    <div
+      className={cardClassesStatic}
+      role="img"
+      aria-label="An Assessment Report: fluency B1, grammar B2, vocabulary B1, and the weak spot to fix first."
+    >
       <div className={eyebrow}>Assessment Report</div>
       <h3 className={cardTitle}>Where you are today</h3>
       <div className="grid gap-2.5">
@@ -136,24 +153,32 @@ export function ReportMock() {
           <div className="flex items-center gap-2 text-sm sm:gap-3" key={skill}>
             <span className="w-16 shrink-0 text-muted sm:w-19.5">{skill}</span>
             <Segments filled={filled} />
-            <span className="rounded-full bg-primary-soft px-2.25 py-0.75 text-xs font-semibold text-primary">{level}</span>
+            <span className="rounded-full bg-primary-soft px-2.25 py-0.75 text-xs font-semibold text-primary">
+              {level}
+            </span>
           </div>
         ))}
       </div>
       <div className="mt-4 rounded-xl bg-subtle px-3.5 py-3 text-sm">
         Weak spot: <mark className="rounded-md bg-primary-soft px-1.5 py-px font-semibold text-primary">I go</mark> vs{" "}
-        <mark className="rounded-md bg-primary-soft px-1.5 py-px font-semibold text-primary">I went</mark> when you talk about the past.
+        <mark className="rounded-md bg-primary-soft px-1.5 py-px font-semibold text-primary">I went</mark> when you talk
+        about the past.
       </div>
     </div>
   );
 }
 
 export function RoadmapPeekMock() {
-  const lesson = "rounded-2xl border border-dashed border-line bg-paper px-3.5 py-3 text-sm leading-snug font-semibold shadow-card";
+  const lesson =
+    "rounded-2xl border border-dashed border-line bg-paper px-3.5 py-3 text-sm leading-snug font-semibold shadow-card";
   const tag = "mb-2 block w-fit rounded-md px-2 py-0.5 text-xs font-semibold";
   const meta = "mt-2 block text-xs font-normal text-muted";
   return (
-    <div className={cardClassesStatic} role="img" aria-label="Roadmap preview with two Units: past tense for everyday stories, and making small talk.">
+    <div
+      className={cardClassesStatic}
+      role="img"
+      aria-label="Roadmap preview with two Units: past tense for everyday stories, and making small talk."
+    >
       <div className={eyebrow}>Your Roadmap</div>
       <h3 className={cardTitle}>Next up, built from your report</h3>
       <div className="grid grid-cols-2 gap-2.5">
@@ -187,7 +212,11 @@ export function LevelCard({ skill, current, target }: { skill: string; current: 
             key={l}
             className={`relative rounded-lg py-1.5 text-center text-xs font-semibold not-italic ${l === current ? "bg-brand text-on-brand" : "bg-line text-muted"} ${l === target ? "inset-ring-2 inset-ring-ink" : ""} ${l === target && l !== current ? "text-ink" : ""}`}
           >
-            {l === current && <span className="absolute -top-4.5 left-1/2 -translate-x-1/2 text-xs font-semibold text-primary">You</span>}
+            {l === current && (
+              <span className="absolute -top-4.5 left-1/2 -translate-x-1/2 text-xs font-semibold text-primary">
+                You
+              </span>
+            )}
             {l}
           </i>
         ))}
@@ -196,9 +225,20 @@ export function LevelCard({ skill, current, target }: { skill: string; current: 
   );
 }
 
-export type UnitRowProps = { state: "done" | "now" | "next"; index: number; title: string; detail: string; status: string; progress?: boolean };
+export type UnitRowProps = {
+  state: "done" | "now" | "next";
+  index: number;
+  title: string;
+  detail: string;
+  status: string;
+  progress?: boolean;
+};
 
-const unitTone = { done: "bg-correct-tint text-correct", now: "bg-primary-soft text-primary", next: "bg-line text-muted" };
+const unitTone = {
+  done: "bg-correct-tint text-correct",
+  now: "bg-primary-soft text-primary",
+  next: "bg-line text-muted",
+};
 
 export function UnitRow({ state, index, title, detail, status, progress }: UnitRowProps) {
   return (
@@ -215,7 +255,11 @@ export function UnitRow({ state, index, title, detail, status, progress }: UnitR
           </div>
         )}
       </div>
-      <span className={`shrink-0 rounded-full px-2.5 py-0.75 text-xs font-semibold whitespace-nowrap ${unitTone[state]}`}>{status}</span>
+      <span
+        className={`shrink-0 rounded-full px-2.5 py-0.75 text-xs font-semibold whitespace-nowrap ${unitTone[state]}`}
+      >
+        {status}
+      </span>
     </div>
   );
 }
@@ -231,8 +275,8 @@ export function ChatBubbles() {
         <b className={`${bubbleName} text-muted`}>Maya · Colleague</b>What did you do at the weekend?
       </div>
       <div className={`${bubble} justify-self-end bg-primary text-on-primary`}>
-        <b className={`${bubbleName} text-on-primary/60`}>You</b>I <u className="decoration-2 underline-offset-3">go</u> to the lake{" "}
-        <u className="decoration-2 underline-offset-3">yesterday</u>.
+        <b className={`${bubbleName} text-on-primary/60`}>You</b>I <u className="decoration-2 underline-offset-3">go</u>{" "}
+        to the lake <u className="decoration-2 underline-offset-3">yesterday</u>.
       </div>
       <div className={liftCardClasses}>
         <VerdictTag verdict="almost" />

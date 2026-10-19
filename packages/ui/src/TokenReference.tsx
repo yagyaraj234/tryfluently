@@ -5,13 +5,36 @@ import { Text } from "./Text";
 
 // Full class names, so Tailwind finds them when it scans this file.
 const colors = {
-  canvas: "bg-canvas", paper: "bg-paper", subtle: "bg-subtle", ink: "bg-ink", muted: "bg-muted", line: "bg-line",
-  "line-strong": "bg-line-strong", scrim: "bg-scrim", primary: "bg-primary", "on-primary": "bg-on-primary",
-  "primary-soft": "bg-primary-soft", brand: "bg-brand", "brand-hi": "bg-brand-hi", live: "bg-live", "live-text": "bg-live-text",
-  correct: "bg-correct", "correct-tint": "bg-correct-tint", almost: "bg-almost", "almost-tint": "bg-almost-tint",
-  incorrect: "bg-incorrect", "incorrect-tint": "bg-incorrect-tint", "skill-fluency": "bg-skill-fluency",
-  "skill-grammar": "bg-skill-grammar", "skill-vocabulary": "bg-skill-vocabulary", "cefr-a1": "bg-cefr-a1",
-  "cefr-a2": "bg-cefr-a2", "cefr-b1": "bg-cefr-b1", "cefr-b2": "bg-cefr-b2", "cefr-c1": "bg-cefr-c1", "cefr-c2": "bg-cefr-c2",
+  canvas: "bg-canvas",
+  paper: "bg-paper",
+  subtle: "bg-subtle",
+  ink: "bg-ink",
+  muted: "bg-muted",
+  line: "bg-line",
+  "line-strong": "bg-line-strong",
+  scrim: "bg-scrim",
+  primary: "bg-primary",
+  "on-primary": "bg-on-primary",
+  "primary-soft": "bg-primary-soft",
+  brand: "bg-brand",
+  "brand-hi": "bg-brand-hi",
+  live: "bg-live",
+  "live-text": "bg-live-text",
+  correct: "bg-correct",
+  "correct-tint": "bg-correct-tint",
+  almost: "bg-almost",
+  "almost-tint": "bg-almost-tint",
+  incorrect: "bg-incorrect",
+  "incorrect-tint": "bg-incorrect-tint",
+  "skill-fluency": "bg-skill-fluency",
+  "skill-grammar": "bg-skill-grammar",
+  "skill-vocabulary": "bg-skill-vocabulary",
+  "cefr-a1": "bg-cefr-a1",
+  "cefr-a2": "bg-cefr-a2",
+  "cefr-b1": "bg-cefr-b1",
+  "cefr-b2": "bg-cefr-b2",
+  "cefr-c1": "bg-cefr-c1",
+  "cefr-c2": "bg-cefr-c2",
 };
 const spaces = { 1: "w-1", 2: "w-2", 3: "w-3", 4: "w-4", 6: "w-6", 8: "w-8", 10: "w-10", 14: "w-14" };
 const radii = { lg: "rounded-lg", xl: "rounded-xl", "3xl": "rounded-3xl", full: "rounded-full" };
@@ -52,8 +75,12 @@ export function TokenReference() {
               <Text>{`rounded-${name}`}</Text>
             </div>
           ))}
-          <div className="rounded-3xl border border-line bg-paper p-5 text-ink shadow-lift"><Text>shadow-lift · hover</Text></div>
-          <Card><Text>shadow-card</Text></Card>
+          <div className="rounded-3xl border border-line bg-paper p-5 text-ink shadow-lift">
+            <Text>shadow-lift · hover</Text>
+          </div>
+          <Card>
+            <Text>shadow-card</Text>
+          </Card>
         </div>
       </section>
     </Stack>

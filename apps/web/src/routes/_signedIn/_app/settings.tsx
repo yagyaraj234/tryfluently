@@ -20,7 +20,10 @@ import { authClient } from "../../../lib/auth";
 import { progressQuery } from "../../../lib/queries";
 import { saveTheme, type Theme } from "../../../lib/theme";
 
-export const Route = createFileRoute("/_signedIn/_app/settings")({ staticData: { title: "Settings" }, component: Settings });
+export const Route = createFileRoute("/_signedIn/_app/settings")({
+  staticData: { title: "Settings" },
+  component: Settings,
+});
 
 const themes: { value: Theme; label: string }[] = [
   { value: "light", label: "Light" },
@@ -121,7 +124,11 @@ function Account() {
           setSignInAgain(true);
           return setError("Sign in again, then return here to confirm deletion.");
         }
-        return setError(error.code === "INVALID_PASSWORD" ? "That password isn't right." : "We couldn't delete your account. Try again.");
+        return setError(
+          error.code === "INVALID_PASSWORD"
+            ? "That password isn't right."
+            : "We couldn't delete your account. Try again.",
+        );
       }
       queryClient.clear();
       await router.navigate({ to: "/sign-up" });
@@ -172,7 +179,11 @@ function Account() {
               onChange={(event) => setPassword(event.target.value)}
             />
             {error && <Notice tone="error">{error}</Notice>}
-            {signInAgain && <Button variant="secondary" render={<Link to="/sign-in" />}>Sign in again</Button>}
+            {signInAgain && (
+              <Button variant="secondary" render={<Link to="/sign-in" />}>
+                Sign in again
+              </Button>
+            )}
             <Cluster justify="end">
               <Button type="button" variant="secondary" disabled={pending} onClick={() => close(false)}>
                 Keep my account

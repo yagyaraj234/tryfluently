@@ -4,7 +4,8 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import { progressUnit } from "./roadmap";
+import { remember, advanceUnit } from "./learning-memory";
+import { prepareNext } from "./preparation";
 import { fluencyScore, recordScores, skillProfile, skills, speechSegments } from "./scoring";
 
 const { lesson, step, unit, focusItem } = schema;
@@ -14,10 +15,28 @@ const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.ar
 
 // What the judge returns after each Lesson: only the skills it saw evidence for are scored.
 export const judgeOutput = z.object({
-  skills: z.object({ fluency: skillResult.nullable(), grammar: skillResult.nullable(), vocabulary: skillResult.nullable() }),
+  skills: z.object({
+    fluency: skillResult.nullable(),
+    grammar: skillResult.nullable(),
+    vocabulary: skillResult.nullable(),
+  }),
   objectiveProgress: z.number().int().min(0).max(100),
   summary: z.string(),
   focusItems: z.array(z.object({ label: z.string(), kind: z.enum(["grammar", "vocabulary", "phrase"]) })).nullable(),
+});
+
+const preparedJudgeOutput = judgeOutput.extend({
+  feedback: z
+    .array(
+      z.object({
+        position: z.number().int().min(0),
+        verdict: z.enum(["correct", "almost", "incorrect"]),
+        corrected: z.string(),
+        explanation: z.string(),
+      }),
+    )
+    .min(3)
+    .max(5),
 });
 
 const judgeInstructions = `You are an examiner for English as a second language. Judge one finished Lesson from its Steps:
@@ -31,9 +50,20 @@ export const debriefOutput = z.object({
   overallImpression: z.string(),
   // One entry per main question; its follow-ups belong to it.
   questions: z
-    .array(z.object({ question: z.string(), quote: z.string(), strongerPhrasing: z.string(), languageIssues: z.array(z.string()) }))
+    .array(
+      z.object({
+        question: z.string(),
+        quote: z.string(),
+        strongerPhrasing: z.string(),
+        languageIssues: z.array(z.string()),
+      }),
+    )
     .min(1),
-  skills: z.object({ fluency: skillResult.nullable(), grammar: skillResult.nullable(), vocabulary: skillResult.nullable() }),
+  skills: z.object({
+    fluency: skillResult.nullable(),
+    grammar: skillResult.nullable(),
+    vocabulary: skillResult.nullable(),
+  }),
   phrasesToLearn: z.array(z.string()).length(3),
   objectiveProgress: z.number().int().min(0).max(100),
   summary: z.string(),
@@ -48,26 +78,47 @@ Give exactly 3 phrases to learn, rate how well they met the objective 0–100, a
 
 const textOf = (messages: UIMessage[]) =>
   messages
-    .map((m) => `${m.role === "user" ? "Learner" : "Character"}: ${m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" ")}`)
+    .map(
+      (m) =>
+        `${m.role === "user" ? "Learner" : "Character"}: ${m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" ")}`,
+    )
     .join("\n");
 
 // Judging stays outside the transaction; completion and all learning results commit together.
 export async function completeLesson({ db, now, models, settings }: Ctx, id: string, userId: string) {
-  const [row] = await db.select().from(lesson).where(and(eq(lesson.id, id), eq(lesson.userId, userId)));
+  const [row] = await db
+    .select()
+    .from(lesson)
+    .where(and(eq(lesson.id, id), eq(lesson.userId, userId)));
   if (!row) throw new Error("Lesson not found");
   if (row.status !== "in_progress") return { status: row.status, debrief: row.debrief };
 
   const transcript = row.messages as UIMessage[];
   const abandoned = row.kind === "roleplay" && !transcript.some((m) => m.role === "user");
-  let judged: z.infer<typeof judgeOutput> | z.infer<typeof debriefOutput> | undefined;
+  let judged:
+    z.infer<typeof judgeOutput> | z.infer<typeof debriefOutput> | z.infer<typeof preparedJudgeOutput> | undefined;
   let scores: Partial<Record<Skill, number>> = {};
   const startedAt = now();
   if (!abandoned) {
     const [steps, [u]] = await Promise.all([
-      db.select({ type: step.type, mode: step.mode, input: step.input, output: step.output, feedback: step.feedback, timing: step.timing })
-        .from(step).where(eq(step.lessonId, id)).orderBy(asc(step.position)),
-      row.unitId ? db.select({ objective: unit.objective, skills: unit.skills }).from(unit).where(eq(unit.id, row.unitId)) : [],
+      db
+        .select({
+          position: step.position,
+          type: step.type,
+          mode: step.mode,
+          input: step.input,
+          output: step.output,
+          feedback: step.feedback,
+          timing: step.timing,
+        })
+        .from(step)
+        .where(eq(step.lessonId, id))
+        .orderBy(asc(step.position)),
+      row.unitId
+        ? db.select({ objective: unit.objective, skills: unit.skills }).from(unit).where(eq(unit.id, row.unitId))
+        : [],
     ]);
+    if (row.preparation && (!steps.length || steps.some((s) => !s.output))) return { status: "failed" as const };
     try {
       if (row.kind === "roleplay") {
         ({ output: judged } = await generate({ db, now }, userId, {
@@ -79,33 +130,53 @@ export async function completeLesson({ db, now, models, settings }: Ctx, id: str
       } else {
         ({ output: judged } = await generate({ db, now }, userId, {
           model: models.judge,
-          instructions: judgeInstructions,
+          instructions:
+            judgeInstructions +
+            (row.preparation
+              ? " Return feedback for every Step, keyed by its zero-based position. Preserve server-graded verdicts."
+              : ""),
           prompt: JSON.stringify({ lesson: { objective: row.objective }, unit: u, steps }),
-          output: Output.object({ schema: judgeOutput }),
+          output: Output.object({ schema: row.preparation ? preparedJudgeOutput : judgeOutput }),
         }));
       }
     } catch (e) {
       if (!NoObjectGeneratedError.isInstance(e)) throw e;
-      if (row.kind === "roleplay") return { status: "failed" as const };
+      if (row.kind === "roleplay" || row.preparation) return { status: "failed" as const };
       // A malformed practice judgement still completes the Lesson without moving skills or its Unit.
       console.error("lesson judge failed", e);
     }
+    if (row.preparation && judged && !("feedback" in judged)) return { status: "failed" as const };
+    if (
+      judged &&
+      "feedback" in judged &&
+      (judged.feedback.length !== steps.length ||
+        new Set(judged.feedback.map((f) => f.position)).size !== steps.length ||
+        judged.feedback.some((f) => f.position >= steps.length))
+    )
+      return { status: "failed" as const };
     if (judged) {
-      scores = Object.fromEntries(Object.entries(judged.skills).flatMap(([s, r]) => r ? [[s, r.score]] : []));
+      scores = Object.fromEntries(Object.entries(judged.skills).flatMap(([s, r]) => (r ? [[s, r.score]] : [])));
       if (row.kind === "roleplay") {
-        const fluency = !row.textMode && judged.skills.fluency
-          ? fluencyScore(speechSegments(transcript), judged.skills.fluency.score) : null;
+        const fluency =
+          !row.textMode && judged.skills.fluency
+            ? fluencyScore(speechSegments(transcript), judged.skills.fluency.score)
+            : null;
         if (fluency === null) delete scores.fluency;
         else scores.fluency = fluency;
       } else if (!steps.some((s) => s.mode === "voice")) delete scores.fluency;
+      if (!("fluency" in scores)) judged = { ...judged, skills: { ...judged.skills, fluency: null } };
     }
   }
 
   const at = row.kind === "practice" ? startedAt : now();
   const result = await db.transaction(async (tx) => {
+    await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
     // shortcut: concurrent ends may judge twice, add a durable claim if duplicate model spend matters.
-    const [current] = await tx.select().from(lesson)
-      .where(and(eq(lesson.id, id), eq(lesson.userId, userId))).for("update");
+    const [current] = await tx
+      .select()
+      .from(lesson)
+      .where(and(eq(lesson.id, id), eq(lesson.userId, userId)))
+      .for("update");
     if (!current) throw new Error("Lesson not found");
     if (current.status !== "in_progress") return { row: current, changed: false };
     if (abandoned) {
@@ -124,30 +195,72 @@ export async function completeLesson({ db, now, models, settings }: Ctx, id: str
         );
         const { overallImpression, questions, phrasesToLearn } = judged;
         debrief = { textMode: row.textMode, overallImpression, questions, phrasesToLearn, skillChanges };
-        await tx.insert(step).values(questions.map((q, position) => ({
-          userId, lessonId: id, position, type: "roleplayTurn" as const,
-          mode: row.textMode ? "text" as const : "voice" as const,
-          input: { question: q.question }, output: { answer: q.quote },
-          feedback: {
-            verdict: q.languageIssues.length ? "almost" as const : "correct" as const,
-            corrected: q.strongerPhrasing, explanation: q.languageIssues.join("; "),
-          },
-          answeredAt: at,
-        })));
-        await tx.insert(focusItem).values(phrasesToLearn.map((label) => ({
-          userId, label, kind: "phrase" as const, source: "debrief" as const, sourceId: id, createdAt: at,
-        })));
+        await tx.insert(step).values(
+          questions.map((q, position) => ({
+            userId,
+            lessonId: id,
+            position,
+            type: "roleplayTurn" as const,
+            mode: row.textMode ? ("text" as const) : ("voice" as const),
+            input: { question: q.question },
+            output: { answer: q.quote },
+            feedback: {
+              verdict: q.languageIssues.length ? ("almost" as const) : ("correct" as const),
+              corrected: q.strongerPhrasing,
+              explanation: q.languageIssues.join("; "),
+            },
+            answeredAt: at,
+          })),
+        );
+        await tx.insert(focusItem).values(
+          phrasesToLearn.map((label) => ({
+            userId,
+            label,
+            kind: "phrase" as const,
+            source: "debrief" as const,
+            sourceId: id,
+            createdAt: at,
+          })),
+        );
       } else if (judged.focusItems?.length) {
-        await tx.insert(focusItem).values(judged.focusItems.map((f) => ({
-          userId, ...f, source: "lesson" as const, sourceId: id, createdAt: at,
-        })));
+        await tx.insert(focusItem).values(
+          judged.focusItems.map((f) => ({
+            userId,
+            ...f,
+            source: "lesson" as const,
+            sourceId: id,
+            createdAt: at,
+          })),
+        );
       }
     }
-    const [saved] = await tx.update(lesson).set({
-      status: "completed", completedAt: at, objectiveProgress: judged?.objectiveProgress, summary: judged?.summary, debrief,
-    }).where(eq(lesson.id, id)).returning();
+    if (judged && "feedback" in judged) {
+      const savedSteps = await tx.select().from(step).where(eq(step.lessonId, id));
+      for (const f of judged.feedback) {
+        const target = savedSteps.find((s) => s.position === f.position)!;
+        const { position, ...feedback } = f;
+        await tx
+          .update(step)
+          .set({ feedback: target.feedback ?? feedback })
+          .where(eq(step.id, target.id));
+      }
+    }
+    if (judged) await remember(tx, userId, `${row.title}: ${judged.summary}`, at);
+    const [saved] = await tx
+      .update(lesson)
+      .set({
+        report: judged && !("questions" in judged) ? judged : undefined,
+        status: "completed",
+        completedAt: at,
+        objectiveProgress: judged?.objectiveProgress,
+        summary: judged?.summary,
+        debrief,
+      })
+      .where(eq(lesson.id, id))
+      .returning();
+    if (row.unitId) await advanceUnit(tx, row.unitId);
     return { row: saved!, changed: true };
   });
-  if (result.changed && judged && row.unitId) await progressUnit({ db, now, models }, row.unitId);
+  if (result.changed && judged) await prepareNext({ db, now, models }, userId);
   return { status: result.row.status, ...(result.row.debrief && { debrief: result.row.debrief }) };
 }

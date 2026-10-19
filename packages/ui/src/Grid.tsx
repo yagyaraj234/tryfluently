@@ -4,7 +4,11 @@ import { Children, type ReactNode } from "react";
 // Items stretch, so cards in a row share one height.
 const grid = cva("gap-4", {
   variants: {
-    columns: { 3: "flex flex-wrap *:min-w-0 *:grow *:basis-full sm:*:basis-[calc((100%_-_1rem)/2)] lg:*:basis-[calc((100%_-_2rem)/3)]", 2: "grid grid-cols-2", responsive: "grid grid-cols-1 sm:grid-cols-2" },
+    columns: {
+      3: "flex flex-wrap *:min-w-0 *:grow *:basis-full sm:*:basis-[calc((100%_-_1rem)/2)] lg:*:basis-[calc((100%_-_2rem)/3)]",
+      2: "grid grid-cols-2",
+      responsive: "grid grid-cols-1 sm:grid-cols-2",
+    },
   },
 });
 

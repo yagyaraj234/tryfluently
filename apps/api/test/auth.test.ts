@@ -10,25 +10,47 @@ describe("auth", () => {
     const app = makeApp({ realtime });
     const { cookie } = await signUp(app);
     const assessment = await app.request("/api/assessments", json({ mode: "voice" }, cookie));
-    const { id } = await assessment.json() as { id: string };
-    expect((await app.request(`/api/assessments/${id}/call`, { method: "POST", headers: { cookie, origin: WEB_ORIGIN }, body: "v=0" })).status).toBe(201);
-    expect((await app.request("/api/auth/delete-user", json({ password: "correct-horse-battery" }, cookie))).status).toBe(200);
+    const { id } = (await assessment.json()) as { id: string };
+    expect(
+      (
+        await app.request(`/api/assessments/${id}/call`, {
+          method: "POST",
+          headers: { cookie, origin: WEB_ORIGIN },
+          body: "v=0",
+        })
+      ).status,
+    ).toBe(201);
+    expect(
+      (await app.request("/api/auth/delete-user", json({ password: "correct-horse-battery" }, cookie))).status,
+    ).toBe(200);
     expect(realtime.sideband().hungUp).toBe(true);
   });
   test("Google sign-up records the browser timezone, preserves it on later sign-ins, and supports deletion without a password", async () => {
     const app = makeApp({ env: { GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" } });
     const profile = { sub: crypto.randomUUID(), email: uniqueEmail(), email_verified: true, name: "Asha" };
     const jwt = `${btoa(JSON.stringify({ alg: "none" }))}.${btoa(JSON.stringify(profile))}.signature`;
-    const provider = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async (input: URL | RequestInfo) => {
-      if (!String(input).includes("oauth2.googleapis.com/token")) throw new Error(`Unexpected provider request: ${input}`);
-      return Response.json({ access_token: "fake-access", token_type: "Bearer", expires_in: 3600, id_token: jwt });
-    }, { preconnect: fetch.preconnect }));
+    const provider = spyOn(globalThis, "fetch").mockImplementation(
+      Object.assign(
+        async (input: URL | RequestInfo) => {
+          if (!String(input).includes("oauth2.googleapis.com/token"))
+            throw new Error(`Unexpected provider request: ${input}`);
+          return Response.json({ access_token: "fake-access", token_type: "Bearer", expires_in: 3600, id_token: jwt });
+        },
+        { preconnect: fetch.preconnect },
+      ),
+    );
     try {
       async function google(timezone: string) {
-        const start = await app.request("/api/auth/sign-in/social", json({ provider: "google", callbackURL: "/", additionalData: { timezone } }));
+        const start = await app.request(
+          "/api/auth/sign-in/social",
+          json({ provider: "google", callbackURL: "/", additionalData: { timezone } }),
+        );
         expect(start.status).toBe(200);
-        const { url } = await start.json() as { url: string };
-        const callback = await app.request(`/api/auth/callback/google?code=fake&state=${new URL(url).searchParams.get("state")}`, { headers: { cookie: cookieFrom(start) } });
+        const { url } = (await start.json()) as { url: string };
+        const callback = await app.request(
+          `/api/auth/callback/google?code=fake&state=${new URL(url).searchParams.get("state")}`,
+          { headers: { cookie: cookieFrom(start) } },
+        );
         return callback;
       }
       const invalid = await google("Mars/Olympus");
@@ -37,12 +59,20 @@ describe("auth", () => {
       const signedIn = await google("Asia/Kolkata");
       expect(signedIn.status).toBe(302);
       const cookie = cookieFrom(signedIn);
-      const me = await (await app.request("/api/me", { headers: { cookie } })).json() as { id: string; timezone: string };
+      const me = (await (await app.request("/api/me", { headers: { cookie } })).json()) as {
+        id: string;
+        timezone: string;
+      };
       expect(me.timezone).toBe("Asia/Kolkata");
       const later = cookieFrom(await google("America/New_York"));
-      expect(await (await app.request("/api/me", { headers: { cookie: later } })).json()).toMatchObject({ timezone: "Asia/Kolkata" });
+      expect(await (await app.request("/api/me", { headers: { cookie: later } })).json()).toMatchObject({
+        timezone: "Asia/Kolkata",
+      });
 
-      await testDb.update(schema.session).set({ createdAt: new Date(Date.now() - 2 * 86_400_000) }).where(eq(schema.session.userId, me.id));
+      await testDb
+        .update(schema.session)
+        .set({ createdAt: new Date(Date.now() - 2 * 86_400_000) })
+        .where(eq(schema.session.userId, me.id));
       const stale = await app.request("/api/auth/delete-user", json({}, later));
       expect(stale.status).toBe(400);
       expect(await stale.json()).toMatchObject({ code: "SESSION_EXPIRED" });
@@ -95,7 +125,9 @@ describe("auth", () => {
   test("the sign-in page learns whether Google is offered, without a session", async () => {
     const providers = async (app: ReturnType<typeof makeApp>) => (await app.request("/api/auth/providers")).json();
     expect(await providers(makeApp())).toEqual({ google: false });
-    expect(await providers(makeApp({ env: { GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" } }))).toEqual({ google: true });
+    expect(await providers(makeApp({ env: { GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" } }))).toEqual({
+      google: true,
+    });
   });
 
   test("app routes return 401 without a session", async () => {

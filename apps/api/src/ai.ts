@@ -20,7 +20,11 @@ const tokens = (u: LanguageModelUsage) => ({
 });
 
 // Writes the ai_usage row for one text call, so spend can be queried per day and per Learner.
-async function logTextUsage({ db }: Ctx, userId: string, call: { id?: string; startedAt: Date; t0: number; usage?: LanguageModelUsage }) {
+async function logTextUsage(
+  { db }: Ctx,
+  userId: string,
+  call: { id?: string; startedAt: Date; t0: number; usage?: LanguageModelUsage },
+) {
   await db.insert(schema.aiUsage).values({
     userId,
     kind: "text",
@@ -39,7 +43,8 @@ export async function generate<O extends Parameters<typeof generateText>[0]>(ctx
     return result;
   } catch (e) {
     // Output that fails its schema was still paid for.
-    if (NoObjectGeneratedError.isInstance(e)) await logTextUsage(ctx, userId, { ...call, id: e.response?.id, usage: e.usage });
+    if (NoObjectGeneratedError.isInstance(e))
+      await logTextUsage(ctx, userId, { ...call, id: e.response?.id, usage: e.usage });
     throw e;
   }
 }
@@ -58,7 +63,9 @@ export async function streamChat(
   },
 ) {
   const call = { startedAt: ctx.now(), t0: performance.now() };
-  const result = streamText({ ...options, messages: await convertToModelMessages(messages) } as Parameters<typeof streamText>[0]);
+  const result = streamText({ ...options, messages: await convertToModelMessages(messages) } as Parameters<
+    typeof streamText
+  >[0]);
   return createUIMessageStreamResponse({
     stream: result.toUIMessageStream({
       originalMessages: messages,
@@ -66,7 +73,8 @@ export async function streamChat(
       onEnd: async ({ messages }) => {
         // A server tool that throws (e.g. giveFeedback's database write) only reaches the model as a tool error.
         for (const s of await result.steps)
-          for (const part of s.content) if (part.type === "tool-error") console.error(`tool ${part.toolName} failed`, part.error);
+          for (const part of s.content)
+            if (part.type === "tool-error") console.error(`tool ${part.toolName} failed`, part.error);
         await save(messages);
         await logTextUsage(ctx, userId, { ...call, id: (await result.response).id, usage: await result.totalUsage });
       },

@@ -30,7 +30,11 @@ export function CefrScale({ label, level }: CefrScaleProps) {
   return (
     <ol aria-label={label} className={scale()}>
       {levels.map((l) => (
-        <li key={l} aria-current={l === level ? "true" : undefined} className={cell({ level: l, current: l === level })}>
+        <li
+          key={l}
+          aria-current={l === level ? "true" : undefined}
+          className={cell({ level: l, current: l === level })}
+        >
           {l}
         </li>
       ))}

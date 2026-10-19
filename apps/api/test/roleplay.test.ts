@@ -1,8 +1,26 @@
 import { describe, expect, test } from "bun:test";
 import { schema } from "@impromptu/db";
 import { and, eq } from "drizzle-orm";
-import { answerStep, feedback, fillGap, learnerWithRoadmap, lessonPlan, unitsReply } from "./fixtures";
-import { fakeRealtime, get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, WEB_ORIGIN, type TestApp } from "./helpers";
+import {
+  answerStep,
+  feedback,
+  fillGap,
+  learnerWithLegacyRoadmap as learnerWithRoadmap,
+  lessonPlan,
+  unitsReply,
+} from "./fixtures";
+import {
+  fakeRealtime,
+  get,
+  json,
+  makeApp,
+  makeClock,
+  mockModel,
+  mockTurns,
+  userMessage,
+  WEB_ORIGIN,
+  type TestApp,
+} from "./helpers";
 import { testDb } from "./setup";
 
 const offer = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n";
@@ -18,7 +36,9 @@ const learnerTurn = (itemId: string, startMs: number, endMs: number, transcript:
   { type: "input_audio_buffer.speech_stopped", item_id: itemId, audio_end_ms: endMs },
   { type: "conversation.item.input_audio_transcription.completed", item_id: itemId, transcript },
 ];
-const coachTurn = (itemId: string, transcript: string) => [{ type: "response.output_audio_transcript.done", item_id: itemId, transcript }];
+const coachTurn = (itemId: string, transcript: string) => [
+  { type: "response.output_audio_transcript.done", item_id: itemId, transcript },
+];
 
 const debriefReply = (over: Record<string, unknown> = {}) => ({
   overallImpression: "Clear, confident answers with a few tense slips.",
@@ -113,7 +133,9 @@ describe("starting a Roleplay", () => {
     const general = (await (await app.request("/api/goals", json({ kind: "general_fluency" }, cookie))).json()) as any;
 
     expect((await app.request("/api/roleplays", json({ goalId: general.id }, cookie))).status).toBe(400);
-    expect((await app.request("/api/roleplays", json({ goalId: general.id, kind: "client_call" }, cookie))).status).toBe(201);
+    expect(
+      (await app.request("/api/roleplays", json({ goalId: general.id, kind: "client_call" }, cookie))).status,
+    ).toBe(201);
   });
 
   test("a Learner can't start a Roleplay from someone else's Goal", async () => {
@@ -131,9 +153,13 @@ describe("Roleplay call", () => {
     const realtime = fakeRealtime();
     const app = makeApp({ realtime, models: { brief: mockModel("Asha is a backend engineer at a Pune fintech.") } });
     const { cookie, id: learnerId } = await learnerWithRoadmap();
-    const withCv = (await (await app.request("/api/goals", json({ kind: "job_interview", context: "CV: backend, fintech" }, cookie))).json()) as any;
+    const withCv = (await (
+      await app.request("/api/goals", json({ kind: "job_interview", context: "CV: backend, fintech" }, cookie))
+    ).json()) as any;
     await app.request(`/api/goals/${withCv.id}/confirm`, json({}, cookie));
-    const roleplay = (await (await app.request("/api/roleplays", json({ goalId: withCv.id, tone: "tough" }, cookie))).json()) as any;
+    const roleplay = (await (
+      await app.request("/api/roleplays", json({ goalId: withCv.id, tone: "tough" }, cookie))
+    ).json()) as any;
 
     const res = await app.request(`/api/roleplays/${roleplay.id}/call`, sdp(cookie));
     expect(res.status).toBe(201);
@@ -198,7 +224,11 @@ describe("ending a Roleplay", () => {
       questions: debriefReply().questions,
       phrasesToLearn: debriefReply().phrasesToLearn,
       // grammar 42 + 0.15 × (62 − 42) = 45; fluency is first measured here: 0.4 × 60 + 0.2 × 98.4 + 0.4 × 70 ≈ 72
-      skillChanges: { grammar: { from: 42, to: 45 }, vocabulary: { from: 55, to: 55 }, fluency: { from: null, to: 72 } },
+      skillChanges: {
+        grammar: { from: 42, to: 45 },
+        vocabulary: { from: 55, to: 55 },
+        fluency: { from: null, to: 72 },
+      },
     });
     expect(done.steps.map((s: any) => [s.type, s.mode, s.input.question])).toEqual([
       ["roleplayTurn", "voice", "Tell me about yourself."],
@@ -247,52 +277,9 @@ describe("ending a Roleplay", () => {
     const roleplay = await startRoleplay(app, cookie);
     await app.request(`/api/roleplays/${roleplay.id}/call`, sdp(cookie));
 
-    expect(await (await app.request(`/api/roleplays/${roleplay.id}/end`, json({}, cookie))).json()).toMatchObject({ status: "abandoned" });
+    expect(await (await app.request(`/api/roleplays/${roleplay.id}/end`, json({}, cookie))).json()).toMatchObject({
+      status: "abandoned",
+    });
     expect(await lessonOf(app, cookie, roleplay.id)).toMatchObject({ status: "abandoned", debrief: null });
-  });
-});
-
-describe("Roleplay at the end of a Unit", () => {
-  test("in a Unit that ends with a Roleplay, a practice Lesson at 80+ is followed by a Roleplay that can master the Unit", async () => {
-    const clock = makeClock();
-    const realtime = fakeRealtime();
-    const step = mockTurns([fillGap()], [feedback(), fillGap()], [feedback(), fillGap()], [feedback(), { tool: "endLesson", input: {} }]);
-    step.doGenerate = mockModel(lessonPlan()).doGenerate;
-    const judge = mockModel({ skills: { fluency: null, grammar: null, vocabulary: null }, objectiveProgress: 85, summary: "Nearly there.", focusItems: null }, debriefReply({ objectiveProgress: 90 }));
-    // The first skip's revision plans one final Unit that ends with a Roleplay; mastering it later extends the Roadmap.
-    const roadmap = mockModel(unitsReply(1, "Final"), unitsReply(2, "More"));
-    const app = makeApp({ now: clock, realtime, models: { step, judge, roadmap } });
-    const { cookie, units } = await learnerWithRoadmap(clock);
-    await app.request(`/api/roadmap/units/${units[0].id}/skip`, json({}, cookie));
-    await app.request(`/api/roadmap/units/${units[1].id}/skip`, json({}, cookie));
-    const last = ((await (await app.request("/api/roadmap", get(cookie))).json()) as any[]).find((u) => u.status === "active");
-    expect(last).toMatchObject({ title: "Final 1", endsWithRoleplay: true });
-
-    const practice = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
-    expect(practice).toMatchObject({ kind: "practice", unitId: last.id });
-    await (await app.request(`/api/lessons/${practice.id}/chat`, json({ message: userMessage("Let's start") }, cookie))).text();
-    for (let i = 0; i < 3; i++) await answerStep(app, cookie, practice.id, { answer: "goes" });
-
-    const res = await app.request("/api/lessons/next", json({}, cookie));
-    expect(res.status).toBe(201);
-    const roleplay = (await res.json()) as any;
-    expect(roleplay).toMatchObject({ kind: "roleplay", unitId: last.id, roleplayKind: "mock_interview", tone: "standard", title: last.lessonOutline.find((l: any) => l.kind === "roleplay").title });
-
-    await app.request(`/api/roleplays/${roleplay.id}/call`, sdp(cookie));
-    const sb = realtime.sideband();
-    for (const e of [...coachTurn("c1", "Tell me about yourself."), ...learnerTurn("u1", 0, 20_000, "I build payment systems.")]) sb.emit(e);
-    expect((await app.request(`/api/roleplays/${roleplay.id}/end`, json({}, cookie))).status).toBe(200);
-
-    // 85 then 90: two Lessons in a row at 80+.
-    const after = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
-    expect(after.find((u) => u.id === last.id).status).toBe("mastered");
-  });
-
-  test("a Roleplay can't be driven through the practice chat", async () => {
-    const app = makeApp();
-    const { cookie } = await learnerWithRoadmap();
-    const roleplay = await startRoleplay(app, cookie);
-
-    expect((await app.request(`/api/lessons/${roleplay.id}/chat`, json({ message: userMessage("hi") }, cookie))).status).toBe(409);
   });
 });

@@ -10,7 +10,10 @@ import { api } from "../../lib/api";
 export type RoleplayKind = "mock_interview" | "client_call";
 export type Tone = "friendly" | "standard" | "tough";
 
-export const roleplayKinds: Record<RoleplayKind, string> = { mock_interview: "Mock Interview", client_call: "Client Call" };
+export const roleplayKinds: Record<RoleplayKind, string> = {
+  mock_interview: "Mock Interview",
+  client_call: "Client Call",
+};
 export const tones: Record<Tone, string> = { friendly: "Friendly", standard: "Standard", tough: "Tough" };
 /** Who the coach plays, as screen readers announce their lines. */
 export const characters: Record<RoleplayKind, string> = { mock_interview: "Interviewer", client_call: "Client" };
@@ -70,11 +73,24 @@ export function RoleplayEnding({ ending, end }: ReturnType<typeof useRoleplayEnd
         retryLabel="Write my Debrief"
       />
     );
-  return <LoadingState title="Writing your Debrief…" description="Your coach is reading the whole conversation. This takes up to a minute." />;
+  return (
+    <LoadingState
+      title="Writing your Debrief…"
+      description="Your coach is reading the whole conversation. This takes up to a minute."
+    />
+  );
 }
 
 /** The top of a Roleplay in text: its kind and tone, and End. A voice Roleplay has the LiveBar instead. */
-export function RoleplayBar({ roleplay, onEnd, disabled }: { roleplay: Roleplay; onEnd: () => void; disabled?: boolean }) {
+export function RoleplayBar({
+  roleplay,
+  onEnd,
+  disabled,
+}: {
+  roleplay: Roleplay;
+  onEnd: () => void;
+  disabled?: boolean;
+}) {
   return (
     <Cluster justify="between">
       <Text size="label">{roleplayLabel(roleplay)}</Text>

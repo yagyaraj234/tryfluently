@@ -22,12 +22,12 @@ Sources are Kenpath's own pages and public API responses, checked 2026-10-15. Wh
 - The docs say "320 human-reviewed voices". The live `GET /v1/voices` response returned 346 voices on 2026-10-15, and the endpoint answered without an API key. ([docs](https://docs.kenpathlabs.com/voices), [voices endpoint](https://api.kenpathlabs.com/v1/voices))
 - English-native voices in that response (`labels.native_language == "English"`). Quality band is A unless noted. The bands come from `labels.quality_band`, and the docs don't define them.
 
-| Accent | Voices (`voice_id`) |
-|---|---|
-| Indian | Alia `sv_92xqyy9r` (F), Ridhi `sv_jzznenun` (F), Sara `sv_dxnp35cw` (F), Zoya `sv_hmwrtb3q` (F), Rishi `sv_uvtkrjbp` (M), Zain `sv_n7x5qafg` (M); band B: Aryan `sv_3em9yb87` (M), Kunal `sv_v827y5j3` (M), Mira `sv_djdcwnpf` (F), Rehan `sv_j9y2z5ec` (M) |
-| American | Grace `sv_a5thzx8v` (F), Harper `sv_d3xm8bqn` (F), Tyler `sv_b89hdu5p` (M), Wade `sv_6835mfvc` (M) |
-| British | Imogen `sv_8uhhmj6e` (F), Poppy `sv_3ts79y8r` (F), Oliver `sv_kq5snfd4` (M), Rupert `sv_eh5ebnrm` (M) |
-| Also available | Australian (Jack, Matilda, Sienna), Canadian (Avery, Hudson), Irish (Saoirse), African American (Marcus; Imani at band C) |
+| Accent         | Voices (`voice_id`)                                                                                                                                                                                                                                         |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Indian         | Alia `sv_92xqyy9r` (F), Ridhi `sv_jzznenun` (F), Sara `sv_dxnp35cw` (F), Zoya `sv_hmwrtb3q` (F), Rishi `sv_uvtkrjbp` (M), Zain `sv_n7x5qafg` (M); band B: Aryan `sv_3em9yb87` (M), Kunal `sv_v827y5j3` (M), Mira `sv_djdcwnpf` (F), Rehan `sv_j9y2z5ec` (M) |
+| American       | Grace `sv_a5thzx8v` (F), Harper `sv_d3xm8bqn` (F), Tyler `sv_b89hdu5p` (M), Wade `sv_6835mfvc` (M)                                                                                                                                                          |
+| British        | Imogen `sv_8uhhmj6e` (F), Poppy `sv_3ts79y8r` (F), Oliver `sv_kq5snfd4` (M), Rupert `sv_eh5ebnrm` (M)                                                                                                                                                       |
+| Also available | Australian (Jack, Matilda, Sienna), Canadian (Avery, Hudson), Irish (Saoirse), African American (Marcus; Imani at band C)                                                                                                                                   |
 
 - Fetch the roster at runtime and don't hardcode it: "Fetch the roster at runtime rather than hardcoding a list; store each voice's `voice_id`". `GET /v1/voices/{voice_id}/preview` returns a sample clip. ([Voices & languages](https://docs.kenpathlabs.com/voices), [developers](https://kenpathlabs.com/developers))
 
@@ -37,19 +37,19 @@ Sources are Kenpath's own pages and public API responses, checked 2026-10-15. Wh
 
 **Request fields** ([Text to speech](https://docs.kenpathlabs.com/text-to-speech)):
 
-| Field | Notes |
-|---|---|
-| `input` | Required. At most 5,000 characters. The docs say "No SSML or phonemes". |
-| `voice` | Required. An `sv_…` voice ID. |
-| `model` | Defaults to `svara-tts-turbo`. Any value is accepted, so OpenAI SDK calls work. |
-| `response_format` | `mp3`, `opus`, `aac`, `flac`, `wav` (default), `pcm`, `ulaw`, `alaw` |
-| `sample_rate` | 8000, 16000, 22050, 24000 (default), 32000, 44100, 48000 |
-| `speed` | 0.7–1.5, pitch-preserving. Default 1.0. A slowed playback (e.g. 0.8) could suit a "hear it slowly" button. |
-| `lang` | Defaults to `auto`. Send `en` so the server normalizes numbers and dates. |
-| `stream` | Defaults to false. |
-| `bitrate_kbps` | 8–320. Defaults: mp3 128, opus 64, aac 96. |
+| Field                         | Notes                                                                                                                                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `input`                       | Required. At most 5,000 characters. The docs say "No SSML or phonemes".                                                                                                                                |
+| `voice`                       | Required. An `sv_…` voice ID.                                                                                                                                                                          |
+| `model`                       | Defaults to `svara-tts-turbo`. Any value is accepted, so OpenAI SDK calls work.                                                                                                                        |
+| `response_format`             | `mp3`, `opus`, `aac`, `flac`, `wav` (default), `pcm`, `ulaw`, `alaw`                                                                                                                                   |
+| `sample_rate`                 | 8000, 16000, 22050, 24000 (default), 32000, 44100, 48000                                                                                                                                               |
+| `speed`                       | 0.7–1.5, pitch-preserving. Default 1.0. A slowed playback (e.g. 0.8) could suit a "hear it slowly" button.                                                                                             |
+| `lang`                        | Defaults to `auto`. Send `en` so the server normalizes numbers and dates.                                                                                                                              |
+| `stream`                      | Defaults to false.                                                                                                                                                                                     |
+| `bitrate_kbps`                | 8–320. Defaults: mp3 128, opus 64, aac 96.                                                                                                                                                             |
 | `pronunciation_dictionary_id` | Optional text-substitution rules (e.g. `SQL` → `sequel`). An unknown ID isn't an error: the response carries `X-Svara-Dictionary: miss`. ([Pronunciation](https://docs.kenpathlabs.com/pronunciation)) |
-| `temperature`, `top_p`, … | Sampling knobs. The docs advise leaving them unset. |
+| `temperature`, `top_p`, …     | Sampling knobs. The docs advise leaving them unset.                                                                                                                                                    |
 
 **Response.** "The response body is the raw audio in your requested `response_format` (or a chunked stream when `stream: true`)." Every response carries an `x-request-id`. ([Text to speech](https://docs.kenpathlabs.com/text-to-speech), [API reference](https://docs.kenpathlabs.com/llms-full.txt))
 
@@ -95,11 +95,11 @@ For the web app, `mp3` (or `opus`) at the default 24 kHz plays in an `<audio>` e
 
 Limits apply per organization, not per API key. They are counted on two axes: concurrent streams and characters per calendar month (UTC), where characters are the summed `input` length. ([Rate limits & errors](https://docs.kenpathlabs.com/rate-limits))
 
-| Plan | Characters/month | Concurrent streams | Custom voices | Pronunciation dictionaries |
-|---|---|---|---|---|
-| Pay as you go | 100,000 free | 2 | 3 | 10 |
-| Growth | 1,000,000 | 8 | 10 | Unlimited |
-| Enterprise | Custom | Custom | Custom | Unlimited |
+| Plan          | Characters/month | Concurrent streams | Custom voices | Pronunciation dictionaries |
+| ------------- | ---------------- | ------------------ | ------------- | -------------------------- |
+| Pay as you go | 100,000 free     | 2                  | 3             | 10                         |
+| Growth        | 1,000,000        | 8                  | 10            | Unlimited                  |
+| Enterprise    | Custom           | Custom             | Custom        | Unlimited                  |
 
 - Errors use the shape `{ "detail": { "status", "message" } }`. A 429 means one of three things: `rate_limit_exceeded` (a burst; back off), `too_many_concurrent_requests` (retry after about 1 s), or `insufficient_quota` (terminal until the month resets). A 429 may include `Retry-After`. ([Rate limits & errors](https://docs.kenpathlabs.com/rate-limits))
 - Successful responses include `x-ratelimit-remaining-streams` and `x-ratelimit-remaining-characters`, and `GET /v1/user/subscription` reports usage. ([Rate limits & errors](https://docs.kenpathlabs.com/rate-limits), [Usage & subscription](https://docs.kenpathlabs.com/usage-api))
@@ -108,11 +108,11 @@ Limits apply per organization, not per API key. They are counted on two axes: co
 
 ## 7. Pricing
 
-| Plan | Price | Included |
-|---|---|---|
-| Pay as you go | ₹0 to start, then ₹1 per 1,000 characters | 100,000 characters/month free (~1 h 40 min of audio) |
-| Growth | ₹1,000/month, then ₹1 per 1,000 characters | 1,000,000 characters/month (~16 h of audio) |
-| Enterprise | Custom | Zero data retention; EU/US/India data residency |
+| Plan          | Price                                      | Included                                             |
+| ------------- | ------------------------------------------ | ---------------------------------------------------- |
+| Pay as you go | ₹0 to start, then ₹1 per 1,000 characters  | 100,000 characters/month free (~1 h 40 min of audio) |
+| Growth        | ₹1,000/month, then ₹1 per 1,000 characters | 1,000,000 characters/month (~16 h of audio)          |
+| Enterprise    | Custom                                     | Zero data retention; EU/US/India data residency      |
 
 Source: [pricing](https://kenpathlabs.com/pricing). Outside India the Svara page lists $0.01 per 1,000 characters. ([Svara page](https://kenpathlabs.com/svara))
 

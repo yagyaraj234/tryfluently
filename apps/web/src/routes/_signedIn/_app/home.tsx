@@ -19,6 +19,7 @@ import {
 import { Books, CheckCircle, Confetti } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { practicePreparationQuery } from "../../../lib/practice-preparation";
 import { api } from "../../../lib/api";
 import { BuildRoadmap } from "../../../components/roadmap/BuildRoadmap";
 import { LessonAction } from "../../../components/roadmap/LessonAction";
@@ -36,14 +37,22 @@ export const Route = createFileRoute("/_signedIn/_app/home")({
   staticData: { title: "Home" },
   beforeLoad: async () => {
     const [goals, assessments] = await Promise.all([
-      api().api.goals.$get().then((r) => r.json()),
-      api().api.assessments.$get().then((r) => r.json()),
+      api()
+        .api.goals.$get()
+        .then((r) => r.json()),
+      api()
+        .api.assessments.$get()
+        .then((r) => r.json()),
     ]);
     const to = onboardingRoute(goals, assessments);
     if (to) throw redirect({ to });
   },
   loader: ({ context }) =>
-    Promise.all([context.queryClient.prefetchQuery(roadmapQuery), context.queryClient.prefetchQuery(skillProfileQuery)]),
+    Promise.all([
+      context.queryClient.prefetchQuery(roadmapQuery),
+      context.queryClient.prefetchQuery(skillProfileQuery),
+      context.queryClient.prefetchQuery(practicePreparationQuery),
+    ]),
   component: Home,
 });
 
@@ -126,7 +135,9 @@ function Home() {
           <>
             <ProfileCard
               name={learner.name}
-              levels={skills.filter((s) => skillProfile?.[s]).map((s) => ({ skill: s, level: skillProfile![s]!.level }))}
+              levels={skills
+                .filter((s) => skillProfile?.[s])
+                .map((s) => ({ skill: s, level: skillProfile![s]!.level }))}
               levelsRender={<Link to="/progress" aria-label="Your Skill Profile" />}
               streak={progress.streak}
               xp={progress.xp}
@@ -134,8 +145,16 @@ function Home() {
             />
             <WeekStrip week={progress.week} />
             <Grid columns={2}>
-              <StatTile icon={CheckCircle} value={lessonsDone} label={lessonsDone === 1 ? "Lesson done" : "Lessons done"} />
-              <StatTile icon={Books} value={unitsActive} label={unitsActive === 1 ? "Unit in progress" : "Units in progress"} />
+              <StatTile
+                icon={CheckCircle}
+                value={lessonsDone}
+                label={lessonsDone === 1 ? "Lesson done" : "Lessons done"}
+              />
+              <StatTile
+                icon={Books}
+                value={unitsActive}
+                label={unitsActive === 1 ? "Unit in progress" : "Units in progress"}
+              />
             </Grid>
           </>
         )

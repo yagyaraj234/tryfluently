@@ -21,7 +21,9 @@ export const Route = createFileRoute("/llms.txt")({
           "",
           ...faqs.flatMap((f) => [`### ${f.question}`, "", f.answer, ""]),
         ].join("\n");
-        return new Response(body, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
+        return new Response(body, {
+          headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" },
+        });
       },
     },
   },

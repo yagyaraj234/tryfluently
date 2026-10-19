@@ -3,14 +3,14 @@ import { test } from "node:test";
 import { createRecorder } from "../src/hooks/voice.ts";
 
 // A fake microphone, MediaRecorder and clock. Stopping the recorder emits one webm chunk.
-function fakeMedia({ getUserMedia } = {}) {
+function fakeMedia({ getUserMedia, mimeType = "audio/webm" } = {}) {
   const tracks = [];
   const recorders = [];
   let time = 1_000;
   class FakeMediaRecorder {
-    static isTypeSupported = (type) => type === "audio/webm";
+    static isTypeSupported = (type) => type === mimeType;
     constructor(stream, options) {
-      this.mimeType = options?.mimeType ?? "";
+      this.mimeType = options?.mimeType ?? mimeType;
       recorders.push(this);
     }
     start() {
@@ -18,7 +18,7 @@ function fakeMedia({ getUserMedia } = {}) {
     }
     stop() {
       this.state = "inactive";
-      this.ondataavailable?.({ data: new Blob(["voice"], { type: "audio/webm" }) });
+      this.ondataavailable?.({ data: new Blob(["voice"], { type: this.mimeType }) });
       this.onstop?.();
     }
   }
@@ -56,7 +56,11 @@ const until = async (check) => {
   assert.ok(check());
 };
 
-const transcribed = { recordingId: "r1", text: "I lead a team of five.", timing: { seconds: 12.5, words: 6, wpm: 28.8 } };
+const transcribed = {
+  recordingId: "r1",
+  text: "I lead a team of five.",
+  timing: { seconds: 12.5, words: 6, wpm: 28.8 },
+};
 
 test("records webm from the microphone, uploads it with its length and hands back the recording", async () => {
   const { media, tracks, recorders, advance } = fakeMedia();
@@ -134,7 +138,10 @@ test("a browser that can't record is unavailable too", async () => {
 test("at today's recorded-minutes cap (429) the recorder is unavailable for the rest of the Lesson", async () => {
   const { media } = fakeMedia();
   const recorded = [];
-  const recorder = createRecorder("/r", (r) => recorded.push(r), { ...media, fetch: fakeApi([429, { error: "cap" }]).fetch });
+  const recorder = createRecorder("/r", (r) => recorded.push(r), {
+    ...media,
+    fetch: fakeApi([429, { error: "cap" }]).fetch,
+  });
   await recorder.start();
   recorder.stop();
   await until(() => recorder.getState().status === "unavailable");
@@ -147,7 +154,11 @@ test("at today's recorded-minutes cap (429) the recorder is unavailable for the 
 
 test("a failed transcription (502) can be retried with the same recording", async () => {
   const { media, advance } = fakeMedia();
-  const api = fakeApi([502, { error: "The recording couldn't be transcribed. Try again." }], ["offline"], [201, transcribed]);
+  const api = fakeApi(
+    [502, { error: "The recording couldn't be transcribed. Try again." }],
+    ["offline"],
+    [201, transcribed],
+  );
   const recorded = [];
   const recorder = createRecorder("/r", (r) => recorded.push(r), { ...media, fetch: api.fetch });
   await recorder.start();
@@ -169,7 +180,10 @@ test("a failed transcription (502) can be retried with the same recording", asyn
 test("a recording with nothing to hear asks the Learner to record again", async () => {
   const { media } = fakeMedia();
   const recorded = [];
-  const recorder = createRecorder("/r", (r) => recorded.push(r), { ...media, fetch: fakeApi([201, { ...transcribed, text: " " }]).fetch });
+  const recorder = createRecorder("/r", (r) => recorded.push(r), {
+    ...media,
+    fetch: fakeApi([201, { ...transcribed, text: " " }]).fetch,
+  });
   await recorder.start();
   recorder.stop();
   await until(() => recorder.getState().status === "failed");
@@ -208,4 +222,15 @@ test("Hear it plays the Reference Pronunciation from the API, one clip at a time
   assert.ok(played[0].paused, "the first clip stops when the next one starts");
   assert.equal(played[1].src, "/api/pronunciation?text=deadline");
   delete globalThis.Audio;
+});
+
+test("MP4 microphone recordings upload with an audio filename", async () => {
+  const { media } = fakeMedia({ mimeType: "audio/mp4" });
+  const api = fakeApi([201, transcribed]);
+  const recorder = createRecorder("/api/lessons/7/recordings", () => {}, { ...media, fetch: api.fetch });
+  await recorder.start();
+  recorder.stop();
+  await until(() => recorder.getState().status === "done");
+  const sent = await new Request("http://localhost", { method: "POST", body: api.sent[0].form }).formData();
+  assert.equal(sent.get("audio").name, "answer.m4a");
 });

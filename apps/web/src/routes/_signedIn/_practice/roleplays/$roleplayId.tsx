@@ -1,13 +1,30 @@
 import { useChat } from "@ai-sdk/react";
-import { Button, ChatTurn, Cluster, Debrief, EmptyState, ErrorState, Heading, LiveBar, Notice, Spinner, Stack, Text, TextArea, VoiceOrb } from "@impromptu/ui";
+import {
+  Button,
+  ChatComposer,
+  ChatSkeleton,
+  ChatThread,
+  ChatTurn,
+  ChatWriting,
+  Cluster,
+  Debrief,
+  EmptyState,
+  ErrorState,
+  Heading,
+  LiveBar,
+  Notice,
+  Stack,
+  Text,
+  VoiceOrb,
+} from "@impromptu/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import type { UIMessage } from "ai";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRealtimeCall } from "../../../../lib/call";
 import { chatOptions } from "../../../../lib/chat";
 import { useNextLesson } from "../../../../lib/lessons";
-import { voiceMinutesQuery } from "../../../../lib/queries";
+import { roadmapQuery, voiceMinutesQuery } from "../../../../lib/queries";
 import { minutesLeft, resetsIn, useCallClock } from "../../../../lib/voiceMinutes";
 import {
   characters,
@@ -25,27 +42,49 @@ import {
 
 /** One screen for a Roleplay from setup or one that closes a Unit: playing it, in text or by voice, then its Debrief. */
 export const Route = createFileRoute("/_signedIn/_practice/roleplays/$roleplayId")({
-  loader: { staleReloadMode: "blocking", handler: async ({ params, context }) => {
-    const roleplay = await fetchRoleplay(params.roleplayId);
-    // A spoken Roleplay shows today's voice minutes from the first paint (and the cap, without asking for the microphone).
-    if (roleplay?.status === "in_progress" && !roleplay.textMode) await context.queryClient.prefetchQuery(voiceMinutesQuery);
-    return roleplay;
-  } },
+  loader: {
+    staleReloadMode: "blocking",
+    handler: async ({ params, context }) => {
+      const roleplay = await fetchRoleplay(params.roleplayId);
+      // A spoken Roleplay shows today's voice minutes from the first paint (and the cap, without asking for the microphone).
+      if (roleplay?.status === "in_progress" && !roleplay.textMode)
+        await context.queryClient.prefetchQuery(voiceMinutesQuery);
+      return roleplay;
+    },
+  },
   component: RoleplayScreen,
   errorComponent: RoleplayError,
+  pendingComponent: RoleplayPending,
 });
+
+function RoleplayPending() {
+  return <ChatSkeleton label="Loading your Roleplay" />;
+}
 
 function RoleplayError({ error }: ErrorComponentProps) {
   const router = useRouter();
   const description = error instanceof Error ? error.message : undefined;
-  return <ErrorState title="Your Roleplay couldn't be loaded" description={description} onRetry={() => router.invalidate()} />;
+  return (
+    <ErrorState
+      title="Your Roleplay couldn't be loaded"
+      description={description}
+      onRetry={() => router.invalidate()}
+    />
+  );
 }
 
 function RoleplayScreen() {
   const roleplay = Route.useLoaderData();
-  if (!roleplay) return <EmptyState title="We couldn't find that Roleplay" description="It may belong to another account." />;
+  if (!roleplay)
+    return <EmptyState title="We couldn't find that Roleplay" description="It may belong to another account." />;
   if (roleplay.status === "completed") return <DebriefScreen roleplay={roleplay} />;
-  if (roleplay.status === "abandoned") return <Abandoned />;
+  if (roleplay.status === "abandoned")
+    return (
+      <Stack gap={4}>
+        <Abandoned />
+        <Conversation roleplay={roleplay} />
+      </Stack>
+    );
   return <InProgress key={roleplay.id} roleplay={roleplay} />;
 }
 
@@ -57,9 +96,15 @@ function InProgress({ roleplay }: { roleplay: Roleplay }) {
   const [typing, setTyping] = useState(false);
   const session = useRoleplayEnd(roleplay.id);
   if (roleplay.textMode || typing)
-    return session.ending === "running" ? <TextRoleplay roleplay={roleplay} onEnd={() => void session.end()} /> : <RoleplayEnding {...session} />;
+    return session.ending === "running" ? (
+      <TextRoleplay roleplay={roleplay} onEnd={() => void session.end()} />
+    ) : (
+      <RoleplayEnding {...session} />
+    );
   const spoken = (roleplay.messages as unknown[]).length > 0;
-  return <VoiceRoleplay roleplay={roleplay} session={session} onTypeInstead={spoken ? undefined : () => setTyping(true)} />;
+  return (
+    <VoiceRoleplay roleplay={roleplay} session={session} onTypeInstead={spoken ? undefined : () => setTyping(true)} />
+  );
 }
 
 type VoiceProps = {
@@ -88,11 +133,17 @@ function Capped({ limitMinutes, session, onTypeInstead }: VoiceProps & { limitMi
   return (
     <EmptyState
       title="You've used today's voice minutes"
-      description={`${limit}They're back at midnight${when ? `, ${when}` : ""}. ${
-        onTypeInstead ? "You can type this Roleplay instead." : "What you said is saved, so you can get your Debrief now."
+      description={`${limit}More are available at midnight${when ? `, ${when}` : ""}. ${
+        onTypeInstead
+          ? "You can type this Roleplay instead."
+          : "What you said is saved, so you can get your Debrief now."
       }`}
       action={
-        onTypeInstead ? <Button onClick={onTypeInstead}>Type instead</Button> : <Button onClick={() => void session.end()}>Get my Debrief</Button>
+        onTypeInstead ? (
+          <Button onClick={onTypeInstead}>Type instead</Button>
+        ) : (
+          <Button onClick={() => void session.end()}>Get my Debrief</Button>
+        )
       }
     />
   );
@@ -122,7 +173,13 @@ function VoiceCall({ roleplay, session, onTypeInstead }: VoiceProps) {
   const clock = useCallClock(active);
   // The server is the judge of the cap; polling keeps the countdown honest between ticks.
   const minutes = useQuery({ ...voiceMinutesQuery, refetchInterval: active ? 15_000 : false });
-  const left = minutes.data && minutesLeft({ remainingSeconds: minutes.data.remainingSeconds, fetchedAt: minutes.dataUpdatedAt }, clock.since, clock.now);
+  const left =
+    minutes.data &&
+    minutesLeft(
+      { remainingSeconds: minutes.data.remainingSeconds, fetchedAt: minutes.dataUpdatedAt },
+      clock.since,
+      clock.now,
+    );
 
   function finish(reason: "timesUp" | "dropped") {
     if (!running) return;
@@ -145,7 +202,9 @@ function VoiceCall({ roleplay, session, onTypeInstead }: VoiceProps) {
   if (!running)
     return (
       <Stack gap={6}>
-        {over === "timesUp" && <Notice tone="info">Time's up for today: you've used today's voice minutes, so the Roleplay ended there.</Notice>}
+        {over === "timesUp" && (
+          <Notice tone="info">You've used today's voice minutes, so the Roleplay ended there.</Notice>
+        )}
         {over === "dropped" && <Notice tone="info">Your call dropped, so the Roleplay ended there.</Notice>}
         <RoleplayEnding {...session} />
       </Stack>
@@ -176,7 +235,14 @@ function VoiceCall({ roleplay, session, onTypeInstead }: VoiceProps) {
           action={typeInstead}
         />
       );
-    return <ErrorState title="We couldn't connect your call" description="Check your connection and try again." onRetry={call.retry} action={typeInstead} />;
+    return (
+      <ErrorState
+        title="We couldn't connect your call"
+        description="Check your connection and try again."
+        onRetry={call.retry}
+        action={typeInstead}
+      />
+    );
   }
 
   const kind = roleplay.roleplayKind as RoleplayKind;
@@ -199,10 +265,13 @@ function VoiceCall({ roleplay, session, onTypeInstead }: VoiceProps) {
         <Heading level={1} size="title">
           {`Talk with your ${characters[kind].toLowerCase()}`}
         </Heading>
-        <Text>{`Say hello to start. Your ${characters[kind].toLowerCase()} stays in character until you end the ${roleplayKinds[kind]}, and your Debrief comes at the end.`}</Text>
+        <Text>{`Say hello to start. Your ${characters[kind].toLowerCase()} stays in character until you end the ${roleplayKinds[kind]}. Your Debrief comes after.`}</Text>
       </Stack>
       <Cluster justify="center">
-        <VoiceOrb phase={active ? call.conversation.phase : "connecting"} label={orbLabels(characters[kind].toLowerCase())[active ? call.conversation.phase : "connecting"]} />
+        <VoiceOrb
+          phase={active ? call.conversation.phase : "connecting"}
+          label={orbLabels(characters[kind].toLowerCase())[active ? call.conversation.phase : "connecting"]}
+        />
       </Cluster>
     </Stack>
   );
@@ -217,10 +286,18 @@ function TextRoleplay({ roleplay, onEnd }: { roleplay: Roleplay; onEnd: () => vo
   const [draft, setDraft] = useState("");
   const busy = status === "submitted" || status === "streaming";
 
-  function send(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!draft.trim() || busy) return;
-    void sendMessage({ text: draft.trim() });
+  // The coach may still be opening its turn (or its first token hasn't arrived), so show the skeleton bubble.
+  const last = messages.at(-1);
+  const latestText =
+    last?.role === "assistant" ? last.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("") : "";
+  const waiting = status === "submitted" || (status === "streaming" && !latestText);
+  const streamingId = status === "streaming" && last?.role === "assistant" && latestText ? last.id : undefined;
+  const lastTextIndex = last ? last.parts.reduce((at, part, i) => (part.type === "text" ? i : at), -1) : -1;
+
+  function send() {
+    const text = draft.trim();
+    if (!text || busy) return;
+    void sendMessage({ text });
     setDraft("");
   }
 
@@ -229,24 +306,27 @@ function TextRoleplay({ roleplay, onEnd }: { roleplay: Roleplay; onEnd: () => vo
       {/* Ending mid-reply would leave that turn out of the Debrief. */}
       <RoleplayBar roleplay={roleplay} onEnd={onEnd} disabled={busy} />
       {messages.length === 0 && (
-        <Text tone="muted">{`Your ${characters[kind].toLowerCase()} is ready and will stay in character until you end the ${roleplayKinds[kind]}. Say hello to start. Your Debrief comes at the end.`}</Text>
+        <Text tone="muted">{`Say hello to start. Your ${characters[kind].toLowerCase()} stays in character until you end the ${roleplayKinds[kind]}. Your Debrief comes after.`}</Text>
       )}
-      <Stack gap={5}>
-        {messages.flatMap((message) =>
-          message.parts.map((part, i) =>
-            part.type === "text" ? (
-              <ChatTurn
-                key={`${message.id}-${i}`}
-                from={message.role === "user" ? "learner" : "coach"}
-                name={message.role === "user" ? undefined : characters[kind]}
-              >
-                {part.text}
-              </ChatTurn>
-            ) : null,
-          ),
-        )}
-        {status === "submitted" && <Spinner label={`The ${characters[kind].toLowerCase()} is writing`} />}
-      </Stack>
+      {(messages.length > 0 || waiting) && (
+        <ChatThread label={`Conversation with your ${characters[kind].toLowerCase()}`} busy={busy}>
+          {messages.flatMap((message) =>
+            message.parts.map((part, i) =>
+              part.type === "text" && part.text ? (
+                <ChatTurn
+                  key={`${message.id}-${i}`}
+                  from={message.role === "user" ? "learner" : "coach"}
+                  name={message.role === "user" ? undefined : characters[kind]}
+                  streaming={message.id === streamingId && i === lastTextIndex}
+                >
+                  {part.text}
+                </ChatTurn>
+              ) : null,
+            ),
+          )}
+          {waiting && <ChatWriting name={characters[kind]} />}
+        </ChatThread>
+      )}
       {error && (
         <Stack gap={3} align="start">
           <Notice tone="error">We couldn't send that. Check your connection and try again.</Notice>
@@ -255,14 +335,16 @@ function TextRoleplay({ roleplay, onEnd }: { roleplay: Roleplay; onEnd: () => vo
           </Button>
         </Stack>
       )}
-      <form onSubmit={send}>
-        <Stack gap={3}>
-          <TextArea label="Your reply" value={draft} onValueChange={setDraft} rows={3} maxLength={2000} />
-          <Button type="submit" disabled={busy || !draft.trim()}>
-            Send
-          </Button>
-        </Stack>
-      </form>
+      <ChatComposer
+        label="Your reply"
+        value={draft}
+        onValueChange={setDraft}
+        onSend={send}
+        pending={status === "submitted"}
+        disabled={busy}
+        maxLength={2000}
+        placeholder={`Reply to your ${characters[kind].toLowerCase()}…`}
+      />
     </Stack>
   );
 }
@@ -273,37 +355,75 @@ function Abandoned() {
   return (
     <EmptyState
       title="Roleplay abandoned"
-      description="It ended before you said anything, so there's no Debrief. Start another whenever you're ready."
+      description="It ended before completion, so there's no Debrief. Start another whenever you're ready."
       action={<Button render={<Link to="/roleplays/new" />}>Start a Roleplay</Button>}
     />
   );
 }
 
 function DebriefScreen({ roleplay }: { roleplay: Roleplay }) {
+  const roadmap = useQuery(roadmapQuery);
+  const finished = Boolean(
+    roadmap.data?.length && roadmap.data.every((u) => u.status === "mastered" || u.status === "skipped"),
+  );
   const next = useNextLesson();
   const debrief = roleplay.debrief as unknown as DebriefData;
   return (
     <Stack gap={4}>
-      <Debrief
-        {...debrief}
-        onHear={hear}
-        actions={
-          <>
-            {/* A Roleplay that closes a Unit carries on along the Roadmap; one from setup can be played again. */}
-            {roleplay.unitId ? (
-              <Button onClick={() => next.mutate()} disabled={next.isPending || next.isSuccess}>
-                Next Lesson
+      {debrief ? (
+        <Debrief
+          {...debrief}
+          onHear={hear}
+          actions={
+            <>
+              {/* A Roleplay that closes a Unit carries on along the Roadmap; one from setup can be played again. */}
+              {roleplay.unitId && finished ? (
+                <Text>Roadmap complete</Text>
+              ) : roleplay.unitId ? (
+                <Button onClick={() => next.mutate()} disabled={next.isPending || next.isSuccess}>
+                  Next Lesson
+                </Button>
+              ) : (
+                <Button render={<Link to="/roleplays/new" />}>Another Roleplay</Button>
+              )}
+              <Button variant="secondary" render={<Link to="/home" />}>
+                Back to Home
               </Button>
-            ) : (
-              <Button render={<Link to="/roleplays/new" />}>Another Roleplay</Button>
-            )}
-            <Button variant="secondary" render={<Link to="/home" />}>
-              Back to Home
-            </Button>
-          </>
-        }
-      />
+            </>
+          }
+        />
+      ) : (
+        <EmptyState title="No saved feedback" description="This session has no detailed Debrief." />
+      )}
+      <Conversation roleplay={roleplay} />
+      <Button variant="secondary" render={<Link to="/roleplays" />}>
+        Back to Roleplays
+      </Button>
       {next.isError && <Text tone="muted">Your next Lesson couldn't be prepared. Try again in a moment.</Text>}
     </Stack>
+  );
+}
+
+function Conversation({ roleplay }: { roleplay: Roleplay }) {
+  const messages = roleplay.messages as unknown as UIMessage[];
+  return (
+    <details>
+      <summary>Conversation history</summary>
+      <Stack gap={3}>
+        {messages.length ? (
+          messages.map((message) => (
+            <ChatTurn
+              key={message.id}
+              from={message.role === "user" ? "learner" : "coach"}
+              name={message.role === "user" ? "You" : "Coach"}
+            >
+              {message.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(" ")}
+            </ChatTurn>
+          ))
+        ) : (
+          <Text tone="muted">No conversation was recorded.</Text>
+        )}
+      </Stack>
+    </details>
   );
 }

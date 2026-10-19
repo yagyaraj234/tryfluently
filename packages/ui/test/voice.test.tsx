@@ -74,7 +74,9 @@ describe("SpeakPromptStep", () => {
     const h = handlers();
     speak({ status: "idle" }, h);
     click("Type instead");
-    fireEvent.change(screen.getByRole("textbox", { name: "Your answer" }), { target: { value: " My team is small. " } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Your answer" }), {
+      target: { value: " My team is small. " },
+    });
     click("Send answer");
     expect(h.onAnswer).toHaveBeenCalledWith("My team is small.");
     click("Record instead");
@@ -118,13 +120,19 @@ describe("SpeakPromptStep", () => {
   });
 
   test("once answered in text, it shows the answer read-only", () => {
-    render(<SpeakPromptStep targetSeconds={30} recording={{ status: "idle" }} answered="Typed answer" {...handlers()} />);
+    render(
+      <SpeakPromptStep targetSeconds={30} recording={{ status: "idle" }} answered="Typed answer" {...handlers()} />,
+    );
     expect(screen.getByText("Typed answer")).toBeDefined();
   });
 });
 
 describe("Hear it", () => {
-  const vocab = { word: "deadline", meaning: "the time by which something must be done", example: "The deadline is Friday." };
+  const vocab = {
+    word: "deadline",
+    meaning: "the time by which something must be done",
+    example: "The deadline is Friday.",
+  };
 
   test("a vocabCard plays the word's Reference Pronunciation", () => {
     const onHearIt = mock();
@@ -140,7 +148,15 @@ describe("Hear it", () => {
 
   test("feedback plays the corrected version, before the next button", () => {
     const onHearIt = mock();
-    render(<StepFeedback verdict="almost" corrected="She goes to work." explanation="" onNext={() => {}} onHearIt={onHearIt} />);
+    render(
+      <StepFeedback
+        verdict="almost"
+        corrected="She goes to work."
+        explanation=""
+        onNext={() => {}}
+        onHearIt={onHearIt}
+      />,
+    );
     const buttons = screen.getAllByRole("button").map((b) => b.textContent);
     expect(buttons).toEqual(["Hear it", "Next step"]);
     click("Hear it");
@@ -167,7 +183,16 @@ describe("recorded answers", () => {
   });
 
   test("feedback on a spoken answer quotes what the Learner said", () => {
-    render(<StepFeedback verdict="correct" answer="I lead a team." spoken corrected="I lead a team." explanation="" onNext={() => {}} />);
+    render(
+      <StepFeedback
+        verdict="correct"
+        answer="I lead a team."
+        spoken
+        corrected="I lead a team."
+        explanation=""
+        onNext={() => {}}
+      />,
+    );
     expect(screen.getByRole("status").textContent).toContain("You said: I lead a team.");
   });
 });

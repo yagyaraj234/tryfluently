@@ -1,9 +1,9 @@
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createProviderRegistry, type LanguageModel } from 'ai';
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createProviderRegistry, type LanguageModel } from "ai";
 
 // One model per AI job: fast for Step generation, strong for everything that judges or plans.
-export const jobs = ['step', 'brief', 'roadmap', 'judge', 'report'] as const;
+export const jobs = ["step", "brief", "roadmap", "judge", "report"] as const;
 export type Models = Record<(typeof jobs)[number], LanguageModel>;
 
 // Settings look like MODEL_BRIEF=google:gemini-2.5-pro, so switching provider is a config change.

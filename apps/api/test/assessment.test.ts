@@ -26,7 +26,10 @@ describe("written assessment", () => {
     const { id, status } = (await start.json()) as any;
     expect(status).toBe("in_progress");
 
-    const chat = await app.request(`/api/assessments/${id}/chat`, json({ message: userMessage("Hi, I'm ready.") }, cookie));
+    const chat = await app.request(
+      `/api/assessments/${id}/chat`,
+      json({ message: userMessage("Hi, I'm ready.") }, cookie),
+    );
     expect(chat.status).toBe(200);
     expect(await chat.text()).toContain("What do you do for work?");
 
@@ -52,7 +55,9 @@ describe("written assessment", () => {
     const step = mockChat("Tell me about your fintech work.");
     const app = makeApp({ models: { step, brief: mockModel("Asha is a backend engineer at a Pune fintech.") } });
     const { cookie } = await signUp(app);
-    const goal = (await (await app.request("/api/goals", json({ kind: "job_interview", context: "CV..." }, cookie))).json()) as any;
+    const goal = (await (
+      await app.request("/api/goals", json({ kind: "job_interview", context: "CV..." }, cookie))
+    ).json()) as any;
     await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
 
     const { id } = (await (await app.request("/api/assessments", json({ mode: "written" }, cookie))).json()) as any;
@@ -77,7 +82,10 @@ describe("written assessment", () => {
     const { cookie } = await signUp(app);
     const { id } = (await (await app.request("/api/assessments", json({ mode: "written" }, cookie))).json()) as any;
 
-    const res = await app.request(`/api/assessments/${id}/chat`, json({ message: { role: "user", parts: "hi" } }, cookie));
+    const res = await app.request(
+      `/api/assessments/${id}/chat`,
+      json({ message: { role: "user", parts: "hi" } }, cookie),
+    );
     expect(res.status).toBe(400);
   });
 
@@ -85,10 +93,14 @@ describe("written assessment", () => {
     const app = makeApp();
     const asha = await signUp(app);
     const ravi = await signUp(app);
-    const { id } = (await (await app.request("/api/assessments", json({ mode: "written" }, asha.cookie))).json()) as any;
+    const { id } = (await (
+      await app.request("/api/assessments", json({ mode: "written" }, asha.cookie))
+    ).json()) as any;
 
     expect((await app.request(`/api/assessments/${id}`, get(ravi.cookie))).status).toBe(404);
-    expect((await app.request(`/api/assessments/${id}/chat`, json({ message: userMessage("hi") }, ravi.cookie))).status).toBe(404);
+    expect(
+      (await app.request(`/api/assessments/${id}/chat`, json({ message: userMessage("hi") }, ravi.cookie))).status,
+    ).toBe(404);
   });
 });
 
@@ -139,7 +151,10 @@ describe("skill profile", () => {
 
   test("a later Assessment moves each score halfway toward the new result, and history keeps both", async () => {
     const first = reportReply();
-    const second = { ...first, skills: { fluency: null, grammar: { score: 60, evidence: [] }, vocabulary: { score: 55, evidence: [] } } };
+    const second = {
+      ...first,
+      skills: { fluency: null, grammar: { score: 60, evidence: [] }, vocabulary: { score: 55, evidence: [] } },
+    };
     const { app, clock } = appWith([first, second]);
     const { cookie } = await signUp(app);
 
@@ -169,8 +184,13 @@ describe("assessment report side effects", () => {
     const { id } = await takeWrittenAssessment(app, cookie, clock);
 
     const items = await testDb.select().from(schema.focusItem).where(eq(schema.focusItem.userId, learnerId));
-    expect(items.map((i) => i.label).sort()).toEqual(reportReply().weaknesses.map((w) => w.label).sort());
-    for (const item of items) expect(item).toMatchObject({ source: "assessment", sourceId: id, status: "open", hits: 0 });
+    expect(items.map((i) => i.label).sort()).toEqual(
+      reportReply()
+        .weaknesses.map((w) => w.label)
+        .sort(),
+    );
+    for (const item of items)
+      expect(item).toMatchObject({ source: "assessment", sourceId: id, status: "open", hits: 0 });
   });
 
   test("with no Goals set, the Report's proposed Goals are stored as proposed Goals", async () => {
@@ -179,7 +199,12 @@ describe("assessment report side effects", () => {
     await takeWrittenAssessment(app, cookie, clock);
 
     expect(await (await app.request("/api/goals", get(cookie))).json()).toMatchObject([
-      { kind: "job_interview", status: "proposed", targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "C1" } },
+      {
+        kind: "general_fluency",
+        statement: "Get ready for a senior backend role.",
+        status: "proposed",
+        targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "C1" },
+      },
     ]);
   });
 
@@ -189,6 +214,8 @@ describe("assessment report side effects", () => {
     await app.request("/api/goals", json({ kind: "client_communication" }, cookie));
     await takeWrittenAssessment(app, cookie, clock);
 
-    expect(await (await app.request("/api/goals", get(cookie))).json()).toMatchObject([{ kind: "client_communication" }]);
+    expect(await (await app.request("/api/goals", get(cookie))).json()).toMatchObject([
+      { kind: "client_communication" },
+    ]);
   });
 });

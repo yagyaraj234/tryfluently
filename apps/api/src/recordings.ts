@@ -9,7 +9,16 @@ export type Transcriber = { transcribe(audio: Blob): Promise<{ text: string }> }
 export const openaiTranscriber = (apiKey: string): Transcriber => ({
   async transcribe(audio) {
     const form = new FormData();
-    form.append("file", audio, "answer.webm");
+    const extensions: Record<string, string> = {
+      "audio/mpeg": "mp3",
+      "audio/mp4": "m4a",
+      "audio/x-m4a": "m4a",
+      "video/mp4": "mp4",
+      "audio/ogg": "ogg",
+      "audio/wav": "wav",
+    };
+    const extension = extensions[audio.type.split(";")[0]!] ?? "webm";
+    form.append("file", audio, `answer.${extension}`);
     form.append("model", "gpt-4o-transcribe");
     const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
@@ -42,7 +51,13 @@ export async function recordedSecondsToday(db: Db, user: { id: string; timezone:
   const rows = await db
     .select({ startedAt: aiUsage.startedAt, seconds: aiUsage.seconds })
     .from(aiUsage)
-    .where(and(eq(aiUsage.userId, user.id), eq(aiUsage.kind, "recording"), gte(aiUsage.startedAt, new Date(now.getTime() - 2 * 86_400_000))));
+    .where(
+      and(
+        eq(aiUsage.userId, user.id),
+        eq(aiUsage.kind, "recording"),
+        gte(aiUsage.startedAt, new Date(now.getTime() - 2 * 86_400_000)),
+      ),
+    );
   const today = localDay(now, user.timezone);
   return rows.filter((r) => localDay(r.startedAt, user.timezone) === today).reduce((sum, r) => sum + r.seconds, 0);
 }

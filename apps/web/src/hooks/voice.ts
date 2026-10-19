@@ -32,7 +32,11 @@ const TICK_MS = 100;
  * `onRecorded` with the transcript. A 429 means today's recorded minutes are used up; that, and a microphone
  * that's missing or not allowed, leave the recorder `unavailable` so the Learner answers in text.
  */
-export function createRecorder(url: string, onRecorded: (recorded: Recorded) => void, media: RecorderMedia = browser()) {
+export function createRecorder(
+  url: string,
+  onRecorded: (recorded: Recorded) => void,
+  media: RecorderMedia = browser(),
+) {
   let state: RecorderState = { status: "idle" };
   const listeners = new Set<() => void>();
   const set = (next: RecorderState) => {
@@ -53,10 +57,16 @@ export function createRecorder(url: string, onRecorded: (recorded: Recorded) => 
       stream = await mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
       const name = (e as { name?: string } | undefined)?.name;
-      return set({ status: "unavailable", reason: name === "NotAllowedError" || name === "SecurityError" ? "denied" : "no-microphone" });
+      return set({
+        status: "unavailable",
+        reason: name === "NotAllowedError" || name === "SecurityError" ? "denied" : "no-microphone",
+      });
     }
 
-    const recorder = new Recorder(stream, Recorder.isTypeSupported("audio/webm") ? { mimeType: "audio/webm" } : undefined);
+    const recorder = new Recorder(
+      stream,
+      Recorder.isTypeSupported("audio/webm") ? { mimeType: "audio/webm" } : undefined,
+    );
     const chunks: Blob[] = [];
     const startedAt = now();
     const seconds = () => (now() - startedAt) / 1000;
@@ -90,7 +100,10 @@ export function createRecorder(url: string, onRecorded: (recorded: Recorded) => 
     recorder.ondataavailable = (event) => chunks.push(event.data);
     recorder.onstop = () => {
       // Rounded to a tenth, and never zero: the API wants a positive length.
-      last = { audio: new Blob(chunks, { type: recorder.mimeType || "audio/webm" }), seconds: Math.max(0.1, Math.round(seconds() * 10) / 10) };
+      last = {
+        audio: new Blob(chunks, { type: recorder.mimeType || "audio/webm" }),
+        seconds: Math.max(0.1, Math.round(seconds() * 10) / 10),
+      };
       void upload();
     };
     session = { recorder, release };
@@ -113,7 +126,14 @@ export function createRecorder(url: string, onRecorded: (recorded: Recorded) => 
     if (!last) return;
     set({ status: "processing" });
     const form = new FormData();
-    form.append("audio", last.audio, "answer.webm");
+    const extensions: Record<string, string> = {
+      "audio/mpeg": "mp3",
+      "audio/mp4": "m4a",
+      "audio/ogg": "ogg",
+      "audio/wav": "wav",
+    };
+    const extension = extensions[last.audio.type.split(";")[0]!] ?? "webm";
+    form.append("audio", last.audio, `answer.${extension}`);
     form.append("seconds", String(last.seconds));
     let response: Response;
     try {

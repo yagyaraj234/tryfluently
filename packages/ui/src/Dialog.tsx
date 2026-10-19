@@ -58,7 +58,9 @@ export function Overlay({
               <BaseDialog.Title className="text-title text-balance">{title}</BaseDialog.Title>
               <BaseDialog.Close render={<IconButton icon={X} label="Close" />} />
             </div>
-            {description && <BaseDialog.Description className="text-body text-muted">{description}</BaseDialog.Description>}
+            {description && (
+              <BaseDialog.Description className="text-body text-muted">{description}</BaseDialog.Description>
+            )}
             {children}
           </BaseDialog.Popup>
         </BaseDialog.Viewport>

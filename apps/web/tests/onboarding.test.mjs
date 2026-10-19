@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { startWeb } from "./helpers.mjs";
+import { startWeb, text } from "./helpers.mjs";
 
 // Sign-up, sign-in, setting Goals and choosing an Assessment, rendered on the server against a stub API.
 let google = false;
@@ -8,7 +8,8 @@ let web;
 
 before(async () => {
   web = await startWeb((req, res) => {
-    const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
+    const json = (status, body) =>
+      res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (req.url === "/api/auth/providers") return json(200, { google });
     if (!/learner=new/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
@@ -29,14 +30,16 @@ test("sign-in asks for email and password and links to sign-up", async () => {
   const html = await page("/sign-in");
   assert.match(html, label("Email"));
   assert.match(html, label("Password"));
-  assert.match(html, /<button[^>]*type="submit"[^>]*>Sign in<\/button>/);
+  const submit = html.match(/<button\b[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
+  assert.equal(text(submit), "Sign in");
   assert.match(html, /href="\/sign-up"/);
 });
 
 test("sign-up asks for name, email and password and links to sign-in", async () => {
   const html = await page("/sign-up");
   for (const field of ["Name", "Email", "Password"]) assert.match(html, label(field));
-  assert.match(html, /<button[^>]*type="submit"[^>]*>Create account<\/button>/);
+  const submit = html.match(/<button\b[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
+  assert.equal(text(submit), "Create account");
   assert.match(html, /href="\/sign-in"/);
 });
 
@@ -50,9 +53,12 @@ test("Google shows only when the API offers it", async () => {
   google = false;
 });
 
-test("setting Goals offers visual choices with progress and no Skip action", async () => {
+test("setting a Goal asks for the Learner's own words, with examples and progress", async () => {
   const html = await page("/goals", "learner=new");
-  for (const goal of ["Job Interview", "Client Communication", "General Fluency"]) assert.match(html, new RegExp(goal));
+  assert.match(html, label("Your Goal"));
+  assert.match(html, /What do you want to achieve after this course\? What is your end goal\?/);
+  for (const example of ["Job Interview", "Client Communication", "General Fluency"])
+    assert.match(html, new RegExp(example));
   assert.match(html, /Getting to know you/);
   assert.doesNotMatch(html, /Skip for now/);
   assert.match(html, /Sign out/);

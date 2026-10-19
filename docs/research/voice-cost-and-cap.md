@@ -18,10 +18,10 @@ Research for issue #6. Sources checked 2026-10-15. Prices are list prices in USD
 
 Per 1M tokens, from https://developers.openai.com/api/docs/pricing:
 
-| Model | Audio in | Audio in (cached) | Audio out | Text in | Text in (cached) | Text out |
-|---|---|---|---|---|---|---|
-| `gpt-realtime` | $32.00 | $0.40 | $64.00 | $4.00 | $0.40 | $16.00 |
-| `gpt-realtime-mini` | $10.00 | $0.30 | $20.00 | $0.60 | $0.06 | $2.40 |
+| Model               | Audio in | Audio in (cached) | Audio out | Text in | Text in (cached) | Text out |
+| ------------------- | -------- | ----------------- | --------- | ------- | ---------------- | -------- |
+| `gpt-realtime`      | $32.00   | $0.40             | $64.00    | $4.00   | $0.40            | $16.00   |
+| `gpt-realtime-mini` | $10.00   | $0.30             | $20.00    | $0.60   | $0.06            | $2.40    |
 
 The same page lists `gpt-realtime-2` and `gpt-realtime-2.1` at the same audio rates as `gpt-realtime` (text out is $24), and `gpt-realtime-2.1-mini` at the same rates as `gpt-realtime-mini`. The model choice inside each tier doesn't change the audio cost.
 
@@ -70,25 +70,25 @@ To check by hand, take the first turn on `gpt-realtime`: 150 audio in × $32, 1,
 
 ### OpenAI Realtime only
 
-| Model | Cache | 1 min | 10 min | 15 min | $/min at 15 min |
-|---|---|---|---|---|---|
-| `gpt-realtime` | hits | $0.056 | $0.55 | $0.85 | $0.057 |
-| `gpt-realtime` | none | $0.076 | $3.39 | $7.27 | $0.485 |
-| `gpt-realtime-mini` | hits | $0.016 | $0.18 | $0.29 | $0.019 |
-| `gpt-realtime-mini` | none | $0.022 | $1.03 | $2.23 | $0.148 |
+| Model               | Cache | 1 min  | 10 min | 15 min | $/min at 15 min |
+| ------------------- | ----- | ------ | ------ | ------ | --------------- |
+| `gpt-realtime`      | hits  | $0.056 | $0.55  | $0.85  | $0.057          |
+| `gpt-realtime`      | none  | $0.076 | $3.39  | $7.27  | $0.485          |
+| `gpt-realtime-mini` | hits  | $0.016 | $0.18  | $0.29  | $0.019          |
+| `gpt-realtime-mini` | none  | $0.022 | $1.03  | $2.23  | $0.148          |
 
 - If the learner talks twice as much as the coach, a 10-minute session drops to $0.45 on `gpt-realtime` and $0.15 on mini. Output audio is the most expensive line.
 - Splitting a day into five 3-minute sessions costs $0.80 instead of $0.85 with caching. Without caching the gap is much larger, because each session starts with an empty history.
 
 ### All three vendors
 
-| Scenario | `gpt-realtime` | `gpt-realtime-mini` |
-|---|---|---|
-| Per voice-minute (cached) | ~$0.08 (0.056 + 0.022 + ~0.001) | ~$0.04 (0.018 + 0.022 + ~0.001) |
-| 10-minute Assessment | ~$0.78 (0.55 + 0.22 + ~0.01) | ~$0.41 (0.18 + 0.22 + ~0.01) |
-| 15-minute day (cap) | ~$1.20 (0.85 + 0.33 + ~0.02) | ~$0.64 (0.29 + 0.33 + ~0.02) |
-| 15-minute day, no cache hits | ~$7.6 | ~$2.6 |
-| Learner who uses every minute for 30 days, plus 4 Assessments | ~$39 | ~$21 |
+| Scenario                                                      | `gpt-realtime`                  | `gpt-realtime-mini`             |
+| ------------------------------------------------------------- | ------------------------------- | ------------------------------- |
+| Per voice-minute (cached)                                     | ~$0.08 (0.056 + 0.022 + ~0.001) | ~$0.04 (0.018 + 0.022 + ~0.001) |
+| 10-minute Assessment                                          | ~$0.78 (0.55 + 0.22 + ~0.01)    | ~$0.41 (0.18 + 0.22 + ~0.01)    |
+| 15-minute day (cap)                                           | ~$1.20 (0.85 + 0.33 + ~0.02)    | ~$0.64 (0.29 + 0.33 + ~0.02)    |
+| 15-minute day, no cache hits                                  | ~$7.6                           | ~$2.6                           |
+| Learner who uses every minute for 30 days, plus 4 Assessments | ~$39                            | ~$21                            |
 
 The Assessment doesn't count toward the 15 minutes (see the map in issue #1), so a learner can use up to 25 voice minutes on a day they take one.
 

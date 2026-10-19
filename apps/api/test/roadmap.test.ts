@@ -2,15 +2,22 @@ import { describe, expect, test } from "bun:test";
 import { reportReply, takeWrittenAssessment, unitsReply } from "./fixtures";
 import { del, get, json, makeApp, makeClock, mockChat, mockModel, signUp, type TestApp } from "./helpers";
 
-const goalsOf = async (app: TestApp, cookie: string) => (await (await app.request("/api/goals", get(cookie))).json()) as any[];
-const roadmapOf = async (app: TestApp, cookie: string) => (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
+const goalsOf = async (app: TestApp, cookie: string) =>
+  (await (await app.request("/api/goals", get(cookie))).json()) as any[];
+const roadmapOf = async (app: TestApp, cookie: string) =>
+  (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
 
 const setup = ({ report = reportReply(), roadmap = [unitsReply()] as unknown[] } = {}) => {
   const clock = makeClock();
   const roadmapModel = mockModel(...roadmap);
   const app = makeApp({
     now: clock,
-    models: { step: mockChat("Hello!"), report: mockModel(report), roadmap: roadmapModel, brief: mockModel("Brief.", "Brief.") },
+    models: {
+      step: mockChat("Hello!"),
+      report: mockModel(report),
+      roadmap: roadmapModel,
+      brief: mockModel("Brief.", "Brief."),
+    },
   });
   return { app, clock, roadmapModel };
 };
@@ -30,11 +37,16 @@ describe("confirm Goals → Roadmap", () => {
     expect(units).toHaveLength(9);
     expect(units.map((u) => u.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
     expect(units.map((u) => u.status)).toEqual(["active", ...Array(8).fill("planned")]);
-    expect(units[0]).toMatchObject({ title: "Unit 1", objective: "Unit objective 1", skills: ["vocabulary", "fluency"], endsWithRoleplay: false });
+    expect(units[0]).toMatchObject({
+      title: "Unit 1",
+      objective: "Unit objective 1",
+      skills: ["vocabulary", "fluency"],
+      endsWithRoleplay: false,
+    });
     expect(units[8]).toMatchObject({ endsWithRoleplay: true });
     // Built from the Goals, the Skill Profile and the weaknesses.
     const prompt = JSON.stringify(roadmapModel.doGenerateCalls[0]!.prompt);
-    expect(prompt).toContain("job_interview");
+    expect(prompt).toContain("Get ready for a senior backend role.");
     expect(prompt).toContain("Past simple vs present perfect");
   });
 
@@ -58,8 +70,14 @@ describe("confirm Goals → Roadmap", () => {
   test("the Roadmap waits until no proposed Goals are left, so it covers all of them", async () => {
     const report = reportReply({
       proposedGoals: [
-        { kind: "job_interview", targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "B2" } },
-        { kind: "client_communication", targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "B2" } },
+        {
+          statement: "Get ready for a backend interview.",
+          targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "B2" },
+        },
+        {
+          statement: "Lead client calls with clearer explanations.",
+          targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "B2" },
+        },
       ],
     });
     const { app, clock } = setup({ report });
@@ -84,6 +102,20 @@ describe("confirm Goals → Roadmap", () => {
 
     await takeWrittenAssessment(app, cookie, clock);
     expect(await roadmapOf(app, cookie)).toHaveLength(8);
+  });
+
+  test("the Roadmap prompt includes a Goal written in the Learner's own words", async () => {
+    const { app, clock, roadmapModel } = setup();
+    const { cookie } = await signUp(app);
+    const goal = (await (
+      await app.request("/api/goals", json({ statement: "Give a five-minute talk at a community meetup." }, cookie))
+    ).json()) as any;
+    await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+
+    await takeWrittenAssessment(app, cookie, clock);
+
+    const prompt = JSON.stringify(roadmapModel.doGenerateCalls[0]!.prompt);
+    expect(prompt).toContain("Give a five-minute talk at a community meetup.");
   });
 
   test("invalid Unit output fails cleanly, and the Roadmap can be built again", async () => {

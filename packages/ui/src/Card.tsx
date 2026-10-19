@@ -21,6 +21,9 @@ export type CardProps = Omit<ComponentProps<"div">, "className" | "style"> & {
 export function Card({ render, size = "md", ...props }: CardProps) {
   return useRender({
     render: render ?? <div />,
-    props: mergeProps<"div">({ className: size === "md" ? `block ${cardClasses}` : `block ${compactCardClasses}` }, props),
+    props: mergeProps<"div">(
+      { className: size === "md" ? `block ${cardClasses}` : `block ${compactCardClasses}` },
+      props,
+    ),
   });
 }

@@ -23,7 +23,12 @@ export type SkillBarProps = {
 /** One skill of the Skill Profile: the name on the left, the score and CEFR Level on the right, a bar in the skill colour. */
 export function SkillBar({ skill, score, level }: SkillBarProps) {
   return (
-    <Meter.Root className={labelledBarParts.root()} value={score} max={100} getAriaValueText={() => `${score}, ${level}`}>
+    <Meter.Root
+      className={labelledBarParts.root()}
+      value={score}
+      max={100}
+      getAriaValueText={() => `${score}, ${level}`}
+    >
       <Meter.Label className={labelledBarParts.label()}>{skillNames[skill]}</Meter.Label>
       <span className={labelledBarParts.value()}>
         {score} · {level}

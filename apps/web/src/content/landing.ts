@@ -3,11 +3,11 @@
 
 export const site = {
   name: "Impromptu",
-  title: "Impromptu | AI English Coach to Speak with Confidence",
+  title: "Impromptu | AI English Coach for Speaking and Writing",
   description:
-    "Improve your English communication with an AI coach. Take a 10-minute assessment, then follow a personal path of short lessons and conversation practice.",
+    "Practise English speaking and writing with an AI coach. Take a 10-minute assessment, then follow a Roadmap of short Lessons and conversation practice.",
   summary:
-    "Impromptu is an AI coach that helps anyone build their communication skills. It supports English today, with more languages planned. It assesses how a learner speaks and writes, then builds a personalised, adaptive path of lessons and conversation practice.",
+    "Impromptu is an AI coach that helps people speak and write English. It assesses how a learner speaks and writes, then builds a Roadmap of Lessons and Roleplays that changes with their answers. English today, with more languages planned.",
 };
 
 export const faqs = [
@@ -18,7 +18,7 @@ export const faqs = [
   {
     question: "Do I have to speak?",
     answer:
-      "No. You can take a Voice Assessment or a Written Assessment. Voice gives you speaking practice, and written works anywhere.",
+      "No. You can take a Voice Assessment or a Written Assessment. Voice measures fluency and gives you speaking practice. Written works anywhere.",
   },
   {
     question: "What is a Goal?",
@@ -28,17 +28,17 @@ export const faqs = [
   {
     question: "Who is Impromptu for?",
     answer:
-      "Anyone who wants to communicate better in English, whether for work, study or everyday life. You choose a Goal and Impromptu builds your practice around it.",
+      "Anyone who wants to communicate better in English, whether for work, study or everyday life. You choose a Goal and Impromptu builds Lessons around it.",
   },
   {
     question: "What happens after the assessment?",
     answer:
-      "You get an Assessment Report with a score and CEFR level for fluency, grammar and vocabulary, plus a Roadmap of Units built from it. Each Lesson is then generated from how you did in the one before.",
+      "You get an Assessment Report with a score and CEFR level for fluency, grammar and vocabulary, plus a Roadmap of Units built from it. Your coach then builds each Lesson from how you did in the one before.",
   },
   {
     question: "What is a Roleplay?",
     answer:
-      "A Roleplay is a Lesson where the AI stays in character as, for example, a colleague or a new friend. When it ends you get feedback with corrections and a recording of how the correct phrase sounds.",
+      "A Roleplay is a Lesson where the AI plays someone else, such as a colleague or a new friend, and stays in character. When it ends you get feedback with corrections and a recording of how the correct phrase sounds.",
   },
 ];
 

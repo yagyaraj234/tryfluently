@@ -1,0 +1,149 @@
+import { schema } from "@impromptu/db";
+import { Output } from "ai";
+import { and, asc, eq } from "drizzle-orm";
+import { z } from "zod";
+import { generate } from "./ai";
+import type { Deps } from "./app";
+import { createRoleplay, roleplayKindFor } from "./roleplays";
+import { skillProfile } from "./scoring";
+
+const { lesson, step, unit, user, goal, focusItem, learnerMemory } = schema;
+type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal };
+const text = z.string().trim().min(1).max(2000);
+export const contentOutput = z.object({
+  material: z
+    .array(z.object({ title: text, body: text, example: text.nullable() }))
+    .min(1)
+    .max(6),
+  questions: z
+    .array(
+      z.union([
+        z.object({
+          type: z.literal("fillGap"),
+          input: z.object({ sentence: text, answer: text, choices: z.array(text).min(2).max(8) }),
+        }),
+        z.object({ type: z.literal("rewrite"), input: z.object({ sentence: text, aim: text }) }),
+        z.object({ type: z.literal("vocabCard"), input: z.object({ word: text, meaning: text, example: text }) }),
+        z.object({
+          type: z.literal("speakPrompt"),
+          input: z.object({ question: text, targetSeconds: z.number().int().min(30).max(90) }),
+        }),
+      ]),
+    )
+    .min(3)
+    .max(5)
+    .refine(
+      (questions) =>
+        questions.every(
+          (q) =>
+            q.type !== "fillGap" ||
+            ((q.input.sentence.match(/___/g) ?? []).length === 1 &&
+              q.input.choices.some((choice) => choice.trim().toLowerCase() === q.input.answer.trim().toLowerCase())),
+        ),
+      "Each fillGap needs one blank and its answer among the choices",
+    ),
+});
+
+// A Learner lock reserves one outline position; model calls never hold the lock.
+export async function prepareNext(ctx: Ctx, userId: string) {
+  const { db, now, models } = ctx;
+  const claim = await db.transaction(async (tx) => {
+    await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for("update");
+    const [active] = await tx
+      .select()
+      .from(unit)
+      .where(and(eq(unit.userId, userId), eq(unit.status, "active")));
+    if (!active?.lessonOutline.length) return;
+    const rows = await tx.select().from(lesson).where(eq(lesson.unitId, active.id)).orderBy(asc(lesson.position));
+    const current = rows.find((l) => l.status === "in_progress");
+    if (current && (current.preparation === null || current.preparation === "ready")) return { row: current };
+    // shortcut: crashed generation is reclaimed after two minutes, use a worker lease if model calls grow longer.
+    if (current?.preparation === "preparing" && now().getTime() - current.preparationAt!.getTime() < 120_000)
+      return { row: current };
+    const planned = current
+      ? active.lessonOutline.find((p) => p.position === current.position)
+      : active.lessonOutline.find((p) => !rows.some((l) => l.position === p.position && l.status === "completed"));
+    if (!planned) return;
+    if (planned.kind === "roleplay") {
+      const kind = await roleplayKindFor({ db: tx }, userId);
+      return {
+        row: await createRoleplay({ db: tx, now }, userId, {
+          kind,
+          unitId: active.id,
+          position: planned.position,
+          plan: planned,
+        }),
+        roleplay: true,
+      };
+    }
+    const token = crypto.randomUUID();
+    const values = { preparation: "preparing" as const, preparationToken: token, preparationAt: now() };
+    const [row] = current
+      ? await tx.update(lesson).set(values).where(eq(lesson.id, current.id)).returning()
+      : await tx
+          .insert(lesson)
+          .values({
+            userId,
+            unitId: active.id,
+            position: planned.position,
+            kind: "practice",
+            title: planned.title,
+            objective: planned.objective,
+            phase: "learning",
+            ...values,
+          })
+          .returning();
+    return { row: row!, token, active };
+  });
+  if (!claim || !claim.token || !claim.active) return claim?.row;
+  const { row, token, active } = claim;
+  try {
+    const [goals, focus, memory] = await Promise.all([
+      db
+        .select({ statement: goal.statement, brief: goal.brief, targetLevels: goal.targetLevels })
+        .from(goal)
+        .where(and(eq(goal.userId, userId), eq(goal.status, "confirmed"))),
+      db
+        .select({ label: focusItem.label })
+        .from(focusItem)
+        .where(and(eq(focusItem.userId, userId), eq(focusItem.status, "open"))),
+      db.select().from(learnerMemory).where(eq(learnerMemory.userId, userId)),
+    ]);
+    const result = await generate(ctx, userId, {
+      model: models.step,
+      abortSignal: ctx.signal,
+      instructions:
+        "Prepare one English Lesson. Explain its topic with examples and key phrases, then give 3–5 assessment questions. Adapt difficulty and examples to the Learner's latest evidence and memory. Keep the supplied title/objective. Material must teach the concept without disclosing assessment answers. Use fillGap (one ___ blank, answer included among choices), rewrite, vocabCard or speakPrompt. Return example null where unnecessary.",
+      prompt: JSON.stringify({
+        unit: { title: active.title, objective: active.objective },
+        plannedLesson: { title: row.title, objective: row.objective },
+        goals,
+        skillProfile: await skillProfile(db, userId),
+        focusItems: focus,
+        learnerMemory: memory[0]?.summary ?? "",
+      }),
+      output: Output.object({ schema: contentOutput }),
+    });
+    const output = contentOutput.parse(result.output);
+    await db.transaction(async (tx) => {
+      const [current] = await tx.select().from(lesson).where(eq(lesson.id, row.id)).for("update");
+      if (!current || current.preparationToken !== token || current.status !== "in_progress") return;
+      await tx
+        .insert(step)
+        .values(
+          output.questions.map((q, position) => ({ userId, lessonId: row.id, position, type: q.type, input: q.input })),
+        );
+      await tx
+        .update(lesson)
+        .set({ material: output.material, preparation: "ready", preparationToken: null })
+        .where(eq(lesson.id, row.id));
+    });
+  } catch (error) {
+    console.error("Lesson preparation failed", error);
+    await db
+      .update(lesson)
+      .set({ preparation: "failed", preparationToken: null })
+      .where(and(eq(lesson.id, row.id), eq(lesson.preparationToken, token)));
+  }
+  return (await db.select().from(lesson).where(eq(lesson.id, row.id)))[0];
+}

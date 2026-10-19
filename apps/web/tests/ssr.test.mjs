@@ -15,9 +15,13 @@ let web;
 
 before(async () => {
   web = await startWeb((req, res) => {
-    if (/unverified=1/.test(req.headers.cookie ?? "")) return res.writeHead(403, { "content-type": "application/json" }).end(JSON.stringify({ error: "Verify your email" }));
+    if (/unverified=1/.test(req.headers.cookie ?? ""))
+      return res
+        .writeHead(403, { "content-type": "application/json" })
+        .end(JSON.stringify({ error: "Verify your email" }));
     const learner = learners[/learner=(\w+)/.exec(req.headers.cookie ?? "")?.[1]];
-    const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
+    const json = (status, body) =>
+      res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!learner) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
     if (req.url === "/api/goals") return json(200, learner.goals);
@@ -45,12 +49,12 @@ test("an unverified visitor is sent to email verification", async () => {
   await assertRedirect("/home", "unverified=1", "/verify-email");
 });
 
-test("sign-in renders with the UI stylesheet and Familjen Grotesk", async () => {
+test("sign-in renders with the UI stylesheet and Inter", async () => {
   const response = await visit("/sign-in");
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /<link rel="stylesheet" href="[^"]*styles\.css[^"]*"/);
-  assert.match(html, /fonts\.googleapis\.com\/css2\?family=Familjen\+Grotesk/);
+  assert.match(html, /fonts\.googleapis\.com\/css2\?family=Inter/);
 });
 
 test("a Learner with no Goals and no Assessment is sent to set Goals", async () => {

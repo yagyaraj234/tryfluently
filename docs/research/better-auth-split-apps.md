@@ -41,7 +41,7 @@ import { db, schema } from "@impromptu/db";
 const WEB_URL = process.env.WEB_URL!; // http://localhost:3000
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,      // http://localhost:3001 (the API)
+  baseURL: process.env.BETTER_AUTH_URL, // http://localhost:3001 (the API)
   secret: process.env.BETTER_AUTH_SECRET,
   trustedOrigins: [WEB_URL],
   database: drizzleAdapter(db, { provider: "pg", schema }),
@@ -167,20 +167,20 @@ export const getSession = createServerFn({ method: "GET" }).handler(async () => 
 - Redirect URI registered in Google Cloud Console: `<baseURL>/api/auth/callback/google`. The docs show `http://localhost:3000/...` because their server is the web app. Here `baseURL` is the API, so register **`http://localhost:3001/api/auth/callback/google`** and `https://api.example.com/api/auth/callback/google`. Source: https://www.better-auth.com/docs/authentication/google. The redirect URI is composed as `ctx.context.baseURL + callbackPath`. Source: https://github.com/better-auth/better-auth/blob/37a75c95d148e0db4f29f30cabcd2ceb26bc7085/packages/core/src/oauth2/oauth-provider.ts#L146-L158
 - Set `baseURL` (or `BETTER_AUTH_URL`) to avoid `redirect_uri_mismatch`. Source: https://www.better-auth.com/docs/authentication/google
 - Google issues a refresh token only on first consent. If one is needed every time, use `accessType: "offline"` and `prompt: "select_account consent"`. Source: https://www.better-auth.com/docs/authentication/google
-- From the web app: `authClient.signIn.social({ provider: "google", callbackURL: \`${WEB_URL}/dashboard\` })`. Options include `callbackURL`, `errorCallbackURL` and `newUserCallbackURL`. Source: https://www.better-auth.com/docs/basic-usage
+- From the web app: `authClient.signIn.social({ provider: "google", callbackURL: \`${WEB_URL}/dashboard\` })`. Options include `callbackURL`, `errorCallbackURL`and`newUserCallbackURL`. Source: https://www.better-auth.com/docs/basic-usage
 - **Use absolute web URLs for `callbackURL`.** The OAuth callback runs on the API and finishes with `c.redirect(callbackURL)`. A relative `/dashboard` would resolve against the API origin. Source: https://github.com/better-auth/better-auth/blob/37a75c95d148e0db4f29f30cabcd2ceb26bc7085/packages/better-auth/src/api/routes/callback.ts#L258-L331. `callbackURL` is validated against `trustedOrigins`, which is another reason to add `WEB_URL` there. Sources: https://github.com/better-auth/better-auth/blob/37a75c95d148e0db4f29f30cabcd2ceb26bc7085/packages/better-auth/src/api/middlewares/origin-check.ts#L64-L147, https://www.better-auth.com/docs/reference/security
 
 ## Env checklist
 
-| Var | App | Local value |
-| --- | --- | --- |
-| `BETTER_AUTH_URL` | api | `http://localhost:3001` |
-| `BETTER_AUTH_SECRET` | api | random 32+ chars |
-| `WEB_URL` | api | `http://localhost:3000` |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | api | from Google Cloud Console |
-| `COOKIE_DOMAIN` | api | unset (prod: `example.com`) |
-| `VITE_API_URL` | web (client) | `http://localhost:3001` |
-| `API_URL` | web (server) | `http://localhost:3001` |
+| Var                                         | App          | Local value                 |
+| ------------------------------------------- | ------------ | --------------------------- |
+| `BETTER_AUTH_URL`                           | api          | `http://localhost:3001`     |
+| `BETTER_AUTH_SECRET`                        | api          | random 32+ chars            |
+| `WEB_URL`                                   | api          | `http://localhost:3000`     |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | api          | from Google Cloud Console   |
+| `COOKIE_DOMAIN`                             | api          | unset (prod: `example.com`) |
+| `VITE_API_URL`                              | web (client) | `http://localhost:3001`     |
+| `API_URL`                                   | web (server) | `http://localhost:3001`     |
 
 ## Open points
 

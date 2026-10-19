@@ -12,25 +12,51 @@ const judgement = {
   summary: "Practised present perfect.",
   focusItems: [{ label: "Present perfect", kind: "grammar" }],
   overallImpression: "Clear answers.",
-  questions: [{ question: "Tell me about yourself.", quote: "I work here since years.", strongerPhrasing: "I have worked here for years.", languageIssues: ["Present perfect"] }],
+  questions: [
+    {
+      question: "Tell me about yourself.",
+      quote: "I work here since years.",
+      strongerPhrasing: "I have worked here for years.",
+      languageIssues: ["Present perfect"],
+    },
+  ],
   phrasesToLearn: ["I have worked here for years.", "One challenge was ...", "For example ..."],
 };
 
 async function setup(kind: "practice" | "roleplay", replies: unknown[] = [judgement, judgement]) {
   const now = makeClock();
   const { id: userId } = await signUp(makeApp());
-  const [row] = await testDb.insert(schema.lesson).values({
-    userId, kind, title: "Mock Interview", objective: "Use present perfect", position: 0,
-    roleplayKind: kind === "roleplay" ? "mock_interview" : null,
-    tone: kind === "roleplay" ? "standard" : null,
-    textMode: true, messages: [userMessage("I work here since years.")], startedAt: now(),
-  }).returning();
-  await recordScores(testDb, userId, { grammar: 40 }, {
-    alpha: 0.5, source: "assessment", sourceId: "baseline", at: new Date(now().getTime() - 1000),
-  });
+  const [row] = await testDb
+    .insert(schema.lesson)
+    .values({
+      userId,
+      kind,
+      title: "Mock Interview",
+      objective: "Use present perfect",
+      position: 0,
+      roleplayKind: kind === "roleplay" ? "mock_interview" : null,
+      tone: kind === "roleplay" ? "standard" : null,
+      textMode: true,
+      messages: [userMessage("I work here since years.")],
+      startedAt: now(),
+    })
+    .returning();
+  await recordScores(
+    testDb,
+    userId,
+    { grammar: 40 },
+    {
+      alpha: 0.5,
+      source: "assessment",
+      sourceId: "baseline",
+      at: new Date(now().getTime() - 1000),
+    },
+  );
   const judge = mockModel(...replies);
   const ctx = {
-    db: testDb, now, settings: { alphaLesson: 0.15 },
+    db: testDb,
+    now,
+    settings: { alphaLesson: 0.15 },
     models: { judge, step: judge, report: judge, brief: judge, roadmap: judge },
   };
   return { ctx, row: row!, judge };
@@ -51,11 +77,16 @@ describe("Lesson completion", () => {
       const { ctx, row } = await setup(kind);
       const constraint = `completion_failure_${crypto.randomUUID().replaceAll("-", "")}`;
       // Generated UUID and identifier only; the check fails the final write for this Lesson alone.
-      await testDb.execute(sql.raw(`alter table lesson add constraint ${constraint} check (id <> '${row.id}' or status <> 'completed')`));
+      await testDb.execute(
+        sql.raw(`alter table lesson add constraint ${constraint} check (id <> '${row.id}' or status <> 'completed')`),
+      );
       try {
         await expect(completeLesson(ctx, row.id, row.userId)).rejects.toThrow();
         expect(await results(row.id)).toMatchObject({
-          lesson: { status: "in_progress", debrief: null, completedAt: null }, scores: [], focus: [], steps: [],
+          lesson: { status: "in_progress", debrief: null, completedAt: null },
+          scores: [],
+          focus: [],
+          steps: [],
         });
         expect((await skillProfile(testDb, row.userId)).grammar?.score).toBe(40);
       } finally {
@@ -81,7 +112,8 @@ describe("Lesson completion", () => {
         return reply;
       };
       const [first, second] = await Promise.all([
-        completeLesson(ctx, row.id, row.userId), completeLesson(ctx, row.id, row.userId),
+        completeLesson(ctx, row.id, row.userId),
+        completeLesson(ctx, row.id, row.userId),
       ]);
       expect(first).toEqual(second);
       expect(first.status).toBe("completed");
@@ -99,13 +131,22 @@ describe("Lesson completion", () => {
   test("malformed practice judgement still completes without changing skills", async () => {
     const { ctx, row } = await setup("practice", [{}]);
     expect(await completeLesson(ctx, row.id, row.userId)).toMatchObject({ status: "completed" });
-    expect(await results(row.id)).toMatchObject({ lesson: { objectiveProgress: null, summary: null }, scores: [], focus: [] });
+    expect(await results(row.id)).toMatchObject({
+      lesson: { objectiveProgress: null, summary: null },
+      scores: [],
+      focus: [],
+    });
   });
 
   test("malformed Roleplay judgement stays open for retry", async () => {
     const { ctx, row } = await setup("roleplay", [{}, judgement]);
     expect(await completeLesson(ctx, row.id, row.userId)).toEqual({ status: "failed" });
-    expect(await results(row.id)).toMatchObject({ lesson: { status: "in_progress" }, scores: [], focus: [], steps: [] });
+    expect(await results(row.id)).toMatchObject({
+      lesson: { status: "in_progress" },
+      scores: [],
+      focus: [],
+      steps: [],
+    });
     expect(await completeLesson(ctx, row.id, row.userId)).toMatchObject({ status: "completed" });
   });
 });

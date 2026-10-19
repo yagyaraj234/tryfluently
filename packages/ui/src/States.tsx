@@ -64,7 +64,13 @@ export type ErrorStateProps = {
 };
 
 /** Something failed to load or save; the Learner can try again. */
-export function ErrorState({ title = "Something went wrong", description, onRetry, retryLabel = "Try again", action }: ErrorStateProps) {
+export function ErrorState({
+  title = "Something went wrong",
+  description,
+  onRetry,
+  retryLabel = "Try again",
+  action,
+}: ErrorStateProps) {
   return (
     <div role="alert" className={state()}>
       <Heading level={2} size="title">

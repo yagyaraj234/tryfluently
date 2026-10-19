@@ -69,7 +69,9 @@ describe("Sheet", () => {
       </>,
     );
     const sheet = screen.getByRole("dialog", { name: "Choose a theme" });
-    expect(document.getElementById(sheet.getAttribute("aria-describedby")!)!.textContent).toBe("Light, Dark or System.");
+    expect(document.getElementById(sheet.getAttribute("aria-describedby")!)!.textContent).toBe(
+      "Light, Dark or System.",
+    );
     await waitFor(() => expect(sheet.contains(document.activeElement)).toBe(true));
     expect(screen.queryByRole("button", { name: "Outside" })).toBeNull();
 

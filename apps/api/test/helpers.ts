@@ -2,9 +2,20 @@ import type { LanguageModel } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
 import { schema } from "@impromptu/db";
 import { eq } from "drizzle-orm";
-import { createApp, type Env, type Mailer, type Models, type Schedule, type Settings, type Speech, type Transcriber } from "../src/app";
+import {
+  createApp,
+  type Env,
+  type Mailer,
+  type Models,
+  type Schedule,
+  type Settings,
+  type Speech,
+  type Transcriber,
+  type Deps,
+} from "../src/app";
 import type { Realtime, RealtimeEvent, RealtimeSession } from "../src/realtime";
 import { testDb } from "./setup";
+import { runAssessmentJobs } from "../src/assessment-jobs";
 
 export const WEB_ORIGIN = "http://localhost:5173";
 
@@ -124,7 +135,7 @@ export function makeApp({
   settings,
   env,
 }: Overrides = {}) {
-  return createApp({
+  const deps: Deps = {
     db: testDb,
     now,
     mailer,
@@ -148,7 +159,8 @@ export function makeApp({
       KENPATH_VOICE: "alloy",
       ...env,
     },
-  });
+  };
+  return Object.assign(createApp(deps), { runJobs: (userId: string) => runAssessmentJobs(deps, userId) });
 }
 
 export type TestApp = ReturnType<typeof makeApp>;
@@ -203,11 +215,21 @@ export function mockTurns(...turns: Turn[]): LanguageModel & MockLanguageModelV4
                 { type: "text-delta" as const, id: `t${i}`, delta: p },
                 { type: "text-end" as const, id: `t${i}` },
               ]
-            : [{ type: "tool-call" as const, toolCallId: `call-${crypto.randomUUID()}`, toolName: p.tool, input: JSON.stringify(p.input) }],
+            : [
+                {
+                  type: "tool-call" as const,
+                  toolCallId: `call-${crypto.randomUUID()}`,
+                  toolName: p.tool,
+                  input: JSON.stringify(p.input),
+                },
+              ],
         ),
         {
           type: "finish" as const,
-          finishReason: { unified: parts.some((p) => typeof p !== "string") ? ("tool-calls" as const) : ("stop" as const), raw: "x" },
+          finishReason: {
+            unified: parts.some((p) => typeof p !== "string") ? ("tool-calls" as const) : ("stop" as const),
+            raw: "x",
+          },
           usage,
         },
       ]),
@@ -228,7 +250,11 @@ export function makeClock(start = "2026-10-15T09:00:00Z") {
   return now;
 }
 
-export const userMessage = (text: string) => ({ id: crypto.randomUUID(), role: "user", parts: [{ type: "text", text }] });
+export const userMessage = (text: string) => ({
+  id: crypto.randomUUID(),
+  role: "user",
+  parts: [{ type: "text", text }],
+});
 
 export const uniqueEmail = () => `learner-${crypto.randomUUID()}@example.com`;
 
@@ -247,7 +273,10 @@ export const del = (cookie: string) => ({ method: "DELETE", headers: { cookie, o
 
 // Turns Set-Cookie headers into a Cookie header for the next request.
 export const cookieFrom = (res: Response) =>
-  res.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
+  res.headers
+    .getSetCookie()
+    .map((c) => c.split(";")[0])
+    .join("; ");
 
 // Signs up a fresh Learner and returns their session cookie and id.
 export async function signUp(app: TestApp, extra: Record<string, unknown> = {}) {
@@ -257,7 +286,9 @@ export async function signUp(app: TestApp, extra: Record<string, unknown> = {}) 
     json({ name: "Asha", email, password: "correct-horse-battery", ...extra }),
   );
   await testDb.update(schema.user).set({ emailVerified: true }).where(eq(schema.user.email, email));
-  const cookie = cookieFrom(await app.request("/api/auth/sign-in/email", json({ email, password: "correct-horse-battery" })));
+  const cookie = cookieFrom(
+    await app.request("/api/auth/sign-in/email", json({ email, password: "correct-horse-battery" })),
+  );
   const { id } = (await (await app.request("/api/me", get(cookie))).json()) as { id: string };
   return { cookie, id };
 }

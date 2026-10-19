@@ -10,4 +10,9 @@ function subscribe(onChange: () => void) {
 }
 
 /** `navigator.onLine`, kept up to date. The server always renders as online. */
-export const useOnline = () => useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
+export const useOnline = () =>
+  useSyncExternalStore(
+    subscribe,
+    () => navigator.onLine,
+    () => true,
+  );

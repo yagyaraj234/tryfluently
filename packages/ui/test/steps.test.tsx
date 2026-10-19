@@ -2,7 +2,8 @@ import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ChatTurn, FillGapStep, RewriteStep, StepFeedback, StepHeader, VocabCardStep } from "@impromptu/ui";
 
-const type = (name: string, value: string) => fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } });
+const type = (name: string, value: string) =>
+  fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } });
 const sendButton = () => screen.getByRole("button", { name: "Send answer" }) as HTMLButtonElement;
 const send = () => fireEvent.click(sendButton());
 
@@ -66,7 +67,11 @@ describe("RewriteStep", () => {
 });
 
 describe("VocabCardStep", () => {
-  const input = { word: "deadline", meaning: "the time by which something must be done", example: "The deadline is Friday." };
+  const input = {
+    word: "deadline",
+    meaning: "the time by which something must be done",
+    example: "The deadline is Friday.",
+  };
 
   test("shows the word, its meaning and an example, then sends the Learner's own sentence", () => {
     const onAnswer = mock();
@@ -105,7 +110,14 @@ describe("FillGapStep", () => {
   });
 
   test("once answered, it shows the answer and no verdict, and can't be answered again", () => {
-    render(<FillGapStep sentence="I ___ here since 2020." choices={["work", "have worked"]} answered="work" onAnswer={() => {}} />);
+    render(
+      <FillGapStep
+        sentence="I ___ here since 2020."
+        choices={["work", "have worked"]}
+        answered="work"
+        onAnswer={() => {}}
+      />,
+    );
     expect(screen.getByText("work", { selector: "mark" })).toBeDefined();
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByRole("radio")).toBeNull();
@@ -133,7 +145,9 @@ describe("StepFeedback", () => {
 
   test("each verdict has its own tint", () => {
     const tints = (["correct", "almost", "incorrect"] as const).map(
-      (verdict) => render(<StepFeedback verdict={verdict} {...feedback} onNext={() => {}} />).container.firstElementChild!.className,
+      (verdict) =>
+        render(<StepFeedback verdict={verdict} {...feedback} onNext={() => {}} />).container.firstElementChild!
+          .className,
     );
     expect(new Set(tints).size).toBe(3);
   });

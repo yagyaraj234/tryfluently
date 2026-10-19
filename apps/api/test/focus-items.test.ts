@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { answerStep, fillGap, learnerWithRoadmap, lessonPlan } from "./fixtures";
+import { answerStep, fillGap, learnerWithLegacyRoadmap as learnerWithRoadmap, lessonPlan } from "./fixtures";
 import { get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, type TestApp, type Turn } from "./helpers";
 
-const focusOf = async (app: TestApp, cookie: string) => (await (await app.request("/api/focus-items", get(cookie))).json()) as any[];
+const focusOf = async (app: TestApp, cookie: string) =>
+  (await (await app.request("/api/focus-items", get(cookie))).json()) as any[];
 
 const usedCorrectly = (focusItemIds: string[]) => ({
   tool: "giveFeedback",
@@ -10,7 +11,10 @@ const usedCorrectly = (focusItemIds: string[]) => ({
 });
 
 const judgeReply = (focusItems: object[] = []) => ({
-  skills: { fluency: null, grammar: null, vocabulary: null }, objectiveProgress: 50, summary: "Practised routines.", focusItems,
+  skills: { fluency: null, grammar: null, vocabulary: null },
+  objectiveProgress: 50,
+  summary: "Practised routines.",
+  focusItems,
 });
 
 function appWith(turns: Turn[], judgeReplies: unknown[] = [judgeReply()]) {
@@ -22,7 +26,9 @@ function appWith(turns: Turn[], judgeReplies: unknown[] = [judgeReply()]) {
 
 async function startLesson(app: TestApp, cookie: string) {
   const lesson = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
-  await (await app.request(`/api/lessons/${lesson.id}/chat`, json({ message: userMessage("Let's start") }, cookie))).text();
+  await (
+    await app.request(`/api/lessons/${lesson.id}/chat`, json({ message: userMessage("Let's start") }, cookie))
+  ).text();
   return lesson;
 }
 
@@ -32,7 +38,11 @@ describe("focus items in lessons", () => {
     const { cookie } = await learnerWithRoadmap();
 
     const items = await focusOf(app, cookie);
-    expect(items.map((i) => i.label).sort()).toEqual(["Articles before job titles", "Overused 'very'", "Past simple vs present perfect"]);
+    expect(items.map((i) => i.label).sort()).toEqual([
+      "Articles before job titles",
+      "Overused 'very'",
+      "Past simple vs present perfect",
+    ]);
     expect(items[0]).toMatchObject({ source: "assessment", status: "open", hits: 0 });
   });
 
@@ -68,7 +78,11 @@ describe("focus items in lessons", () => {
 
     await answerStep(app, cookie, lesson.id, { answer: "goes" });
     await answerStep(app, cookie, lesson.id, { answer: "goes" });
-    expect((await focusOf(app, cookie)).find((i) => i.id === target.id)).toMatchObject({ hits: 2, status: "open", closedAt: null });
+    expect((await focusOf(app, cookie)).find((i) => i.id === target.id)).toMatchObject({
+      hits: 2,
+      status: "open",
+      closedAt: null,
+    });
 
     await answerStep(app, cookie, lesson.id, { answer: "goes" });
     expect((await focusOf(app, cookie)).find((i) => i.id === target.id)).toMatchObject({
@@ -100,7 +114,13 @@ describe("focus items in lessons", () => {
     const other = items.find((i) => i.label === "Articles before job titles");
 
     const hit = usedCorrectly([target.id]);
-    const { app, step } = appWith([[fillGap()], [hit, fillGap()], [hit, fillGap()], [hit, fillGap()], [usedCorrectly([]), fillGap()]]);
+    const { app, step } = appWith([
+      [fillGap()],
+      [hit, fillGap()],
+      [hit, fillGap()],
+      [hit, fillGap()],
+      [usedCorrectly([]), fillGap()],
+    ]);
     const lesson = await startLesson(app, cookie);
     for (let i = 0; i < 4; i++) await answerStep(app, cookie, lesson.id, { answer: "goes" });
 

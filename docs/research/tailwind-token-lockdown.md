@@ -28,7 +28,7 @@ Research for [#53](https://github.com/yagyaraj234/impromptu-monorepo/issues/53),
 - **Default font.** Preflight sets `html` to `--theme(--default-font-family, <system stack>)`, and the default theme defines `--default-font-family: --theme(--font-sans, initial)` ([preflight.css](https://github.com/tailwindlabs/tailwindcss/blob/main/packages/tailwindcss/preflight.css), [theme.css](https://github.com/tailwindlabs/tailwindcss/blob/main/packages/tailwindcss/theme.css)). The wipe removes that line, so set `--default-font-family` ourselves. Verified: without it the page falls back to the system stack.
 - **Spacing.** See the next section.
 
-**What the wipe does *not* constrain.** Some utilities accept bare values with no theme at all:
+**What the wipe does _not_ constrain.** Some utilities accept bare values with no theme at all:
 
 - `border-<n>` falls back to `${n}px` for any positive integer ([utilities.ts, border width](https://github.com/tailwindlabs/tailwindcss/blob/main/packages/tailwindcss/src/utilities.ts)). Verified: `border-2` compiles after the wipe.
 - `z-<n>`, `opacity-<n>` and `grid-cols-<n>` have similar `handleBareValue` paths ([utilities.ts](https://github.com/tailwindlabs/tailwindcss/blob/main/packages/tailwindcss/src/utilities.ts)).
@@ -46,7 +46,7 @@ Spacing utilities first look up a named key (`--padding-4`, `--spacing-4`). Fail
 ## 2. `@theme` vs `@theme inline` for tokens that change in dark mode
 
 - Theme variables become CSS variables on `:root`, and utilities reference them, e.g. `.bg-x { background-color: var(--color-x) }` ([theme docs: Using your theme variables](https://tailwindcss.com/docs/theme#using-your-theme-variables)).
-- When a theme variable references another variable, use `@theme inline`. Then "the utility class will use the theme variable *value* instead of referencing the actual theme variable". Without it, `var()` resolves where the theme variable is defined (`:root`), not on the element ([theme docs: Referencing other variables](https://tailwindcss.com/docs/theme#referencing-other-variables)).
+- When a theme variable references another variable, use `@theme inline`. Then "the utility class will use the theme variable _value_ instead of referencing the actual theme variable". Without it, `var()` resolves where the theme variable is defined (`:root`), not on the element ([theme docs: Referencing other variables](https://tailwindcss.com/docs/theme#referencing-other-variables)).
 
 Why this matters for us: `DESIGN.md` switches surfaces by redefining `--background` on `.surface-loud` / `.surface-quiet` lower in the tree.
 
@@ -70,9 +70,13 @@ Our rule is "an attribute wins, otherwise follow the OS", in CSS only and with n
 
 ```css
 @custom-variant dark {
-  &:where([data-theme="dark"], [data-theme="dark"] *) { @slot; }
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
   @media (prefers-color-scheme: dark) {
-    &:where(:root:not([data-theme="light"]) *) { @slot; }
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
   }
 }
 ```
@@ -112,12 +116,12 @@ All components, including layout primitives (`Page`, `Stack`, `Card`, ...), live
 
 ### Options evaluated
 
-| Tool | Tailwind v4 | (a) arbitrary values | (b) classes not in theme | Notes |
-|---|---|---|---|---|
-| [eslint-plugin-better-tailwindcss](https://github.com/schoero/eslint-plugin-better-tailwindcss) 4.9.1 | Yes, rules have a `tw4` column. Peer `tailwindcss ^3.3.0 \|\| ^4.1.17`; ESLint 7–10 or Oxlint ^1.35 ([README](https://github.com/schoero/eslint-plugin-better-tailwindcss#readme), npm `peerDependencies`) | `no-restricted-classes` with a regex. The docs show `\[([^\[\]]*?)\](?!:)` for arbitrary values ([rule doc](https://github.com/schoero/eslint-plugin-better-tailwindcss/blob/main/docs/rules/no-restricted-classes.md)) | `no-unknown-classes`, given `entryPoint` set to the CSS config ([rule doc](https://github.com/schoero/eslint-plugin-better-tailwindcss/blob/main/docs/rules/no-unknown-classes.md)) | Also `no-concatenated-classes` (catches the dynamic names Tailwind can't scan), and it lints `cva`, `tv` and `twMerge` calls by default ([README](https://github.com/schoero/eslint-plugin-better-tailwindcss#readme)) |
-| [eslint-plugin-tailwindcss](https://github.com/francoismassart/eslint-plugin-tailwindcss) 4.4.0 | Yes, "Made for Tailwind CSS v4". Requires `cssConfigPath`. Peer `tailwindcss ^4.0.0`, ESLint 9–10 ([README](https://github.com/francoismassart/eslint-plugin-tailwindcss#readme)) | `no-arbitrary-value`, with no options ([rule doc](https://github.com/francoismassart/eslint-plugin-tailwindcss/blob/master/docs/rules/no-arbitrary-value.md)) | `no-custom-classname` ([README rules table](https://github.com/francoismassart/eslint-plugin-tailwindcss#rules)) | No general regex ban, so bare-value escapes like `border-7` can't be banned |
-| ESLint core [`no-restricted-syntax`](https://eslint.org/docs/latest/rules/no-restricted-syntax) | n/a | n/a | n/a | Bans any AST selector with a custom message. Covers (c) |
-| [`react/forbid-dom-props`](https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/forbid-dom-props.md) | n/a | n/a | n/a | "Only applies to DOM Nodes… not Components", so it misses `<Button className>`. Weaker than the core rule for (c) |
+| Tool                                                                                                                     | Tailwind v4                                                                                                                                                                                                | (a) arbitrary values                                                                                                                                                                                                    | (b) classes not in theme                                                                                                                                                            | Notes                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [eslint-plugin-better-tailwindcss](https://github.com/schoero/eslint-plugin-better-tailwindcss) 4.9.1                    | Yes, rules have a `tw4` column. Peer `tailwindcss ^3.3.0 \|\| ^4.1.17`; ESLint 7–10 or Oxlint ^1.35 ([README](https://github.com/schoero/eslint-plugin-better-tailwindcss#readme), npm `peerDependencies`) | `no-restricted-classes` with a regex. The docs show `\[([^\[\]]*?)\](?!:)` for arbitrary values ([rule doc](https://github.com/schoero/eslint-plugin-better-tailwindcss/blob/main/docs/rules/no-restricted-classes.md)) | `no-unknown-classes`, given `entryPoint` set to the CSS config ([rule doc](https://github.com/schoero/eslint-plugin-better-tailwindcss/blob/main/docs/rules/no-unknown-classes.md)) | Also `no-concatenated-classes` (catches the dynamic names Tailwind can't scan), and it lints `cva`, `tv` and `twMerge` calls by default ([README](https://github.com/schoero/eslint-plugin-better-tailwindcss#readme)) |
+| [eslint-plugin-tailwindcss](https://github.com/francoismassart/eslint-plugin-tailwindcss) 4.4.0                          | Yes, "Made for Tailwind CSS v4". Requires `cssConfigPath`. Peer `tailwindcss ^4.0.0`, ESLint 9–10 ([README](https://github.com/francoismassart/eslint-plugin-tailwindcss#readme))                          | `no-arbitrary-value`, with no options ([rule doc](https://github.com/francoismassart/eslint-plugin-tailwindcss/blob/master/docs/rules/no-arbitrary-value.md))                                                           | `no-custom-classname` ([README rules table](https://github.com/francoismassart/eslint-plugin-tailwindcss#rules))                                                                    | No general regex ban, so bare-value escapes like `border-7` can't be banned                                                                                                                                            |
+| ESLint core [`no-restricted-syntax`](https://eslint.org/docs/latest/rules/no-restricted-syntax)                          | n/a                                                                                                                                                                                                        | n/a                                                                                                                                                                                                                     | n/a                                                                                                                                                                                 | Bans any AST selector with a custom message. Covers (c)                                                                                                                                                                |
+| [`react/forbid-dom-props`](https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/forbid-dom-props.md) | n/a                                                                                                                                                                                                        | n/a                                                                                                                                                                                                                     | n/a                                                                                                                                                                                 | "Only applies to DOM Nodes… not Components", so it misses `<Button className>`. Weaker than the core rule for (c)                                                                                                      |
 
 The key point for (b): arbitrary classes are **known** classes as far as Tailwind is concerned, so an unknown-class rule never flags `bg-[#fff]`. You need (a) and (b) together. Verified: `no-unknown-classes` flagged `p-3`, `p-7` and `bg-blue-500`, but not `bg-[#fff]`; `no-restricted-classes` caught that one.
 
@@ -135,22 +139,30 @@ export default [
     rules: {
       "better-tailwindcss/no-unknown-classes": "error",
       "better-tailwindcss/no-concatenated-classes": "error",
-      "better-tailwindcss/no-restricted-classes": ["error", { restrict: [
-        // (a) arbitrary values, arbitrary variants and the (--var) shorthand
-        { pattern: "[\\[\\]()]", message: "No arbitrary values. Add a token to tokens.css." },
-        // bare-value escapes the theme wipe can't stop; allow only the 2px outline
-        { pattern: "^([\\w-]*:)?border(-[xytrbl])?-(?!2$)\\d+$", message: "Borders are 2px (DESIGN.md)." },
-      ]}],
+      "better-tailwindcss/no-restricted-classes": [
+        "error",
+        {
+          restrict: [
+            // (a) arbitrary values, arbitrary variants and the (--var) shorthand
+            { pattern: "[\\[\\]()]", message: "No arbitrary values. Add a token to tokens.css." },
+            // bare-value escapes the theme wipe can't stop; allow only the 2px outline
+            { pattern: "^([\\w-]*:)?border(-[xytrbl])?-(?!2$)\\d+$", message: "Borders are 2px (DESIGN.md)." },
+          ],
+        },
+      ],
     },
   },
   {
     // (c) screens only assemble components, in every app
     files: ["apps/*/src/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", {
-        selector: "JSXAttribute[name.name=/^(className|class|style)$/]",
-        message: "Screens assemble @impromptu/ui components; no className or style in apps/web.",
-      }],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute[name.name=/^(className|class|style)$/]",
+          message: "Screens assemble @impromptu/ui components; no className or style in apps/web.",
+        },
+      ],
     },
   },
 ];
@@ -175,16 +187,29 @@ Notes:
 
   /* type */
   --font-sans: "Familjen Grotesk", system-ui, sans-serif;
-  --default-font-family: var(--font-sans);          /* preflight reads this */
+  --default-font-family: var(--font-sans); /* preflight reads this */
   --font-weight-regular: 400;
   --font-weight-bold: 700;
-  --text-xs: 13px;  --text-xs--line-height: 1.4;  --text-xs--font-weight: 700;  --text-xs--letter-spacing: 0.08em;
-  --text-base: 17px; --text-base--line-height: 1.6;
-  --text-hero: 54px; --text-hero--line-height: 1;  --text-hero--font-weight: 700;
+  --text-xs: 13px;
+  --text-xs--line-height: 1.4;
+  --text-xs--font-weight: 700;
+  --text-xs--letter-spacing: 0.08em;
+  --text-base: 17px;
+  --text-base--line-height: 1.6;
+  --text-hero: 54px;
+  --text-hero--line-height: 1;
+  --text-hero--font-weight: 700;
 
   /* spacing: named steps only, no --spacing base, so p-7 does not exist */
-  --spacing-1: 4px;  --spacing-2: 8px;  --spacing-3: 12px; --spacing-4: 16px; --spacing-5: 20px;
-  --spacing-6: 24px; --spacing-8: 32px; --spacing-10: 40px; --spacing-14: 56px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-14: 56px;
 
   /* radius */
   --radius-sm: 8px;
@@ -193,27 +218,56 @@ Notes:
 
   /* layout */
   --breakpoint-md: 48rem;
-  --container-content: 640px;                        /* max-w-content */
+  --container-content: 640px; /* max-w-content */
 
   /* motion */
   --ease-press: cubic-bezier(0.2, 0, 0, 1);
   --animate-live-pulse: live-pulse 1.6s ease-out infinite;
-  @keyframes live-pulse { from { box-shadow: 0 0 0 0 var(--live); } to { box-shadow: 0 0 0 12px transparent; } }
+  @keyframes live-pulse {
+    from {
+      box-shadow: 0 0 0 0 var(--live);
+    }
+    to {
+      box-shadow: 0 0 0 12px transparent;
+    }
+  }
 }
 
 /* 2. Semantic values that change with theme or surface: plain CSS, not @theme */
 :root {
-  --brand: #C6F432; --paper: #FFFFFF; --ink: #111111; --primary: #6A3DF0; --live: #FF2E6E;
+  --brand: #c6f432;
+  --paper: #ffffff;
+  --ink: #111111;
+  --primary: #6a3df0;
+  --live: #ff2e6e;
   --background: var(--paper);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --brand: #121808; --paper: #1B230C; --ink: #F1FFD1; --primary: #A98BFF; --live: #FF6B98; color-scheme: dark; }
+  :root:not([data-theme="light"]) {
+    --brand: #121808;
+    --paper: #1b230c;
+    --ink: #f1ffd1;
+    --primary: #a98bff;
+    --live: #ff6b98;
+    color-scheme: dark;
+  }
 }
-:root[data-theme="dark"] { --brand: #121808; --paper: #1B230C; --ink: #F1FFD1; --primary: #A98BFF; --live: #FF6B98; color-scheme: dark; }
+:root[data-theme="dark"] {
+  --brand: #121808;
+  --paper: #1b230c;
+  --ink: #f1ffd1;
+  --primary: #a98bff;
+  --live: #ff6b98;
+  color-scheme: dark;
+}
 
-.surface-loud  { --background: var(--brand); }
-.surface-quiet { --background: var(--paper); }
+.surface-loud {
+  --background: var(--brand);
+}
+.surface-quiet {
+  --background: var(--paper);
+}
 
 /* 3. Expose semantics to Tailwind; inline so var() resolves on the element */
 @theme inline {
@@ -228,9 +282,13 @@ Notes:
 
 /* 4. dark: = data-theme, else the OS setting */
 @custom-variant dark {
-  &:where([data-theme="dark"], [data-theme="dark"] *) { @slot; }
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
   @media (prefers-color-scheme: dark) {
-    &:where(:root:not([data-theme="light"]) *) { @slot; }
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
   }
 }
 ```

@@ -119,7 +119,7 @@ function Landing() {
       home={<Link to="/" />}
       start={start}
       startLabel="Start free"
-      footerText="An AI coach for clearer, more confident conversations. English today."
+      footerText="An AI coach for speaking and writing English."
     >
       <MarketingHero
         badge="AI language coach"
@@ -130,7 +130,10 @@ function Landing() {
         ctaLabel="Start your free assessment"
         note="Voice or written. No card needed."
       >
-        <ProductFrame label="Impromptu preview: a Roleplay, an Assessment Report and a Roadmap" chips={[floatChips.streak, floatChips.xp]}>
+        <ProductFrame
+          label="Impromptu preview: a Roleplay, an Assessment Report and a Roadmap"
+          chips={[floatChips.streak, floatChips.xp]}
+        >
           <RoleplayMock />
           <MarketingColumn>
             <ReportMock />
@@ -143,11 +146,17 @@ function Landing() {
 
       <HowItWorks
         id="how"
-        title="Three steps to practice that fits you"
+        title="Three steps to your first Lesson"
         steps={[
-          { title: "Set a Goal", body: "Choose what you want to use English for. Add a few details about yourself so practice fits your life." },
-          { title: "Take the Assessment", body: "A conversation of up to 10 minutes, spoken or written, that measures where you are on each skill." },
-          { title: "Follow your Roadmap", body: "Short Lessons and Roleplays, each built from how you did in the last one." },
+          {
+            title: "Set a Goal",
+            body: "Choose what you want to use English for. Add details about your work or daily life so Lessons use your own examples.",
+          },
+          {
+            title: "Take the Assessment",
+            body: "Talk or type for up to 10 minutes. Your coach scores fluency, grammar and vocabulary.",
+          },
+          { title: "Follow your Roadmap", body: "Short Lessons and Roleplays. Each one uses how you did in the last." },
         ]}
       />
 
@@ -155,10 +164,18 @@ function Landing() {
         id="assessment"
         pill="Assessment"
         title="See where you stand in 10 minutes"
-        description="Talk or type your way through a short conversation. Impromptu measures your fluency, grammar and vocabulary and shows each one on the A1 to C2 scale."
+        description="Have a short conversation by voice or text. Impromptu scores your fluency, grammar and vocabulary on the A1 to C2 scale."
         points={[
-          { icon: ChartBar, title: "A report you can read", body: "Scores, strengths and the specific mistakes to fix first." },
-          { icon: Microphone, title: "Voice or written", body: "Speak if you want speaking practice. Type if you are somewhere quiet." },
+          {
+            icon: ChartBar,
+            title: "Your level and what to fix",
+            body: "A CEFR level for each skill, plus the specific mistakes to correct first.",
+          },
+          {
+            icon: Microphone,
+            title: "Voice or written",
+            body: "Speak if you want fluency measured. Type if you are somewhere quiet.",
+          },
         ]}
       >
         <MarketingPanel
@@ -186,11 +203,19 @@ function Landing() {
         id="roadmap"
         flip
         pill="Roadmap"
-        title="A path that rewrites itself as you improve"
-        description="Your Roadmap is a list of Units, each made of short Lessons. Every Lesson is generated from how you did in the last one, so you skip what you already know."
+        title="A Roadmap that changes as you improve"
+        description="Your Roadmap is a list of Units, each made of short Lessons. Your coach builds each Lesson from how you did in the last one, so you skip what you already know."
         points={[
-          { icon: Path, title: "Done when you hit the goal", body: "A Unit is done when you hit its goal in two Lessons in a row." },
-          { icon: ChatCircle, title: "Voice and text Steps", body: "Each Lesson mixes speaking and writing prompts with feedback on every response." },
+          {
+            icon: Path,
+            title: "Mastered after two Lessons",
+            body: "A Unit is mastered when you hit its goal in two Lessons in a row.",
+          },
+          {
+            icon: ChatCircle,
+            title: "Voice and text Steps",
+            body: "Each Lesson mixes speaking and writing prompts with feedback on every response.",
+          },
         ]}
       >
         <MarketingPanel
@@ -203,20 +228,47 @@ function Landing() {
             </>
           }
         >
-          <UnitRow state="done" index={1} title="Introducing yourself" detail="Mastered in 2 Lessons" status="Mastered" />
-          <UnitRow state="now" index={2} title="Past tense for everyday stories" detail="Lesson 2 of 3" status="In progress" progress />
-          <UnitRow state="next" index={3} title="Telling a story about your week" detail="Conversation Unit" status="Up next" />
+          <UnitRow
+            state="done"
+            index={1}
+            title="Introducing yourself"
+            detail="Mastered in 2 Lessons"
+            status="Mastered"
+          />
+          <UnitRow
+            state="now"
+            index={2}
+            title="Past tense for everyday stories"
+            detail="Lesson 2 of 3"
+            status="In progress"
+            progress
+          />
+          <UnitRow
+            state="next"
+            index={3}
+            title="Telling a story about your week"
+            detail="Conversation Unit"
+            status="Up next"
+          />
         </MarketingPanel>
       </Feature>
 
       <Feature
         id="roleplay"
         pill="Roleplay"
-        title="Practise the real conversation, then see what to fix"
-        description="The AI plays the other person in a real conversation and stays in character. When it ends, you get feedback that shows what to say instead, with a recording of how it sounds."
+        title="Practise the conversation, then see what to fix"
+        description="The AI plays the other person and stays in character. When it ends, you get feedback that shows what to say instead, with a recording of how it sounds."
         points={[
-          { icon: Microphone, title: "Follow-ups that react to you", body: "Follow-up questions react to what you actually said." },
-          { icon: Check, title: "Corrections you can hear", body: "Play the reference pronunciation for any word or phrase." },
+          {
+            icon: Microphone,
+            title: "Questions that follow your answer",
+            body: "The other person responds to what you said.",
+          },
+          {
+            icon: Check,
+            title: "Corrections you can hear",
+            body: "Play the reference pronunciation for any word or phrase.",
+          },
         ]}
       >
         <MarketingPanel
@@ -240,11 +292,23 @@ function Landing() {
 
       <FeatureTrio
         id="more"
-        title="Practice built from your own life"
+        title="More ways to practise"
         items={[
-          { icon: FileText, title: "Bring your own context", body: "Tell Impromptu about your work or situation. It turns that into a short brief and uses it in every Lesson." },
-          { icon: Microphone, title: "Hear it said right", body: "Tap any vocabulary card or correction to play the correct pronunciation." },
-          { icon: Flame, title: "Keep the streak", body: "Short daily Lessons earn XP and build a Streak, so ten minutes a day adds up." },
+          {
+            icon: FileText,
+            title: "Bring your own context",
+            body: "Tell Impromptu about your work or situation. It turns that into a short brief and uses it in every Lesson.",
+          },
+          {
+            icon: Microphone,
+            title: "Hear the correct pronunciation",
+            body: "Tap any vocabulary card or correction to play it.",
+          },
+          {
+            icon: Flame,
+            title: "Keep the streak",
+            body: "Short daily Lessons earn XP and build a Streak, so ten minutes a day adds up.",
+          },
         ]}
       />
 
@@ -252,7 +316,7 @@ function Landing() {
 
       <FinalCta
         title="Your next conversation gets easier"
-        description="Start with the free assessment and get a Roadmap built around how you speak."
+        description="Start with the free assessment and get a Roadmap based on how you speak."
         cta={start}
         ctaLabel="Start your free assessment"
       />

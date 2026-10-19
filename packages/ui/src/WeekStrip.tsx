@@ -37,8 +37,16 @@ export function WeekStrip({ week }: WeekStripProps) {
       </div>
       <ol className={days()}>
         {week.map((d, i) => (
-          <li key={d.day} className={day({ state: d.practised ? "practised" : d.today ? "today" : i > todayAt ? "future" : "past", today: d.today })}>
-            <span className={weekday()}>{new Date(d.day).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</span>{" "}
+          <li
+            key={d.day}
+            className={day({
+              state: d.practised ? "practised" : d.today ? "today" : i > todayAt ? "future" : "past",
+              today: d.today,
+            })}
+          >
+            <span className={weekday()}>
+              {new Date(d.day).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}
+            </span>{" "}
             <span className={date()}>{Number(d.day.slice(8))}</span>
             {(d.practised || d.today) && (
               <span className="sr-only">{` ${[d.practised && "practised", d.today && "today"].filter(Boolean).join(", ")}`}</span>

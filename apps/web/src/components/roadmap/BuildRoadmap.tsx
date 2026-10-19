@@ -3,49 +3,75 @@ import { MapTrifold } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { api } from "../../lib/api";
-import { roadmapQuery } from "../../lib/queries";
+import { lessonRoute } from "../../lib/lessons";
+import { practicePreparationQuery, usePracticePreparation } from "../../lib/practice-preparation";
 
-/** Shown on Home and the Roadmap when there's no Roadmap yet, usually because building it failed: try again. */
+/** Shared by the Report and an empty Roadmap; preparation never hides the saved Report. */
 export function BuildRoadmap() {
+  const preparation = usePracticePreparation();
   const queryClient = useQueryClient();
-  const build = useMutation({
+  const retry = useMutation({
     mutationFn: async () => {
-      const response = await api().api.roadmap.$post();
-      // 409 is "already built" or "not ready yet"; refetching shows the Roadmap in the first case.
-      if (response.ok || response.status === 409) {
-        await queryClient.invalidateQueries(roadmapQuery);
-        return response.status === 409 ? "notReady" : "built";
-      }
-      throw new Error(`Couldn't build your Roadmap (${response.status})`);
+      const response = await api().api.assessments.preparation.$post();
+      if (!response.ok) throw new Error("We couldn't prepare your practice. Try again.");
+      await queryClient.invalidateQueries(practicePreparationQuery);
     },
   });
 
-  if (build.isPending)
-    return <LoadingState title="Building your Roadmap" description="Planning your Units from your Goals and your Assessment." />;
-  if (build.isError)
+  if (preparation.isError)
     return (
       <ErrorState
-        title="Your Roadmap couldn't be built"
-        description="That's on us. Try again in a moment."
-        retryLabel="Build my Roadmap"
-        onRetry={() => build.mutate()}
+        title="We couldn't check your practice"
+        description="Your Assessment Report is saved."
+        onRetry={() => void preparation.refetch()}
       />
     );
-  if (build.data === "notReady")
+  if (retry.isError)
+    return (
+      <ErrorState
+        title="We couldn't prepare your practice"
+        description="Your Assessment Report is saved."
+        onRetry={() => retry.mutate()}
+      />
+    );
+  if (
+    preparation.isPending ||
+    retry.isPending ||
+    preparation.data.status === "pending" ||
+    preparation.data.status === "preparing"
+  )
+    return (
+      <LoadingState
+        title="Preparing your first Lesson…"
+        description="Your Assessment Report is ready. Your coach is preparing Lessons for your Goals."
+      />
+    );
+  if (preparation.data.status === "failed")
+    return (
+      <ErrorState
+        title="We couldn't prepare your practice"
+        description="Your Assessment Report is saved. Try again."
+        retryLabel="Retry preparation"
+        onRetry={() => retry.mutate()}
+      />
+    );
+  if (preparation.data.status === "not_ready")
     return (
       <EmptyState
         icon={MapTrifold}
-        title="Set your Goals first"
-        description="Your Roadmap is built from your confirmed Goals and your Assessment."
-        action={<Button render={<Link to="/goals" />}>Set your Goals</Button>}
+        title="Confirm your Goals first"
+        description="You need confirmed Goals and a completed Assessment."
+        action={<Button render={<Link to="/goals/confirm" />}>Review your Goals</Button>}
       />
     );
-  return (
-    <EmptyState
-      icon={MapTrifold}
-      title="Your Roadmap isn't ready"
-      description="We couldn't plan your Units last time. Try again and we'll build it now."
-      action={<Button onClick={() => build.mutate()}>Build my Roadmap</Button>}
-    />
+  const lesson = preparation.data.lesson;
+  return lesson ? (
+    <Button fullWidth render={<Link {...lessonRoute(lesson)} />}>
+      Start {lesson.title}
+    </Button>
+  ) : (
+    <Button fullWidth render={<Link to="/roadmap" />}>
+      See my Roadmap
+    </Button>
   );
 }

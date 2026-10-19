@@ -22,7 +22,8 @@ const requestDuration = new Histogram({
   registers: [metricsRegistry],
 });
 
-export const metricsMiddleware = (enabled: boolean): MiddlewareHandler<AppEnv> =>
+export const metricsMiddleware =
+  (enabled: boolean): MiddlewareHandler<AppEnv> =>
   async (c, next) => {
     if (!enabled) return next();
 

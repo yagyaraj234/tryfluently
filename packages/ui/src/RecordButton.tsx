@@ -27,7 +27,9 @@ export type RecordButtonProps = {
 
 /** The large round button that starts and stops a recorded answer. It can't be pressed while the recording is processed. */
 export function RecordButton({ state, onStart, onStop }: RecordButtonProps) {
-  const label = { idle: "Start recording", recording: "Stop recording", processing: "Processing your recording" }[state];
+  const label = { idle: "Start recording", recording: "Stop recording", processing: "Processing your recording" }[
+    state
+  ];
   return (
     <span className={wrap()}>
       {state === "recording" && <span aria-hidden className={ring()} />}
@@ -38,7 +40,13 @@ export function RecordButton({ state, onStart, onStop }: RecordButtonProps) {
         focusableWhenDisabled
         onClick={state === "recording" ? onStop : onStart}
       >
-        {state === "processing" ? <span aria-hidden className={spinner()} /> : state === "recording" ? <Stop aria-hidden /> : <Microphone aria-hidden />}
+        {state === "processing" ? (
+          <span aria-hidden className={spinner()} />
+        ) : state === "recording" ? (
+          <Stop aria-hidden />
+        ) : (
+          <Microphone aria-hidden />
+        )}
       </BaseButton>
     </span>
   );

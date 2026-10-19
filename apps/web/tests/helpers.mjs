@@ -10,6 +10,7 @@ export async function startWeb(handleApi) {
   const web = await createServer({ server: { host: "127.0.0.1", port: 0 } });
   await web.listen();
   return {
+    loadModule: (path) => web.ssrLoadModule(path),
     url: web.resolvedUrls.local[0].replace(/\/$/, ""),
     async close() {
       await web.close();
@@ -24,3 +25,13 @@ export async function readBody(req) {
   for await (const chunk of req) chunks.push(chunk);
   return Buffer.concat(chunks).toString();
 }
+
+// Labels may contain layout spans or icons; keep assertions on each rendered control.
+export const text = (html = "") =>
+  html
+    .replace(/<!--.*?-->/g, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+export const buttons = (html) => [...html.matchAll(/<button\b[\s\S]*?<\/button>/g)].map((m) => text(m[0]));
+export const linkTo = (html, href) => html.match(new RegExp(`<a\\b[^>]*href="${href}"[^>]*>[\\s\\S]*?</a>`))?.[0];

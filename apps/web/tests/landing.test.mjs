@@ -6,7 +6,8 @@ import { startWeb } from "./helpers.mjs";
 let web;
 before(async () => {
   web = await startWeb((req, res) => {
-    const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
+    const json = (status, body) =>
+      res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (/down=1/.test(req.headers.cookie ?? "")) return res.destroy();
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
@@ -16,7 +17,11 @@ before(async () => {
 after(() => web.close());
 
 const visit = (path, cookie) => fetch(web.url + path, { headers: cookie ? { cookie } : {}, redirect: "manual" });
-const text = (html) => html.replace(/<!--.*?-->/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+const text = (html) =>
+  html
+    .replace(/<!--.*?-->/g, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ");
 
 test("a signed-out visitor gets the full landing page as server-rendered HTML", async () => {
   const response = await visit("/");
@@ -33,8 +38,8 @@ test("a signed-out visitor gets the full landing page as server-rendered HTML", 
 
 test("the head carries title, description, canonical, share tags and structured data", async () => {
   const html = await (await visit("/")).text();
-  assert.match(html, /<title>Impromptu \| AI English Coach to Speak with Confidence<\/title>/);
-  assert.match(html, /<meta name="description" content="Improve your English communication/);
+  assert.match(html, /<title>Impromptu \| AI English Coach for Speaking and Writing<\/title>/);
+  assert.match(html, /<meta name="description" content="Practise English speaking and writing/);
   assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3001\/"/);
   assert.match(html, /property="og:title"/);
   assert.match(html, /name="twitter:card"/);

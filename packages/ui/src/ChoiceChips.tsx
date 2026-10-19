@@ -40,8 +40,15 @@ export function ChoiceChips(props: ChoiceChipsProps) {
   const labelId = useId();
   const { label, options, name, disabled, ref, layout = "chips" } = props;
   const card = layout === "cards";
-  const optionClasses = card ? "flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-2xl border border-line-strong bg-paper p-5 text-left text-body text-ink shadow-card data-checked:border-ink data-checked:bg-primary-soft data-disabled:cursor-not-allowed" : chip;
-  const content = (option: ChoiceOption) => <span className="flex flex-col gap-1"><span className="font-semibold">{option.label}</span>{option.description && <span className="text-caption font-normal text-muted">{option.description}</span>}</span>;
+  const optionClasses = card
+    ? "flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-2xl border border-line-strong bg-paper p-5 text-left text-body text-ink shadow-card data-checked:border-ink data-checked:bg-primary-soft data-disabled:cursor-not-allowed"
+    : chip;
+  const content = (option: ChoiceOption) => (
+    <span className="flex flex-col gap-1">
+      <span className="font-semibold">{option.label}</span>
+      {option.description && <span className="text-caption font-normal text-muted">{option.description}</span>}
+    </span>
+  );
   const groupProps = { ref, disabled, "aria-labelledby": labelId, className: "flex flex-col gap-2" };
   const heading = (
     <div id={labelId} className={fieldLabelClasses}>

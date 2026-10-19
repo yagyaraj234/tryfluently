@@ -97,8 +97,12 @@ describe("Heading", () => {
 
   test("takes no className or style", () => {
     // @ts-expect-error className is not a prop
-    <Heading level={1} className="x">a</Heading>;
+    <Heading level={1} className="x">
+      a
+    </Heading>;
     // @ts-expect-error style is not a prop
-    <Heading level={1} style={{}}>a</Heading>;
+    <Heading level={1} style={{}}>
+      a
+    </Heading>;
   });
 });

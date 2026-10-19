@@ -13,7 +13,9 @@ function fakeServer(...replies) {
     const [start, ...rest] = replies.shift();
     const chunks = [start, { type: "start-step" }, ...rest, { type: "finish-step" }, { type: "finish" }];
     const sse = [...chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`), "data: [DONE]\n\n"].join("");
-    return new Response(sse, { headers: { "content-type": "text/event-stream", "x-vercel-ai-ui-message-stream": "v1" } });
+    return new Response(sse, {
+      headers: { "content-type": "text/event-stream", "x-vercel-ai-ui-message-stream": "v1" },
+    });
   };
   return { sent, fetch };
 }
@@ -47,7 +49,12 @@ test("answering a Step adds { answer } to the last assistant message and sends i
       { type: "start", messageId: "a2" },
       { type: "tool-input-available", toolCallId: "call-1", toolName: "fillGap", input: fillGap },
     ],
-    [{ type: "start", messageId: "a2" }, { type: "text-start", id: "t" }, { type: "text-delta", id: "t", delta: "Thanks!" }, { type: "text-end", id: "t" }],
+    [
+      { type: "start", messageId: "a2" },
+      { type: "text-start", id: "t" },
+      { type: "text-delta", id: "t", delta: "Thanks!" },
+      { type: "text-end", id: "t" },
+    ],
   );
   const chat = new Chat(chatOptions("/api/assessments/7/chat", stored, server.fetch));
   await chat.sendMessage({ text: "Ready" });
@@ -76,8 +83,15 @@ test("a chat resumes from the stored messages", () => {
 
 test("a recorded answer goes back as { recordingId }", async () => {
   const server = fakeServer([{ type: "start", messageId: "a1" }]);
-  const pending = { type: "tool-vocabCard", toolCallId: "call-2", state: "input-available", input: { word: "deadline" } };
-  const chat = new Chat(chatOptions("/api/lessons/1/chat", [{ id: "a1", role: "assistant", parts: [pending] }], server.fetch));
+  const pending = {
+    type: "tool-vocabCard",
+    toolCallId: "call-2",
+    state: "input-available",
+    input: { word: "deadline" },
+  };
+  const chat = new Chat(
+    chatOptions("/api/lessons/1/chat", [{ id: "a1", role: "assistant", parts: [pending] }], server.fetch),
+  );
   await answerStep(chat, pending, { recordingId: "r1" });
   assert.deepEqual(server.sent[0].body.message.parts[0].output, { recordingId: "r1" });
 });

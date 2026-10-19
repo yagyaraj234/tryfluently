@@ -21,7 +21,7 @@ const logo = "inline-flex items-center gap-2 text-lg font-bold tracking-tighter 
 const wordmark = (
   <>
     <LogoMark className="size-6 text-ink" />
-    get fluency
+    <span className="text-ink sm:mr-12">fluently</span>
   </>
 );
 /** The hero fades up one piece after another. */
@@ -109,17 +109,34 @@ export type MarketingHeroProps = {
 };
 
 /** The one h1, the pitch and the primary call to action, with the product frame beneath. */
-export function MarketingHero({ badge, title, emphasis, description, cta, ctaLabel, note, children }: MarketingHeroProps) {
+export function MarketingHero({
+  badge,
+  title,
+  emphasis,
+  description,
+  cta,
+  ctaLabel,
+  note,
+  children,
+}: MarketingHeroProps) {
   return (
     <>
-      <section className="relative isolate flex flex-col items-center gap-5.5 pt-16 pb-12 text-center" aria-labelledby="hero-title">
+      <section
+        className="relative isolate flex flex-col items-center gap-5.5 pt-16 pb-12 text-center"
+        aria-labelledby="hero-title"
+      >
         {/* A dot grid fading out from behind the headline, and a soft sky glow. */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 -top-20 bottom-0 z-behind bg-[radial-gradient(circle,var(--color-ink)_1px,transparent_1.6px)] bg-size-[22px_22px] opacity-20 [mask-image:radial-gradient(ellipse_55%_60%_at_50%_38%,black,transparent)]"
         />
-        <div aria-hidden className="pointer-events-none absolute top-10 left-1/2 z-behind h-75 w-9/10 max-w-160 -translate-x-1/2 rounded-full bg-brand-hi opacity-35 blur-3xl" />
-        <span className={`inline-flex items-center gap-2 rounded-full border border-line bg-paper py-1.25 pr-3 pl-2 text-sm font-semibold ${rise[0]}`}>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-10 left-1/2 z-behind h-75 w-9/10 max-w-160 -translate-x-1/2 rounded-full bg-brand-hi opacity-35 blur-3xl"
+        />
+        <span
+          className={`inline-flex items-center gap-2 rounded-full border border-line bg-paper py-1.25 pr-3 pl-2 text-sm font-semibold ${rise[0]}`}
+        >
           <span aria-hidden className="size-2 rounded-full bg-primary ring-3 ring-primary-soft" />
           {badge}
         </span>
@@ -130,7 +147,12 @@ export function MarketingHero({ badge, title, emphasis, description, cta, ctaLab
           {title}{" "}
           <em className="relative inline-block text-primary not-italic">
             {emphasis}
-            <svg className="absolute -bottom-[0.1em] left-0 h-[0.16em] w-full overflow-visible" viewBox="0 0 300 12" preserveAspectRatio="none" aria-hidden>
+            <svg
+              className="absolute -bottom-[0.1em] left-0 h-[0.16em] w-full overflow-visible"
+              viewBox="0 0 300 12"
+              preserveAspectRatio="none"
+              aria-hidden
+            >
               <path
                 className="stroke-primary motion-safe:animate-draw"
                 fill="none"
@@ -158,20 +180,38 @@ export function MarketingHero({ badge, title, emphasis, description, cta, ctaLab
 }
 
 /** A pill that floats on the top-right or bottom-left edge of a frame or panel. */
-export function FloatChip({ place, inset = "panel", children }: { place: "tr" | "bl"; inset?: "panel" | "frame"; children: ReactNode }) {
+export function FloatChip({
+  place,
+  inset = "panel",
+  children,
+}: {
+  place: "tr" | "bl";
+  inset?: "panel" | "frame";
+  children: ReactNode;
+}) {
   const at = {
     panel: { tr: "-top-3 right-5.5", bl: "-bottom-3 left-5.5" },
     frame: { tr: "-top-3.5 right-8.5", bl: "-bottom-3.5 left-8.5" },
   }[inset][place];
   return (
-    <span className={`absolute z-sticky inline-flex items-center gap-1.5 rounded-full bg-primary px-3.25 py-1.75 text-xs font-semibold text-on-primary shadow-card motion-safe:animate-bob ${at}`}>
+    <span
+      className={`absolute z-sticky inline-flex items-center gap-1.5 rounded-full bg-primary px-3.25 py-1.75 text-xs font-semibold text-on-primary shadow-card motion-safe:animate-bob ${at}`}
+    >
       {children}
     </span>
   );
 }
 
 /** The framed product preview under the hero. `chips` float on its corners. */
-export function ProductFrame({ chips, label, children }: { chips: [ReactNode, ReactNode]; label: string; children?: ReactNode }) {
+export function ProductFrame({
+  chips,
+  label,
+  children,
+}: {
+  chips: [ReactNode, ReactNode];
+  label: string;
+  children?: ReactNode;
+}) {
   return (
     <section
       className="relative isolate rounded-3xl border border-line bg-subtle p-2.5 shadow-frame inset-ring-6 inset-ring-canvas/45 motion-safe:animate-rise motion-safe:[animation-delay:300ms] sm:rounded-4xl sm:p-3.5"
@@ -246,9 +286,15 @@ export type FeatureProps = {
 /** Copy on one side, an illustration on the other. */
 export function Feature({ id, pill, title, description, points, flip, children }: FeatureProps) {
   return (
-    <section className="grid items-center gap-6 py-10 sm:gap-12 sm:py-16 md:grid-cols-2 lg:gap-18 lg:py-20" id={id} aria-labelledby={`${id}-title`}>
+    <section
+      className="grid items-center gap-6 py-10 sm:gap-12 sm:py-16 md:grid-cols-2 lg:gap-18 lg:py-20"
+      id={id}
+      aria-labelledby={`${id}-title`}
+    >
       <div className={`grid min-w-0 gap-4.5 ${flip ? "md:order-2" : ""}`}>
-        <span className="justify-self-start rounded-full bg-primary-soft px-2.75 py-1 text-sm font-semibold text-primary">{pill}</span>
+        <span className="justify-self-start rounded-full bg-primary-soft px-2.75 py-1 text-sm font-semibold text-primary">
+          {pill}
+        </span>
         <h2 id={`${id}-title`} className="text-4xl leading-none font-bold tracking-tight text-balance sm:text-5xl">
           {title}
         </h2>
@@ -311,7 +357,10 @@ export function Faq({ id, title, items }: { id: string; title: string; items: Fa
           >
             <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 text-body font-semibold tracking-tight [&::-webkit-details-marker]:hidden">
               {item.question}
-              <CaretDown aria-hidden className="shrink-0 text-muted motion-safe:transition-transform motion-safe:duration-ui group-open:rotate-180" />
+              <CaretDown
+                aria-hidden
+                className="shrink-0 text-muted motion-safe:transition-transform motion-safe:duration-ui group-open:rotate-180"
+              />
             </summary>
             <p className="max-w-[58ch] pb-4.5 text-base text-pretty text-muted">{item.answer}</p>
           </details>
@@ -321,7 +370,17 @@ export function Faq({ id, title, items }: { id: string; title: string; items: Fa
   );
 }
 
-export function FinalCta({ title, description, cta, ctaLabel }: { title: string; description: string; cta: ReactElement; ctaLabel: string }) {
+export function FinalCta({
+  title,
+  description,
+  cta,
+  ctaLabel,
+}: {
+  title: string;
+  description: string;
+  cta: ReactElement;
+  ctaLabel: string;
+}) {
   return (
     <section
       className="relative isolate grid justify-items-center gap-5 overflow-hidden rounded-4xl bg-brand bg-radial-[90%_120%_at_50%_130%] from-brand-hi to-brand to-62% px-6 py-10 text-center text-on-brand sm:py-20"
@@ -331,7 +390,10 @@ export function FinalCta({ title, description, cta, ctaLabel }: { title: string;
         aria-hidden
         className="pointer-events-none absolute inset-0 z-behind bg-[radial-gradient(circle,var(--color-white)_1px,transparent_1.6px)] bg-size-[20px_20px] opacity-10 [mask-image:linear-gradient(black,transparent_70%)]"
       />
-      <h2 id="final-title" className="max-w-[20ch] text-4xl leading-none font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
+      <h2
+        id="final-title"
+        className="max-w-[20ch] text-4xl leading-none font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl"
+      >
         {title}
       </h2>
       <p className="max-w-[40ch] text-lg text-pretty text-on-brand/72">{description}</p>
@@ -375,7 +437,7 @@ export function AuthLayout(props: AuthLayoutProps) {
       children: (
         <>
           <LogoMark className="size-7" />
-          get fluency
+          fluently
         </>
       ),
     },
@@ -388,11 +450,19 @@ export function AuthLayout(props: AuthLayoutProps) {
           className="relative isolate flex min-w-0 flex-col justify-between gap-4 overflow-hidden rounded-3xl bg-linear-160 from-brand-mid to-brand p-5 text-on-brand md:gap-12 md:p-8 lg:p-14"
           aria-label={props.storyLabel}
         >
-          <span aria-hidden className="absolute -top-1/4 right-0 z-behind size-3/5 rounded-full bg-brand-hi/85 blur-3xl" />
-          <span aria-hidden className="absolute -right-1/4 -bottom-1/4 z-behind size-1/2 rounded-full bg-brand-deep/90 blur-3xl" />
+          <span
+            aria-hidden
+            className="absolute -top-1/4 right-0 z-behind size-3/5 rounded-full bg-brand-hi/85 blur-3xl"
+          />
+          <span
+            aria-hidden
+            className="absolute -right-1/4 -bottom-1/4 z-behind size-1/2 rounded-full bg-brand-deep/90 blur-3xl"
+          />
           {brand}
           <div className="max-w-136">
-            <span className="hidden rounded-full border border-on-brand/25 bg-on-brand/12 px-3.5 py-2 text-sm md:inline-block">{props.badge}</span>
+            <span className="hidden rounded-full border border-on-brand/25 bg-on-brand/12 px-3.5 py-2 text-sm md:inline-block">
+              {props.badge}
+            </span>
             <h2 className="mb-2 text-3xl leading-none font-bold tracking-tight text-balance md:mt-5 md:mb-3 md:text-5xl lg:text-7xl">
               {props.storyTitle}
             </h2>
@@ -401,7 +471,10 @@ export function AuthLayout(props: AuthLayoutProps) {
           {props.steps && (
             <ol className="hidden grid-cols-3 gap-3 md:grid">
               {props.steps.map(({ icon: Icon, title, body }, i) => (
-                <li key={title} className={`${glass} group flex h-44 flex-col gap-3 p-4 text-sm leading-tight first:bg-white first:text-black`}>
+                <li
+                  key={title}
+                  className={`${glass} group flex h-44 flex-col gap-3 p-4 text-sm leading-tight first:bg-white first:text-black`}
+                >
                   <div className="flex items-center justify-between">
                     <span className="grid size-8 place-items-center rounded-full border border-on-brand/50 group-first:border-0 group-first:bg-brand group-first:text-on-brand">
                       {i + 1}
@@ -426,7 +499,10 @@ export function AuthLayout(props: AuthLayoutProps) {
             </div>
           )}
         </section>
-        <section className="mx-auto grid w-full max-w-136 content-center px-4 py-6 md:p-8 lg:p-14" aria-label={props.title}>
+        <section
+          className="mx-auto grid w-full max-w-136 content-center px-4 py-6 md:p-8 lg:p-14"
+          aria-label={props.title}
+        >
           <Stack gap={6}>
             <div className="grid gap-2 text-center">
               <Heading level={1}>{props.title}</Heading>
@@ -436,7 +512,9 @@ export function AuthLayout(props: AuthLayoutProps) {
             <div className="text-center">{props.footer}</div>
             {props.alternative && (
               <div className="grid gap-5">
-                <p className="flex items-center gap-4 text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">or</p>
+                <p className="flex items-center gap-4 text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
+                  or
+                </p>
                 {props.alternative}
               </div>
             )}

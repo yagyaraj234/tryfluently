@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { startWeb } from "./helpers.mjs";
+import { buttons, linkTo, startWeb } from "./helpers.mjs";
 
 // The Written Assessment, its Report and confirming Goals, rendered on the server against a stub API.
 const startedAt = new Date().toISOString();
@@ -17,9 +17,19 @@ const report = {
   },
   strengths: ["You explain your work clearly", "You use a good range of verbs", "Your tone is polite"],
   weaknesses: [
-    { label: "Present perfect with since", kind: "grammar", quote: "I work here since 2020.", betterVersion: "I've worked here since 2020." },
+    {
+      label: "Present perfect with since",
+      kind: "grammar",
+      quote: "I work here since 2020.",
+      betterVersion: "I've worked here since 2020.",
+    },
     { label: "Articles", kind: "grammar", quote: "I am nurse.", betterVersion: "I am a nurse." },
-    { label: "Polite requests", kind: "phrase", quote: "Give me the file.", betterVersion: "Could you send me the file?" },
+    {
+      label: "Polite requests",
+      kind: "phrase",
+      quote: "Give me the file.",
+      betterVersion: "Could you send me the file?",
+    },
   ],
   proposedGoals: [],
   firstUnit: { title: "Tenses at work", objective: "Talk about your experience with the present perfect." },
@@ -61,12 +71,24 @@ const assessments = {
   },
   short: { id: "short", mode: "written", status: "discarded", startedAt, transcript: [] },
   done: { id: "done", mode: "written", status: "completed", startedAt, transcript: [], report },
-  left: { id: "left", mode: "written", status: "completed", startedAt, transcript: [], report: { ...report, partial: true } },
+  left: {
+    id: "left",
+    mode: "written",
+    status: "completed",
+    startedAt,
+    transcript: [],
+    report: { ...report, partial: true },
+  },
   voice: { id: "voice", mode: "voice", status: "in_progress", startedAt, transcript: [] },
 };
 
 const goals = [
-  { id: "g1", kind: "job_interview", status: "proposed", targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "C1" } },
+  {
+    id: "g1",
+    kind: "job_interview",
+    status: "proposed",
+    targetLevels: { fluency: "B2", grammar: "B2", vocabulary: "C1" },
+  },
   { id: "g2", kind: "general_fluency", status: "proposed", targetLevels: { grammar: "B1" } },
   { id: "g3", kind: "client_communication", status: "confirmed", targetLevels: {} },
 ];
@@ -74,15 +96,22 @@ const goals = [
 let web;
 let suggestionsAvailable = true;
 let showSuggestions = true;
+let preparation = { status: "ready", lesson: null };
 
 before(async () => {
   web = await startWeb((req, res) => {
-    const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
+    const json = (status, body) =>
+      res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
+    if (req.url === "/api/assessments/preparation") return json(200, preparation);
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
-    if (req.url === "/api/goals") return suggestionsAvailable ? json(200, showSuggestions ? goals : []) : json(503, { error: "Unavailable" });
+    if (req.url === "/api/goals")
+      return suggestionsAvailable ? json(200, showSuggestions ? goals : []) : json(503, { error: "Unavailable" });
     const assessment = req.url.match(/^\/api\/assessments\/(\w+)$/);
-    if (assessment) return assessments[assessment[1]] ? json(200, assessments[assessment[1]]) : json(404, { error: "Assessment not found" });
+    if (assessment)
+      return assessments[assessment[1]]
+        ? json(200, assessments[assessment[1]])
+        : json(404, { error: "Assessment not found" });
     json(404, { error: "Not found" });
   });
 });
@@ -110,11 +139,12 @@ test("a new Written Assessment shows the coach identity, a conversation composer
   assert.match(text(html), /Your conversation with Impromptu/);
   assert.doesNotMatch(text(html), /Say hello/);
   assert.match(html, /<label[^>]*>Your message to your coach<\/label>/);
-  assert.match(html, /<button[^>]*>Finish<\/button>/);
+  assert.ok(buttons(html).includes("Finish"));
 });
 
 test("a Written Assessment resumes from its transcript and shows the waiting item", async () => {
-  const shown = text(await page("/assessments/chatting"));
+  const html = await page("/assessments/chatting");
+  const shown = text(html);
   assert.match(shown, /Coach: Hi! What do you do for work\?/);
   assert.match(shown, /You: I am nurse in a big hospital\./);
   // The rewrite item waits for an answer, so the free-text box is hidden.
@@ -122,6 +152,7 @@ test("a Written Assessment resumes from its transcript and shows the waiting ite
   assert.match(shown, /Give me the report\./);
   assert.match(shown, /Your version/);
   assert.doesNotMatch(shown, /Your answer/);
+  assert.match(html, /role="log"/);
 });
 
 test("an answered fillGap shows the Learner's answer but never its grade", async () => {
@@ -134,11 +165,14 @@ test("an attempt under 4 minutes says it was discarded and offers to start again
   const html = await page("/assessments/short");
   assert.match(text(html), /Attempt discarded/);
   assert.match(text(html), /4 minutes/);
-  assert.match(html, /<a[^>]*href="\/assessments\/new"[^>]*>Start again<\/a>/);
+  assert.equal(text(linkTo(html, "/assessments/new")).trim(), "Start again");
 });
 
 test("a finished Assessment goes to its Report", async () => {
-  const response = await fetch(`${web.url}/assessments/done`, { headers: { cookie: "learner=asha" }, redirect: "manual" });
+  const response = await fetch(`${web.url}/assessments/done`, {
+    headers: { cookie: "learner=asha" },
+    redirect: "manual",
+  });
   assert.equal(response.status, 307);
   assert.equal(new URL(response.headers.get("location"), web.url).pathname, "/assessments/done/report");
 });
@@ -174,7 +208,7 @@ test("a Report from leaving early is labelled partial", async () => {
 
 test("the Report lets the Learner review suggested Goals and build a Roadmap in place", async () => {
   const html = await page("/assessments/done/report");
-  assert.match(text(html), /Your path from here/);
+  assert.match(text(html), /Your coach’s suggestions/);
   assert.match(text(html), /Build my Roadmap/);
   assert.equal([...html.matchAll(/<main\b/g)].length, 1);
 });
@@ -182,14 +216,14 @@ test("the Report lets the Learner review suggested Goals and build a Roadmap in 
 test("confirming Goals lists only proposed Goals, with editable Target Levels and one build action", async () => {
   const html = await page("/goals/confirm");
   const shown = text(html);
-  assert.match(shown, /Job Interview/);
-  assert.match(shown, /General Fluency/);
-  assert.doesNotMatch(shown, /Client Communication/);
+  assert.match(html, /Job Interview/);
+  assert.match(html, /General Fluency/);
+  assert.doesNotMatch(html, /Client Communication/);
+  assert.match(shown, /Your Goal/);
   assert.match(text(html), /Build my Roadmap/);
-  assert.equal(html.match(/>Remove<\/button>/g)?.length, 2);
+  assert.equal(buttons(html).filter((label) => label === "Remove").length, 2);
   for (const level of ["B2", "C1"]) assert.match(shown, new RegExp(level));
 });
-
 
 test("the Report stays readable when Goal suggestions fail to load", async () => {
   suggestionsAvailable = false;
@@ -198,11 +232,55 @@ test("the Report stays readable when Goal suggestions fail to load", async () =>
     assert.match(text(html), /Your English level/);
     assert.match(text(html), /Goal suggestions couldn’t be loaded/);
     assert.match(html, /href="\/goals\/confirm"/);
-  } finally { suggestionsAvailable = true; }
+  } finally {
+    suggestionsAvailable = true;
+  }
 });
 
 test("the Report opens the Roadmap directly when no proposed Goals remain", async () => {
   showSuggestions = false;
-  try { assert.match(await page("/assessments/done/report"), /href="\/roadmap"[^>]*>See my Roadmap/); }
-  finally { showSuggestions = true; }
+  try {
+    assert.equal(text(linkTo(await page("/assessments/done/report"), "/roadmap")).trim(), "See my Roadmap");
+  } finally {
+    showSuggestions = true;
+  }
+});
+
+test("Report stays readable while practice is pending, preparing or failed, then offers the ready Lesson", async () => {
+  showSuggestions = false;
+  try {
+    for (const status of ["pending", "preparing"]) {
+      preparation = { status, lesson: null };
+      const html = await page("/assessments/done/report");
+      assert.match(text(html), /Your English level/);
+      assert.match(text(html), /Preparing your first Lesson/);
+      assert.equal(linkTo(html, "/lessons/first"), undefined);
+    }
+    preparation = { status: "failed", lesson: null };
+    const failed = await page("/assessments/done/report");
+    assert.match(text(failed), /Your English level/);
+    assert.match(text(failed), /We couldn.t prepare your practice/);
+    assert.ok(buttons(failed).includes("Retry preparation"));
+    preparation = { status: "ready", lesson: { id: "first", kind: "practice", title: "Talking about projects" } };
+    const ready = await page("/assessments/done/report");
+    assert.equal(text(linkTo(ready, "/lessons/first")).trim(), "Start Talking about projects");
+    assert.doesNotMatch(text(ready), /Preparing your first Lesson/);
+  } finally {
+    showSuggestions = true;
+    preparation = { status: "ready", lesson: null };
+  }
+});
+
+test("practice polling repeats every three seconds only while work remains unfinished", async () => {
+  const { practicePreparationQuery } = await web.loadModule("/src/lib/practice-preparation.ts");
+  for (const status of ["pending", "preparing"]) {
+    assert.equal(practicePreparationQuery.refetchInterval({ state: { status: "success", data: { status } } }), 3000);
+  }
+  for (const status of ["ready", "failed", "not_ready", undefined]) {
+    assert.equal(practicePreparationQuery.refetchInterval({ state: { status: "success", data: { status } } }), false);
+  }
+  assert.equal(
+    practicePreparationQuery.refetchInterval({ state: { status: "error", data: { status: "preparing" } } }),
+    false,
+  );
 });

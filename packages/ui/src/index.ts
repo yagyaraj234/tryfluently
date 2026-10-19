@@ -29,6 +29,16 @@ export {
   type VoiceProps,
 } from "./Steps";
 export { Chip, type ChipProps } from "./Chip";
+export {
+  ChatComposer,
+  ChatSkeleton,
+  ChatThread,
+  ChatWriting,
+  type ChatComposerProps,
+  type ChatSkeletonProps,
+  type ChatThreadProps,
+  type ChatWritingProps,
+} from "./Chat";
 export { ChoiceChips, type ChoiceChipsProps } from "./ChoiceChips";
 export { CardList, type CardListProps } from "./CardList";
 export { Cluster, type ClusterProps } from "./Cluster";
@@ -36,7 +46,14 @@ export { Container, type ContainerProps } from "./Container";
 export { Dashboard, type DashboardProps } from "./Dashboard";
 export { Debrief, type DebriefProps, type DebriefQuestion } from "./Debrief";
 export { Dialog, type DialogProps } from "./Dialog";
-export { EmptyState, ErrorState, LoadingState, type EmptyStateProps, type ErrorStateProps, type LoadingStateProps } from "./States";
+export {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  type EmptyStateProps,
+  type ErrorStateProps,
+  type LoadingStateProps,
+} from "./States";
 export { FocusItemCard, type FocusItemCardProps } from "./FocusItemCard";
 export { Grid, type GridProps } from "./Grid";
 export { Heading, type HeadingProps } from "./Heading";
@@ -67,7 +84,17 @@ export {
   type MarketingShellProps,
   type StepItem,
 } from "./Marketing";
-export { ChatBubbles, floatChips, LevelCard, MarketingPanel, ReportMock, RoadmapPeekMock, RoleplayMock, UnitRow, type UnitRowProps } from "./MarketingMocks";
+export {
+  ChatBubbles,
+  floatChips,
+  LevelCard,
+  MarketingPanel,
+  ReportMock,
+  RoadmapPeekMock,
+  RoleplayMock,
+  UnitRow,
+  type UnitRowProps,
+} from "./MarketingMocks";
 export { Menu, type MenuItem, type MenuProps } from "./Menu";
 export { Meter, type MeterProps } from "./Meter";
 export { Notice, type NoticeProps } from "./Notice";
@@ -98,11 +125,28 @@ export { TokenReference } from "./TokenReference";
 export { toastManager } from "./Toast";
 export { type ChoiceOption } from "./Field";
 export { UIProvider } from "./UIProvider";
-export { UnitCard, UnitIcon, UnitStatusTag, type UnitCardProps, type UnitIconProps, type UnitStatus, type UnitStatusTagProps } from "./UnitCard";
+export {
+  UnitCard,
+  UnitIcon,
+  UnitStatusTag,
+  type UnitCardProps,
+  type UnitIconProps,
+  type UnitStatus,
+  type UnitStatusTagProps,
+} from "./UnitCard";
 export { VerdictTag, type VerdictTagProps } from "./VerdictTag";
 export { WeekStrip, type WeekStripProps } from "./WeekStrip";
 export { XpChip, type XpChipProps } from "./XpChip";
 
-export { CoachAvatar, CoachCall, LessonStage, RoadmapNode, RoadmapUnit, StarterShell, TeachingPage, type CoachState } from "./Learning";
+export {
+  CoachAvatar,
+  CoachCall,
+  LessonStage,
+  RoadmapNode,
+  RoadmapUnit,
+  StarterShell,
+  TeachingPage,
+  type CoachState,
+} from "./Learning";
 
 export { ProgressOverview, ProgressCheckIn, SkillProgressCard, type SkillProgressCardProps } from "./ProgressOverview";

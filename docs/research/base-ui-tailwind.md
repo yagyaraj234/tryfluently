@@ -21,14 +21,14 @@ Use `@base-ui/react@^1.9.0` in `packages/ui`. Style every part with Tailwind cla
 
 From [base-ui.com/llms.txt](https://base-ui.com/llms.txt), cross-checked against the package `exports` map:
 
-| Group | Components |
-|---|---|
-| Overlays | Dialog, Alert Dialog, Drawer (swipe to dismiss), Popover, Tooltip, Preview Card, Toast |
-| Menus | Menu, Context Menu, Menubar, Navigation Menu |
-| Inputs and forms | Form, Field, Fieldset, Input, Button, Checkbox, Checkbox Group, Radio Group (plus `radio`), Switch, Slider, Number Field, OTP Field, Select, Combobox, Autocomplete, Toggle, Toggle Group |
-| Disclosure and layout | Accordion, Collapsible, Tabs, Toolbar, Separator, Scroll Area |
-| Display | Avatar, Meter, Progress |
-| Utilities | `CSPProvider`, `DirectionProvider`, `mergeProps`, `useRender` |
+| Group                 | Components                                                                                                                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overlays              | Dialog, Alert Dialog, Drawer (swipe to dismiss), Popover, Tooltip, Preview Card, Toast                                                                                                    |
+| Menus                 | Menu, Context Menu, Menubar, Navigation Menu                                                                                                                                              |
+| Inputs and forms      | Form, Field, Fieldset, Input, Button, Checkbox, Checkbox Group, Radio Group (plus `radio`), Switch, Slider, Number Field, OTP Field, Select, Combobox, Autocomplete, Toggle, Toggle Group |
+| Disclosure and layout | Accordion, Collapsible, Tabs, Toolbar, Separator, Scroll Area                                                                                                                             |
+| Display               | Avatar, Meter, Progress                                                                                                                                                                   |
+| Utilities             | `CSPProvider`, `DirectionProvider`, `mergeProps`, `useRender`                                                                                                                             |
 
 The docs list 37 components. There is no documented date picker or calendar. The optional `date-fns` peer and `internals/temporal-*` exports point to date components in progress, but nothing public uses them yet **(inference)**.
 
@@ -55,6 +55,7 @@ The Base UI docs say their Tailwind examples are written for v4 ([llms.txt](http
 **CSS variables.** `fill-(--my-brand-color)` is shorthand for `fill-[var(--my-brand-color)]` ([tailwindcss.com, adding custom styles](https://tailwindcss.com/docs/adding-custom-styles)). Base UI demos use the same form with their variables: `origin-(--transform-origin)` ([styling handbook](https://base-ui.com/react/handbook/styling)).
 
 **Token-only theme.** `@theme { --*: initial; … }` removes every default theme variable, so "you'll only be able to use utility classes matching your custom theme variables". Theme variables compile to CSS variables on `:root` ([tailwindcss.com/docs/theme, using a custom theme](https://tailwindcss.com/docs/theme#using-a-custom-theme)). Consequences for us **(inference)**:
+
 - Base UI demo markup uses default-theme classes such as `bg-neutral-950`, `text-sm` and `rounded-md`. Once the theme is wiped, those classes generate nothing, so copied demo code must be rewritten with our token names.
 - `--*: initial` also removes `--spacing`. Utilities like `p-4` and `w-96` work only if we define `--spacing`, as the Tailwind example does.
 - Data variants and `(--var)` arbitrary values don't depend on the theme, so they keep working.
@@ -85,6 +86,7 @@ Parts: `Root`, `Trigger`, `Portal`, `Backdrop`, `Positioner`, `Popup`, `Arrow`, 
 ### Toast
 
 Anatomy: `Toast.Provider` → `Toast.Portal` → `Toast.Viewport` → `Toast.Root` → `Toast.Content` → `Title`, `Description`, `Action` and `Close`. `Toast.Positioner` and `Toast.Arrow` add anchored toasts.
+
 - Wrap the whole app in one `<Toast.Provider>` so every toast renders in the same viewport. Provider props are `limit` (default 3) and `timeout` (default 5000 ms, `0` means no auto-dismiss).
 - `Toast.createToastManager()`, passed as `toastManager`, lets code outside React add toasts. `Toast.useToastManager()` is the in-tree hook. Both expose `add`, `close`, `update` and `promise`.
 - Stacking is done with CSS, not portal order. The docs use `z-index: calc(1000 - var(--toast-index))`. Root also exposes `--toast-height`, `--toast-offset-y` and `--toast-swipe-movement-x/y`, and the Viewport exposes `--toast-frontmost-height`.
@@ -114,10 +116,13 @@ All of the above is from the [toast docs](https://base-ui.com/react/components/t
 // apps/web/src/routes/__root.tsx (shell)
 <html lang="en" className={theme /* tokens and dark mode live here, not on .root */}>
   <body /* body { position: relative } in app.css */>
-    <div className="isolate">{/* Tailwind `isolate` = isolation: isolate */}
+    <div className="isolate">
+      {/* Tailwind `isolate` = isolation: isolate */}
       <Toast.Provider>
         {children}
-        <Toast.Portal><Toast.Viewport className="…" />…</Toast.Portal>
+        <Toast.Portal>
+          <Toast.Viewport className="…" />…
+        </Toast.Portal>
       </Toast.Provider>
     </div>
   </body>

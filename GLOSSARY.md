@@ -11,7 +11,7 @@ A person using Impromptu to improve their English.
 _Avoid_: User, student, candidate
 
 **Goal**:
-A real-world situation the Learner is preparing for, such as a Job Interview, Client Communication or General Fluency. It is set by the Learner or proposed by the agent after an Assessment.
+What the Learner wants to achieve with English, written in their own words. Examples include getting ready for a Job Interview, handling Client Calls, or speaking more easily in everyday conversations. It is set by the Learner or proposed by the agent after an Assessment.
 _Avoid_: Objective, target, purpose
 
 **Goal Context**:
@@ -59,31 +59,37 @@ _Avoid_: Sample audio
 ### Learning
 
 **Roadmap**:
-The Learner's planned outline of Units and their Lesson titles and objectives, built from their Goals and Skill Profile and revised as the Skill Profile changes. Lesson practice adapts when the Learner reaches it.
+The Learner's planned outline of Units and their Lesson titles and objectives, built from their Goals and Skill Profile. Titles, objectives and order stay fixed; each Lesson’s content adapts to earlier performance before it is prepared.
 _Avoid_: Curriculum, course, plan
 
 **Unit**:
-One topic on the Roadmap (for example, Tenses), with its own objective, made of Lessons. A Unit is mastered when the Learner meets its objective in two Lessons in a row, or ends when the Learner skips it.
+One topic on the Roadmap (for example, Tenses), with its own objective, made of Lessons. A Unit completes when every outlined Lesson is completed, regardless of score, or ends when the Learner skips it.
 _Avoid_: Module, chapter, lesson
 
 **Lesson**:
-One short sitting inside a Unit, made of Steps. Each Lesson is generated from how the Learner did in the Lessons before it.
+One short sitting inside a Unit: learning material followed by a short assessment made of Steps. Its complete content is prepared from earlier performance and Learner Memory, then stays fixed.
 _Avoid_: Sub-lesson, class, session
 
 **Step**:
-A single prompt in a Lesson, together with the Learner's response and the feedback on it. A Step is either voice or text, and is generated from how the Learner did on the earlier Steps.
+A single prompt in a Lesson, together with the Learner's response and the feedback on it. A Step is either voice or text, and belongs to the Lesson’s saved assessment. Regular Lesson questions are fixed before the Lesson starts.
 _Avoid_: Exercise, question, task, sub-lesson
+
+**Lesson Report**:
+Saved feedback from one Lesson’s assessment: objective progress, measured skills and evidence, and corrections for each answer. Completing an assessment advances the Learner regardless of score.
+
+**Learner Memory**:
+An internal, bounded summary of recent demonstrated strengths, difficulties and progress used when preparing the next Lesson. Goals, Skill Profile and Focus Items remain authoritative structured context.
 
 **Roleplay**:
 A Lesson in which the agent stays in character for a real-world conversation, then ends with a Debrief.
 _Avoid_: Simulation, scenario
 
 **Mock Interview**:
-A Roleplay in which the agent plays an interviewer for the Learner's Job Interview Goal.
+A Roleplay in which the agent plays an interviewer for interview practice.
 _Avoid_: Interview (on its own)
 
 **Client Call**:
-A Roleplay in which the agent plays a client for the Learner's Client Communication Goal.
+A Roleplay in which the agent plays a client for client work.
 _Avoid_: Client meeting, sales call
 
 **Debrief**:

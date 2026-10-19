@@ -4,8 +4,11 @@ import { useState } from "react";
 import { api } from "../../../../lib/api";
 import { roleplayKinds, tones, type RoleplayKind, type Tone } from "../../../../components/roleplay/roleplay";
 
-/** Roleplay setup: the Goal, the kind (only General Fluency asks), the tone, and speaking or typing. */
-export const Route = createFileRoute("/_signedIn/_practice/roleplays/new")({ loader: () => confirmedGoals(), component: RoleplaySetup });
+/** Roleplay setup: the Goal, the kind (only fixed Goals skip it), the tone, and speaking or typing. */
+export const Route = createFileRoute("/_signedIn/_practice/roleplays/new")({
+  loader: () => confirmedGoals(),
+  component: RoleplaySetup,
+});
 
 async function confirmedGoals() {
   const response = await api().api.goals.$get();
@@ -13,9 +16,17 @@ async function confirmedGoals() {
   return (await response.json()).filter((g) => g.status === "confirmed");
 }
 
-const goalNames = { job_interview: "Job Interview", client_communication: "Client Communication", general_fluency: "General Fluency" };
-// A Job Interview is always a Mock Interview and Client Communication a Client Call.
-const kindFor: Partial<Record<keyof typeof goalNames, RoleplayKind>> = { job_interview: "mock_interview", client_communication: "client_call" };
+const goalNames = {
+  job_interview: "Job Interview",
+  client_communication: "Client Communication",
+  general_fluency: "General Fluency",
+};
+// A Job Interview is always a Mock Interview and Client Communication a Client Call. Other Goals choose.
+const kindFor: Partial<Record<keyof typeof goalNames, RoleplayKind>> = {
+  job_interview: "mock_interview",
+  client_communication: "client_call",
+};
+const goalLabel = (g: { kind: keyof typeof goalNames; statement: string | null }) => g.statement ?? goalNames[g.kind];
 
 const options = (labels: Record<string, string>) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 
@@ -39,7 +50,7 @@ function RoleplaySetup() {
     return (
       <EmptyState
         title="Confirm a Goal first"
-        description="A Roleplay practises a real situation from one of your Goals."
+        description="Roleplays practise situations from your Goals."
         action={<Button render={<Link to="/goals" />}>Set your Goals</Button>}
       />
     );
@@ -71,18 +82,18 @@ function RoleplaySetup() {
   return (
     <Stack gap={8}>
       <Stack gap={3}>
-        <Heading level={1}>Practise a Roleplay</Heading>
-        <Text>Your coach plays an interviewer or a client, and stays in character. Your Debrief comes at the end.</Text>
+        <Heading level={1}>Start a Roleplay</Heading>
+        <Text>Your coach plays an interviewer or client and stays in character. Your Debrief comes at the end.</Text>
       </Stack>
       {goals.length > 1 ? (
         <ChoiceChips
           label="Goal"
-          options={goals.map((g) => ({ value: g.id, label: goalNames[g.kind] }))}
+          options={goals.map((g) => ({ value: g.id, label: goalLabel(g) }))}
           value={goalId}
           onValueChange={setGoalId}
         />
       ) : (
-        <Text size="label" tone="muted">{`For your ${goalNames[selected.kind]} Goal`}</Text>
+        <Text size="label" tone="muted">{`Your Goal: ${goalLabel(selected)}`}</Text>
       )}
       {!fixedKind && (
         <ChoiceChips

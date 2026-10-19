@@ -19,7 +19,8 @@ function setup(clock = makeClock()) {
   return { app, clock, realtime, timers };
 }
 
-const minutesOf = async (app: TestApp, cookie: string) => (await (await app.request("/api/voice-minutes", get(cookie))).json()) as any;
+const minutesOf = async (app: TestApp, cookie: string) =>
+  (await (await app.request("/api/voice-minutes", get(cookie))).json()) as any;
 
 async function callRoleplay(app: TestApp, cookie: string) {
   const [goal] = (await (await app.request("/api/goals", get(cookie))).json()) as any[];

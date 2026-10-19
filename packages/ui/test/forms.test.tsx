@@ -161,9 +161,7 @@ describe("ChoiceChips", () => {
 
   test("multiple mode respects a controlled value", () => {
     const changes: string[][] = [];
-    render(
-      <ChoiceChips label="Goals" multiple options={themes} value={[]} onValueChange={(v) => changes.push(v)} />,
-    );
+    render(<ChoiceChips label="Goals" multiple options={themes} value={[]} onValueChange={(v) => changes.push(v)} />);
     fireEvent.click(screen.getByRole("checkbox", { name: "Dark" }));
     expect(changes).toEqual([["dark"]]);
     expect(screen.getByRole("checkbox", { name: "Dark" }).getAttribute("aria-checked")).toBe("false");

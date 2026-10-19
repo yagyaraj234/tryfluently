@@ -1,15 +1,16 @@
 import { schema } from "@impromptu/db";
 import { zValidator } from "@hono/zod-validator";
 import { NoObjectGeneratedError, Output, safeValidateUIMessages, type UIMessage } from "ai";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
-import { cefrLevel, goalKind } from "./goals";
-import { reportEmail } from "./mailer";
+import { goalText } from "./goal-text";
+import { cefrLevel } from "./goals";
+import { enqueueAssessmentJobs, practicePreparation, retryPracticePreparation } from "./assessment-jobs";
 import type { RealtimeBroker } from "./realtime";
-import { buildRoadmap, reviseRoadmap } from "./roadmap";
+import { remember } from "./learning-memory";
 import { fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
 
@@ -38,7 +39,7 @@ export const reportOutput = z.object({
     )
     .min(3)
     .max(5),
-  proposedGoals: z.array(z.object({ kind: goalKind, targetLevels: proposedTargetLevels })),
+  proposedGoals: z.array(z.object({ statement: z.string().min(3).max(300), targetLevels: proposedTargetLevels })),
   firstUnit: z.object({ title: z.string(), objective: z.string() }),
 });
 
@@ -55,13 +56,13 @@ const itemTools = { fillGap: stepTools.fillGap, rewrite: stepTools.rewrite };
 const MAX_ITEMS = 4;
 
 // `items` is the count of structured items answered so far; a Voice Assessment has none.
-const instructions = (briefs: string[], minutes: number, items?: number) =>
+const instructions = (goalTexts: string[], minutes: number, items?: number) =>
   `You are Impromptu, an English coach, running an Assessment of the Learner's English.
 ${phases.replace(
   "{goals}",
-  briefs.length
-    ? `go deeper into their situation. What you know about them:\n${briefs.join("\n\n")}`
-    : "ask what they're preparing for (a job interview, client work or general fluency).",
+  goalTexts.length
+    ? `go deeper into their situation. What you know about them:\n${goalTexts.join("\n\n")}`
+    : "ask what they want to achieve with English.",
 )}
 ${
   items === undefined
@@ -70,12 +71,16 @@ ${
 level they're showing. Don't tell them whether they got an item right. ${items} answered so far.\n`
 }${minutes.toFixed(0)} of 10 minutes have passed.`;
 
-const reportInstructions = (mode: Row["mode"]) => `You are an examiner for English as a second language. Read the Assessment transcript
+const reportInstructions = (
+  mode: Row["mode"],
+) => `You are an examiner for English as a second language. Read the Assessment transcript
 and assess the Learner (the "Learner" lines only) against the official CEFR descriptors for grammar and vocabulary${
-  mode === "voice" ? ", and score fluency on how coherent and connected their speech is (speed and pauses are measured separately)" : ""
+  mode === "voice"
+    ? ", and score fluency on how coherent and connected their speech is (speed and pauses are measured separately)"
+    : ""
 }.
 Score each measured skill 0–100 with quotes as evidence; set fluency to null for a Written Assessment. Give exactly 3 strengths and 3–5 weaknesses; each weakness quotes
-what the Learner said and gives a better version. Propose Goals and Target Levels, and preview the first Unit.`;
+what the Learner said and gives a better version. Propose one Goal in the Learner's own words with Target Levels, and preview the first Unit.`;
 
 // The transcript as the report model reads it, structured items and the Learner's answers (with grades) included.
 const textOf = (messages: UIMessage[]) =>
@@ -84,8 +89,12 @@ const textOf = (messages: UIMessage[]) =>
       m.parts.flatMap((p: any) => {
         if (p.type === "text") return [`${m.role === "user" ? "Learner" : "Coach"}: ${p.text}`];
         if (p.state !== "output-available" || !(p.type.replace(/^tool-/, "") in itemTools)) return [];
-        const graded = p.output.grade ? ` (${p.output.grade.correct ? "correct" : `incorrect, expected "${p.output.grade.expected}"`})` : "";
-        return [`Item (${p.type.replace(/^tool-/, "")}): ${JSON.stringify(p.input)}\nLearner's answer: "${p.output.answer}"${graded}`];
+        const graded = p.output.grade
+          ? ` (${p.output.grade.correct ? "correct" : `incorrect, expected "${p.output.grade.expected}"`})`
+          : "";
+        return [
+          `Item (${p.type.replace(/^tool-/, "")}): ${JSON.stringify(p.input)}\nLearner's answer: "${p.output.answer}"${graded}`,
+        ];
       }),
     )
     .join("\n");
@@ -96,43 +105,27 @@ export const assessments = ({
   db,
   now,
   models,
-  mailer,
-  env,
   settings,
   broker,
 }: Deps & { settings: { alphaAssessment: number }; broker: RealtimeBroker }) => {
   const find = async (id: string, userId: string) =>
-    (await db.select().from(assessment).where(and(eq(assessment.id, id), eq(assessment.userId, userId))))[0];
-
-  const briefsOf = async (userId: string) =>
     (
       await db
-        .select({ brief: goal.brief })
+        .select()
+        .from(assessment)
+        .where(and(eq(assessment.id, id), eq(assessment.userId, userId)))
+    )[0];
+
+  const goalTextsOf = async (userId: string) =>
+    (
+      await db
+        .select({ statement: goal.statement, brief: goal.brief })
         .from(goal)
         .where(and(eq(goal.userId, userId), eq(goal.status, "confirmed")))
-    ).flatMap((g) => (g.brief ? [g.brief] : []));
-
-  // Sends the Learner's first-ever completed Report, once. emailed_at is claimed before sending,
-  // and released if sending fails so a later Report can try again.
-  async function emailIfFirst(row: Row, to: string, report: Parameters<typeof reportEmail>[1]) {
-    const [claimed] = await db
-      .update(assessment)
-      .set({ emailedAt: now() })
-      .where(
-        and(
-          eq(assessment.id, row.id),
-          sql`not exists (select 1 from ${assessment} where ${assessment.userId} = ${row.userId} and ${assessment.emailedAt} is not null)`,
-        ),
-      )
-      .returning({ id: assessment.id });
-    if (!claimed) return;
-    try {
-      await mailer.send(reportEmail(to, report, env.WEB_ORIGIN));
-    } catch (e) {
-      console.error("first-Report email failed", e);
-      await db.update(assessment).set({ emailedAt: null }).where(eq(assessment.id, row.id));
-    }
-  }
+    ).flatMap((g) => {
+      const text = goalText(g);
+      return text ? [text] : [];
+    });
 
   // Ends an attempt. Under 4 minutes it's discarded; otherwise the Report is written, partial if the Learner left early.
   async function finish(row: Row, user: { id: string; email: string }, { partial }: { partial: boolean }) {
@@ -176,6 +169,7 @@ export const assessments = ({
     const userId = user.id;
 
     const changed = await db.transaction(async (tx) => {
+      await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
       // Concurrent /end requests may both finish judging; only one commits learning results.
       const [locked] = await tx.select().from(assessment).where(eq(assessment.id, row.id)).for("update");
       if (locked?.status !== "in_progress") return false;
@@ -186,112 +180,157 @@ export const assessments = ({
         { grammar: grammar.score, vocabulary: vocabulary.score, ...(fluency !== null && { fluency }) },
         { alpha: settings.alphaAssessment, source: "assessment", sourceId: row.id, at },
       );
-      await tx.insert(focusItem).values(
-        out.weaknesses.map((w) => ({ userId, label: w.label, kind: w.kind, source: "assessment" as const, sourceId: row.id, createdAt: at })),
-      );
+      await tx
+        .insert(focusItem)
+        .values(
+          out.weaknesses.map((w) => ({
+            userId,
+            label: w.label,
+            kind: w.kind,
+            source: "assessment" as const,
+            sourceId: row.id,
+            createdAt: at,
+          })),
+        );
       const hasGoals = (await tx.select({ id: goal.id }).from(goal).where(eq(goal.userId, userId)).limit(1)).length > 0;
       if (!hasGoals && out.proposedGoals.length)
-        await tx.insert(goal).values(out.proposedGoals.map((g) => ({ userId, kind: g.kind, targetLevels: g.targetLevels, createdAt: at })));
+        await tx
+          .insert(goal)
+          .values(
+            out.proposedGoals.map((g) => ({
+              userId,
+              kind: "general_fluency" as const,
+              statement: g.statement,
+              targetLevels: g.targetLevels,
+              createdAt: at,
+            })),
+          );
+      await remember(
+        tx,
+        userId,
+        `Assessment strengths: ${out.strengths.join("; ")}. Difficulties: ${out.weaknesses.map((w) => w.label).join("; ")}`,
+        at,
+      );
+      await enqueueAssessmentJobs(tx, row.id, userId, at);
       return true;
     });
-    if (!changed) return { status: "ended" as const };
-    await emailIfFirst(row, user.email, report);
-    // Goals confirmed before the Assessment were waiting for a Skill Profile (if this fails, POST /api/roadmap retries);
-    // a retake revises the Roadmap the Learner already has.
-    if ((await buildRoadmap({ db, now, models }, userId)) === "exists") await reviseRoadmap({ db, now, models }, userId);
-
+    if (!changed) {
+      const saved = await find(row.id, userId);
+      if (saved?.status === "completed") return { status: "completed" as const, report: saved.report as typeof report };
+      return { status: "ended" as const };
+    }
     return { status: "completed" as const, report };
   }
 
-  return new Hono<AppEnv>()
-    .get("/", async (c) =>
-      c.json(await db.select().from(assessment).where(eq(assessment.userId, c.var.user.id)).orderBy(asc(assessment.startedAt))),
-    )
-    .post("/", zValidator("json", z.object({ mode: z.enum(["written", "voice"]) })), async (c) => {
-      const user = c.var.user;
+  return (
+    new Hono<AppEnv>()
+      .get("/preparation", async (c) => c.json(await practicePreparation(db, c.var.user.id, now())))
+      .post("/preparation", async (c) => {
+        if (!(await retryPracticePreparation(db, c.var.user.id, now())))
+          return c.json({ error: "Confirm your Goals and complete an Assessment first" }, 409);
+        return c.json({ status: "pending" as const }, 202);
+      })
+      .get("/", async (c) =>
+        c.json(
+          await db
+            .select()
+            .from(assessment)
+            .where(eq(assessment.userId, c.var.user.id))
+            .orderBy(asc(assessment.startedAt)),
+        ),
+      )
+      .post("/", zValidator("json", z.object({ mode: z.enum(["written", "voice"]) })), async (c) => {
+        const user = c.var.user;
 
-      // An attempt left open (closed tab, lost connection) is wrapped up as if the Learner left.
-      const open = await db
-        .select()
-        .from(assessment)
-        .where(and(eq(assessment.userId, user.id), eq(assessment.status, "in_progress")));
-      for (const row of open) {
-        if ((await finish(row, user, { partial: true })).status === "failed")
-          return c.json({ error: "Your previous Assessment couldn't be finished. Try again." }, 502);
-      }
+        // An attempt left open (closed tab, lost connection) is wrapped up as if the Learner left.
+        const open = await db
+          .select()
+          .from(assessment)
+          .where(and(eq(assessment.userId, user.id), eq(assessment.status, "in_progress")));
+        for (const row of open) {
+          if ((await finish(row, user, { partial: true })).status === "failed")
+            return c.json({ error: "Your previous Assessment couldn't be finished. Try again." }, 502);
+        }
 
-      const [last] = await db
-        .select({ endedAt: assessment.endedAt })
-        .from(assessment)
-        .where(and(eq(assessment.userId, user.id), eq(assessment.status, "completed")))
-        .orderBy(desc(assessment.endedAt))
-        .limit(1);
-      const nextAllowedAt = last?.endedAt && new Date(last.endedAt.getTime() + RETAKE_DAYS * 86_400_000);
-      if (nextAllowedAt && now() < nextAllowedAt)
-        return c.json({ error: "You can retake the Assessment once a week.", nextAllowedAt }, 429);
+        const [last] = await db
+          .select({ endedAt: assessment.endedAt })
+          .from(assessment)
+          .where(and(eq(assessment.userId, user.id), eq(assessment.status, "completed")))
+          .orderBy(desc(assessment.endedAt))
+          .limit(1);
+        const nextAllowedAt = last?.endedAt && new Date(last.endedAt.getTime() + RETAKE_DAYS * 86_400_000);
+        if (nextAllowedAt && now() < nextAllowedAt)
+          return c.json({ error: "You can retake the Assessment once a week.", nextAllowedAt }, 429);
 
-      const [row] = await db
-        .insert(assessment)
-        .values({ userId: user.id, mode: c.req.valid("json").mode, startedAt: now() })
-        .returning();
-      return c.json(row!, 201);
-    })
-    .get("/:id", async (c) => {
-      const row = await find(c.req.param("id"), c.var.user.id);
-      return row ? c.json(row) : c.json({ error: "Assessment not found" }, 404);
-    })
-    .post("/:id/chat", zValidator("json", z.object({ message: z.unknown() })), async (c) => {
-      const userId = c.var.user.id;
-      const row = await find(c.req.param("id"), userId);
-      if (!row) return c.json({ error: "Assessment not found" }, 404);
-      if (row.status !== "in_progress") return c.json({ error: "This Assessment has ended" }, 409);
-      if (row.mode !== "written") return c.json({ error: "A Voice Assessment runs over its call, not the chat" }, 409);
+        const [row] = await db
+          .insert(assessment)
+          .values({ userId: user.id, mode: c.req.valid("json").mode, startedAt: now() })
+          .returning();
+        return c.json(row!, 201);
+      })
+      .get("/:id", async (c) => {
+        const row = await find(c.req.param("id"), c.var.user.id);
+        return row ? c.json(row) : c.json({ error: "Assessment not found" }, 404);
+      })
+      .post("/:id/chat", zValidator("json", z.object({ message: z.unknown() })), async (c) => {
+        const userId = c.var.user.id;
+        const row = await find(c.req.param("id"), userId);
+        if (!row) return c.json({ error: "Assessment not found" }, 404);
+        if (row.status !== "in_progress") return c.json({ error: "This Assessment has ended" }, 409);
+        if (row.mode !== "written")
+          return c.json({ error: "A Voice Assessment runs over its call, not the chat" }, 409);
 
-      const taken = takeAnswer(row.transcript as UIMessage[], c.req.valid("json").message);
-      if ("error" in taken) return c.json({ error: taken.error, issues: taken.issues }, taken.status);
-      const valid = await safeValidateUIMessages({ messages: taken.messages, tools: itemTools });
-      if (!valid.success) return c.json({ error: valid.error.message }, 400);
-      const items = answeredSteps(valid.data).length;
+        const taken = takeAnswer(row.transcript as UIMessage[], c.req.valid("json").message);
+        if ("error" in taken) return c.json({ error: taken.error, issues: taken.issues }, taken.status);
+        const valid = await safeValidateUIMessages({ messages: taken.messages, tools: itemTools });
+        if (!valid.success) return c.json({ error: valid.error.message }, 400);
+        const items = answeredSteps(valid.data).length;
 
-      const minutes = (now().getTime() - row.startedAt.getTime()) / 60_000;
+        const minutes = (now().getTime() - row.startedAt.getTime()) / 60_000;
 
-      return streamChat({ db, now }, userId, {
-        model: models.step,
-        instructions: instructions(await briefsOf(userId), minutes, items),
-        messages: valid.data,
-        tools: itemTools,
-        activeTools: items < MAX_ITEMS ? ["fillGap", "rewrite"] : [],
-        save: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
-      });
-    })
-    // The browser posts its SDP offer and gets back only the SDP answer; the OpenAI key never leaves the server.
-    .post("/:id/call", async (c) => {
-      const userId = c.var.user.id;
-      const offer = await c.req.text();
-      if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
-      const row = await find(c.req.param("id"), userId);
-      if (!row) return c.json({ error: "Assessment not found" }, 404);
-      if (row.mode !== "voice" || row.status !== "in_progress")
-        return c.json({ error: "Calls are only for a Voice Assessment in progress" }, 409);
+        return streamChat({ db, now }, userId, {
+          model: models.step,
+          instructions: instructions(await goalTextsOf(userId), minutes, items),
+          messages: valid.data,
+          tools: itemTools,
+          activeTools: items < MAX_ITEMS ? ["fillGap", "rewrite"] : [],
+          save: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
+        });
+      })
+      // The browser posts its SDP offer and gets back only the SDP answer; the OpenAI key never leaves the server.
+      .post("/:id/call", async (c) => {
+        const userId = c.var.user.id;
+        const offer = await c.req.text();
+        if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
+        const row = await find(c.req.param("id"), userId);
+        if (!row) return c.json({ error: "Assessment not found" }, 404);
+        if (row.mode !== "voice" || row.status !== "in_progress")
+          return c.json({ error: "Calls are only for a Voice Assessment in progress" }, 409);
 
-      const call = await broker.start(userId, {
-        targetId: row.id,
-        sdp: offer,
-        instructions: instructions(await briefsOf(userId), 0),
-        purpose: "assessment",
-        onTranscript: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
-      });
-      if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
-      return c.body(call.answer, 201, { "content-type": "application/sdp" });
-    })
-    .post("/:id/end", zValidator("json", z.object({ left: z.boolean().optional() })), async (c) => {
-      const row = await find(c.req.param("id"), c.var.user.id);
-      if (!row) return c.json({ error: "Assessment not found" }, 404);
-      if (row.status !== "in_progress") return c.json({ error: "This Assessment has ended" }, 409);
+        const call = await broker.start(userId, {
+          targetId: row.id,
+          sdp: offer,
+          instructions: instructions(await goalTextsOf(userId), 0),
+          purpose: "assessment",
+          onTranscript: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
+        });
+        if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
+        return c.body(call.answer, 201, { "content-type": "application/sdp" });
+      })
+      .post("/:id/end", zValidator("json", z.object({ left: z.boolean().optional() })), async (c) => {
+        const row = await find(c.req.param("id"), c.var.user.id);
+        if (!row) return c.json({ error: "Assessment not found" }, 404);
+        if (row.status === "completed")
+          return c.json({
+            status: "completed" as const,
+            report: row.report as Extract<Awaited<ReturnType<typeof finish>>, { status: "completed" }>["report"],
+          });
+        if (row.status !== "in_progress") return c.json({ error: "This Assessment has ended" }, 409);
 
-      const result = await finish(row, c.var.user, { partial: c.req.valid("json").left ?? false });
-      if (result.status === "failed") return c.json({ error: "The Report couldn't be generated. Try again." }, 502);
-      if (result.status === "ended") return c.json({ error: "This Assessment has ended" }, 409);
-      return c.json(result);
-    });
+        const result = await finish(row, c.var.user, { partial: c.req.valid("json").left ?? false });
+        if (result.status === "failed") return c.json({ error: "The Report couldn't be generated. Try again." }, 502);
+        if (result.status === "ended") return c.json({ error: "This Assessment has ended" }, 409);
+        return c.json(result);
+      })
+  );
 };

@@ -23,10 +23,14 @@ export const roadmapQuery = queryOptions({
 
 export type Unit = Awaited<ReturnType<NonNullable<typeof roadmapQuery.queryFn>>>[number];
 
-/** How close the latest finished Lesson came to the Unit's objective, and how many Lessons are done. */
+/** Percentage of outlined Lessons completed, and how many Lessons are done. */
 export function unitProgress(unit: Unit) {
   const done = unit.lessons.filter((l) => l.status === "completed");
-  return { value: done.at(-1)?.objectiveProgress ?? 0, lessonsDone: done.length };
+  const total = new Set([
+    ...(unit.lessonOutline ?? []).map((l) => l.position),
+    ...unit.lessons.filter((l) => l.status !== "abandoned").map((l) => l.position),
+  ]).size;
+  return { value: total ? Math.min(100, Math.round((100 * done.length) / total)) : 0, lessonsDone: done.length };
 }
 
 async function json<T>(request: Promise<{ ok: boolean; status: number; json(): Promise<T> }>, what: string) {
@@ -62,4 +66,14 @@ export const voiceMinutesQuery = queryOptions({
   queryKey: ["voice-minutes"],
   queryFn: () => json(api().api["voice-minutes"].$get(), "voice minutes"),
   staleTime: 0,
+});
+
+export const roleplaysQuery = queryOptions({
+  queryKey: ["roleplays"],
+  queryFn: () => json(api().api.roleplays.$get(), "Roleplays"),
+});
+
+export const reportsQuery = queryOptions({
+  queryKey: ["reports"],
+  queryFn: () => json(api().api.reports.$get(), "reports"),
 });

@@ -1,19 +1,20 @@
-import { schema } from "@impromptu/db";
+import { schema, type Tx } from "@impromptu/db";
 import { zValidator } from "@hono/zod-validator";
 import { safeValidateUIMessages, type UIMessage } from "ai";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
+import { goalText } from "./goal-text";
 import { voiceMinutes, type RealtimeBroker } from "./realtime";
 
 const { lesson, goal } = schema;
 
 type RoleplayKind = "mock_interview" | "client_call";
 type Tone = "friendly" | "standard" | "tough";
-type Ctx = Pick<Deps, "db" | "now">;
+type Ctx = { db: Tx; now: Deps["now"] };
 
 // Learner-facing names. "Interview" only ever appears as "Mock Interview".
 const titles: Record<RoleplayKind, string> = { mock_interview: "Mock Interview", client_call: "Client Call" };
@@ -22,10 +23,16 @@ const objectives: Record<RoleplayKind, string> = {
   client_call: "Handle a Client Call in clear, natural English",
 };
 
-const confirmedBriefs = async ({ db }: Pick<Deps, "db">, userId: string) =>
-  (await db.select({ brief: goal.brief }).from(goal).where(and(eq(goal.userId, userId), eq(goal.status, "confirmed")))).flatMap(
-    (g) => (g.brief ? [g.brief] : []),
-  );
+const confirmedGoalTexts = async ({ db }: Pick<Deps, "db">, userId: string) =>
+  (
+    await db
+      .select({ statement: goal.statement, brief: goal.brief })
+      .from(goal)
+      .where(and(eq(goal.userId, userId), eq(goal.status, "confirmed")))
+  ).flatMap((g) => {
+    const text = goalText(g);
+    return text ? [text] : [];
+  });
 
 // Creates a Roleplay Lesson; `unitId` is set when it closes a Unit, null when started from a Goal.
 export async function createRoleplay(
@@ -38,7 +45,14 @@ export async function createRoleplay(
     position = 0,
     textMode = false,
     plan,
-  }: { plan?: { title: string; objective: string }; kind: RoleplayKind; tone?: Tone; unitId?: string | null; position?: number; textMode?: boolean },
+  }: {
+    plan?: { title: string; objective: string };
+    kind: RoleplayKind;
+    tone?: Tone;
+    unitId?: string | null;
+    position?: number;
+    textMode?: boolean;
+  },
 ) {
   const [row] = await db
     .insert(lesson)
@@ -52,17 +66,20 @@ export async function createRoleplay(
       textMode,
       title: plan?.title ?? titles[kind],
       objective: plan?.objective ?? objectives[kind],
-      startedAt: now(),
+      startedAt: plan ? null : now(),
     })
     .returning();
   return row!;
 }
 
 // The Roleplay a Unit ends with takes its kind from the Learner's Goals.
-export async function roleplayKindFor({ db }: Pick<Deps, "db">, userId: string): Promise<RoleplayKind> {
-  const kinds = (await db.select({ kind: goal.kind }).from(goal).where(and(eq(goal.userId, userId), eq(goal.status, "confirmed")))).map(
-    (g) => g.kind,
-  );
+export async function roleplayKindFor({ db }: { db: Tx }, userId: string): Promise<RoleplayKind> {
+  const kinds = (
+    await db
+      .select({ kind: goal.kind })
+      .from(goal)
+      .where(and(eq(goal.userId, userId), eq(goal.status, "confirmed")))
+  ).map((g) => g.kind);
   return kinds.includes("job_interview") || !kinds.includes("client_communication") ? "mock_interview" : "client_call";
 }
 
@@ -101,95 +118,142 @@ never correct them or give feedback during the Roleplay, and never judge whether
       : ""
   }`;
 
-export const roleplays = (deps: Deps & { settings: { alphaLesson: number; realtimeMinutesPerDay: number }; broker: RealtimeBroker }) => {
+export const roleplays = (
+  deps: Deps & { settings: { alphaLesson: number; realtimeMinutesPerDay: number }; broker: RealtimeBroker },
+) => {
   const { db, broker } = deps;
   const find = async (id: string, userId: string) =>
-    (await db.select().from(lesson).where(and(eq(lesson.id, id), eq(lesson.userId, userId), eq(lesson.kind, "roleplay"))))[0];
+    (
+      await db
+        .select()
+        .from(lesson)
+        .where(and(eq(lesson.id, id), eq(lesson.userId, userId), eq(lesson.kind, "roleplay")))
+    )[0];
 
-  return new Hono<AppEnv>()
-    // Start a Roleplay any time from a Goal. The kind follows the Goal unless the Learner picks one.
-    .post(
-      "/",
-      zValidator(
-        "json",
-        z.object({
-          goalId: z.string(),
-          kind: z.enum(["mock_interview", "client_call"]).optional(),
-          tone: z.enum(["friendly", "standard", "tough"]).optional(),
-          textMode: z.boolean().optional(),
-        }),
-      ),
-      async (c) => {
+  return (
+    new Hono<AppEnv>()
+      .get("/", async (c) =>
+        c.json(
+          await db
+            .select({
+              id: lesson.id,
+              title: lesson.title,
+              roleplayKind: lesson.roleplayKind,
+              tone: lesson.tone,
+              textMode: lesson.textMode,
+              status: lesson.status,
+              unitId: lesson.unitId,
+              startedAt: lesson.startedAt,
+              completedAt: lesson.completedAt,
+            })
+            .from(lesson)
+            .where(and(eq(lesson.userId, c.var.user.id), eq(lesson.kind, "roleplay")))
+            .orderBy(desc(lesson.startedAt), desc(lesson.id)),
+        ),
+      )
+      // Start a Roleplay any time from a Goal. The kind follows the Goal unless the Learner picks one.
+      .post(
+        "/",
+        zValidator(
+          "json",
+          z.object({
+            goalId: z.string(),
+            kind: z.enum(["mock_interview", "client_call"]).optional(),
+            tone: z.enum(["friendly", "standard", "tough"]).optional(),
+            textMode: z.boolean().optional(),
+          }),
+        ),
+        async (c) => {
+          const userId = c.var.user.id;
+          const { goalId, kind, tone, textMode } = c.req.valid("json");
+          const [g] = await db
+            .select({ kind: goal.kind })
+            .from(goal)
+            .where(and(eq(goal.id, goalId), eq(goal.userId, userId)));
+          if (!g) return c.json({ error: "Goal not found" }, 404);
+          const fromGoal = { job_interview: "mock_interview", client_communication: "client_call" } as const;
+          const chosen = kind ?? fromGoal[g.kind as keyof typeof fromGoal];
+          if (!chosen) return c.json({ error: "Choose a Mock Interview or a Client Call" }, 400);
+          return c.json(await createRoleplay(deps, userId, { kind: chosen, tone, textMode }), 201);
+        },
+      )
+      // The text-mode Roleplay: the same character as a chat, one message at a time, history kept on the server.
+      // Chatting before any call switches a Roleplay to text, so one at the end of a Unit can be done in text too.
+      .post("/:id/chat", zValidator("json", z.object({ message: z.unknown() })), async (c) => {
         const userId = c.var.user.id;
-        const { goalId, kind, tone, textMode } = c.req.valid("json");
-        const [g] = await db.select({ kind: goal.kind }).from(goal).where(and(eq(goal.id, goalId), eq(goal.userId, userId)));
-        if (!g) return c.json({ error: "Goal not found" }, 404);
-        const fromGoal = { job_interview: "mock_interview", client_communication: "client_call" } as const;
-        const chosen = kind ?? fromGoal[g.kind as keyof typeof fromGoal];
-        if (!chosen) return c.json({ error: "Choose a Mock Interview or a Client Call" }, 400);
-        return c.json(await createRoleplay(deps, userId, { kind: chosen, tone, textMode }), 201);
-      },
-    )
-    // The text-mode Roleplay: the same character as a chat, one message at a time, history kept on the server.
-    // Chatting before any call switches a Roleplay to text, so one at the end of a Unit can be done in text too.
-    .post("/:id/chat", zValidator("json", z.object({ message: z.unknown() })), async (c) => {
-      const userId = c.var.user.id;
-      const row = await find(c.req.param("id"), userId);
-      if (!row) return c.json({ error: "Roleplay not found" }, 404);
-      if (row.status !== "in_progress") return c.json({ error: "This Roleplay has ended" }, 409);
-      const stored = row.messages as UIMessage[];
-      if (!row.textMode && stored.length) return c.json({ error: "This Roleplay is being spoken; carry on in the call" }, 409);
+        const row = await find(c.req.param("id"), userId);
+        if (!row) return c.json({ error: "Roleplay not found" }, 404);
+        if (row.status !== "in_progress") return c.json({ error: "This Roleplay has ended" }, 409);
+        const stored = row.messages as UIMessage[];
+        if (!row.textMode && stored.length)
+          return c.json({ error: "This Roleplay is being spoken; carry on in the call" }, 409);
 
-      const valid = await safeValidateUIMessages({ messages: [...stored, c.req.valid("json").message] });
-      if (!valid.success || valid.data.at(-1)!.role !== "user") return c.json({ error: "Expected a message from the Learner" }, 400);
-      if (!row.textMode) await db.update(lesson).set({ textMode: true }).where(eq(lesson.id, row.id));
+        const valid = await safeValidateUIMessages({ messages: [...stored, c.req.valid("json").message] });
+        if (!valid.success || valid.data.at(-1)!.role !== "user")
+          return c.json({ error: "Expected a message from the Learner" }, 400);
+        if (!row.textMode || !row.startedAt)
+          await db
+            .update(lesson)
+            .set({ textMode: true, startedAt: row.startedAt ?? deps.now() })
+            .where(eq(lesson.id, row.id));
 
-      return streamChat(deps, userId, {
-        model: deps.models.step,
-        instructions: `${roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedBriefs(deps, userId))}
+        return streamChat(deps, userId, {
+          model: deps.models.step,
+          instructions: `${roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedGoalTexts(deps, userId))}
 This Roleplay is a text chat: write your lines as you would say them, without stage directions.`,
-        messages: valid.data,
-        save: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
-      });
-    })
-    // The browser posts its SDP offer and gets back only the SDP answer, as for a Voice Assessment.
-    .post("/:id/call", async (c) => {
-      const userId = c.var.user.id;
-      const offer = await c.req.text();
-      if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
-      const row = await find(c.req.param("id"), userId);
-      if (!row) return c.json({ error: "Roleplay not found" }, 404);
-      if (row.status !== "in_progress" || row.textMode) return c.json({ error: "Calls are only for a spoken Roleplay in progress" }, 409);
+          messages: valid.data,
+          save: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
+        });
+      })
+      // The browser posts its SDP offer and gets back only the SDP answer, as for a Voice Assessment.
+      .post("/:id/call", async (c) => {
+        const userId = c.var.user.id;
+        const offer = await c.req.text();
+        if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
+        const row = await find(c.req.param("id"), userId);
+        if (!row) return c.json({ error: "Roleplay not found" }, 404);
+        if (row.status !== "in_progress" || row.textMode)
+          return c.json({ error: "Calls are only for a spoken Roleplay in progress" }, 409);
 
-      // The daily cap is enforced here, on the server: the call gets whatever is left of today's minutes.
-      const budget = await voiceMinutes(broker, c.var.user, deps.settings.realtimeMinutesPerDay);
-      if (budget.remainingSeconds <= 0)
-        return c.json({ error: "You've used today's voice minutes. Try text mode, or come back tomorrow.", ...budget }, 429);
+        // The daily cap is enforced here, on the server: the call gets whatever is left of today's minutes.
+        const budget = await voiceMinutes(broker, c.var.user, deps.settings.realtimeMinutesPerDay);
+        if (budget.remainingSeconds <= 0)
+          return c.json(
+            { error: "You've used today's voice minutes. Try text mode, or come back tomorrow.", ...budget },
+            429,
+          );
 
-      const call = await broker.start(userId, {
-        targetId: row.id,
-        budgetSeconds: budget.remainingSeconds,
-        sdp: offer,
-        instructions: roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedBriefs(deps, userId), true),
-        purpose: "roleplay",
-        tools: [endCallTool],
-        endTool: endCallTool.name,
-        onTranscript: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
-      });
-      if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
-      return c.body(call.answer, 201, { "content-type": "application/sdp" });
-    })
-    .post("/:id/end", async (c) => {
-      const userId = c.var.user.id;
-      const row = await find(c.req.param("id"), userId);
-      if (!row) return c.json({ error: "Roleplay not found" }, 404);
-      if (row.status !== "in_progress") return c.json({ error: "This Roleplay has ended" }, 409);
-      if (!row.textMode) {
-        // Hang up first, so the transcript holds everything that was said.
-        await broker.hangup(userId, row.id);
-      }
-      const result = await completeLesson(deps, row.id, userId);
-      if (result.status === "failed") return c.json({ error: "The Debrief couldn't be generated. Try again." }, 502);
-      return c.json(result);
-    });
+        const call = await broker.start(userId, {
+          targetId: row.id,
+          budgetSeconds: budget.remainingSeconds,
+          sdp: offer,
+          instructions: roleplayInstructions(
+            row.roleplayKind!,
+            row.tone!,
+            await confirmedGoalTexts(deps, userId),
+            true,
+          ),
+          purpose: "roleplay",
+          tools: [endCallTool],
+          endTool: endCallTool.name,
+          onTranscript: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
+        });
+        if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
+        if (!row.startedAt) await db.update(lesson).set({ startedAt: deps.now() }).where(eq(lesson.id, row.id));
+        return c.body(call.answer, 201, { "content-type": "application/sdp" });
+      })
+      .post("/:id/end", async (c) => {
+        const userId = c.var.user.id;
+        const row = await find(c.req.param("id"), userId);
+        if (!row) return c.json({ error: "Roleplay not found" }, 404);
+        if (row.status !== "in_progress") return c.json({ error: "This Roleplay has ended" }, 409);
+        if (!row.textMode) {
+          // Hang up first, so the transcript holds everything that was said.
+          await broker.hangup(userId, row.id);
+        }
+        const result = await completeLesson(deps, row.id, userId);
+        if (result.status === "failed") return c.json({ error: "The Debrief couldn't be generated. Try again." }, 502);
+        return c.json(result);
+      })
+  );
 };

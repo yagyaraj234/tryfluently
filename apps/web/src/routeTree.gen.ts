@@ -23,6 +23,7 @@ import { Route as SignedInPracticeRouteImport } from './routes/_signedIn/_practi
 import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as SignedInAppHomeRouteImport } from './routes/_signedIn/_app/home'
 import { Route as SignedInAppProgressRouteImport } from './routes/_signedIn/_app/progress'
+import { Route as SignedInAppRoleplaysRouteImport } from './routes/_signedIn/_app/roleplays'
 import { Route as SignedInAppSettingsRouteImport } from './routes/_signedIn/_app/settings'
 import { Route as SignedInAssessmentsNewRouteImport } from './routes/_signedIn/assessments/new'
 import { Route as SignedInGoalsIndexRouteImport } from './routes/_signedIn/goals/index'
@@ -102,6 +103,11 @@ const SignedInAppProgressRoute = SignedInAppProgressRouteImport.update({
   path: '/progress',
   getParentRoute: () => SignedInAppRoute,
 } as any)
+const SignedInAppRoleplaysRoute = SignedInAppRoleplaysRouteImport.update({
+  id: '/roleplays',
+  path: '/roleplays',
+  getParentRoute: () => SignedInAppRoute,
+} as any)
 const SignedInAppSettingsRoute = SignedInAppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -176,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/api/$': typeof ApiSplatRoute
   '/home': typeof SignedInAppHomeRoute
   '/progress': typeof SignedInAppProgressRoute
+  '/roleplays': typeof SignedInAppRoleplaysRoute
   '/settings': typeof SignedInAppSettingsRoute
   '/assessments/new': typeof SignedInAssessmentsNewRoute
   '/goals/confirm': typeof SignedInGoalsConfirmRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByTo {
   '/api/$': typeof ApiSplatRoute
   '/home': typeof SignedInAppHomeRoute
   '/progress': typeof SignedInAppProgressRoute
+  '/roleplays': typeof SignedInAppRoleplaysRoute
   '/settings': typeof SignedInAppSettingsRoute
   '/assessments/new': typeof SignedInAssessmentsNewRoute
   '/goals/confirm': typeof SignedInGoalsConfirmRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/api/$': typeof ApiSplatRoute
   '/_signedIn/_app/home': typeof SignedInAppHomeRoute
   '/_signedIn/_app/progress': typeof SignedInAppProgressRoute
+  '/_signedIn/_app/roleplays': typeof SignedInAppRoleplaysRoute
   '/_signedIn/_app/settings': typeof SignedInAppSettingsRoute
   '/_signedIn/assessments/new': typeof SignedInAssessmentsNewRoute
   '/_signedIn/goals/confirm': typeof SignedInGoalsConfirmRoute
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/api/$'
     | '/home'
     | '/progress'
+    | '/roleplays'
     | '/settings'
     | '/assessments/new'
     | '/goals/confirm'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/api/$'
     | '/home'
     | '/progress'
+    | '/roleplays'
     | '/settings'
     | '/assessments/new'
     | '/goals/confirm'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/api/$'
     | '/_signedIn/_app/home'
     | '/_signedIn/_app/progress'
+    | '/_signedIn/_app/roleplays'
     | '/_signedIn/_app/settings'
     | '/_signedIn/assessments/new'
     | '/_signedIn/goals/confirm'
@@ -431,6 +443,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignedInAppProgressRouteImport
       parentRoute: typeof SignedInAppRoute
     }
+    '/_signedIn/_app/roleplays': {
+      id: '/_signedIn/_app/roleplays'
+      path: '/roleplays'
+      fullPath: '/roleplays'
+      preLoaderRoute: typeof SignedInAppRoleplaysRouteImport
+      parentRoute: typeof SignedInAppRoute
+    }
     '/_signedIn/_app/settings': {
       id: '/_signedIn/_app/settings'
       path: '/settings'
@@ -514,6 +533,7 @@ declare module '@tanstack/react-router' {
 interface SignedInAppRouteChildren {
   SignedInAppHomeRoute: typeof SignedInAppHomeRoute
   SignedInAppProgressRoute: typeof SignedInAppProgressRoute
+  SignedInAppRoleplaysRoute: typeof SignedInAppRoleplaysRoute
   SignedInAppSettingsRoute: typeof SignedInAppSettingsRoute
   SignedInAppRoadmapUnitIdRoute: typeof SignedInAppRoadmapUnitIdRoute
   SignedInAppRoadmapIndexRoute: typeof SignedInAppRoadmapIndexRoute
@@ -522,6 +542,7 @@ interface SignedInAppRouteChildren {
 const SignedInAppRouteChildren: SignedInAppRouteChildren = {
   SignedInAppHomeRoute: SignedInAppHomeRoute,
   SignedInAppProgressRoute: SignedInAppProgressRoute,
+  SignedInAppRoleplaysRoute: SignedInAppRoleplaysRoute,
   SignedInAppSettingsRoute: SignedInAppSettingsRoute,
   SignedInAppRoadmapUnitIdRoute: SignedInAppRoadmapUnitIdRoute,
   SignedInAppRoadmapIndexRoute: SignedInAppRoadmapIndexRoute,

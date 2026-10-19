@@ -1,11 +1,16 @@
 export type Email = { to: string; subject: string; html: string; text?: string };
-export type Mailer = { send(email: Email): Promise<void> };
+export type Mailer = { send(email: Email, idempotencyKey?: string): Promise<void> };
 
 export const resendMailer = (apiKey: string, from: string): Mailer => ({
-  async send(email) {
+  async send(email, idempotencyKey) {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      signal: AbortSignal.timeout(30_000),
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+        ...(idempotencyKey && { "Idempotency-Key": idempotencyKey }),
+      },
       body: JSON.stringify({ from, ...email }),
     });
     if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
@@ -35,16 +40,25 @@ type Report = {
 export function reportEmail(to: string, report: Report, webOrigin: string): Email {
   // Home first confirms proposed Goals, then offers the Learner's first Lesson.
   const home = new URL("/", webOrigin).href;
-  const skills = Object.entries(report.skills).map(([skill, value]) =>
-    `${skill[0]!.toUpperCase()}${skill.slice(1)}: ${value ? `${value.score}/100 · ${value.level}` : "Not measured yet"}`,
+  const skills = Object.entries(report.skills).map(
+    ([skill, value]) =>
+      `${skill[0]!.toUpperCase()}${skill.slice(1)}: ${value ? `${value.score}/100 · ${value.level}` : "Not measured yet"}`,
   );
   const partial = report.partial ? "This is a partial Report, based on the answers you gave before leaving." : "";
   const text = [
-    `Your English level: ${report.overallLevel}`, partial, ...skills,
-    "What's already working", ...report.strengths.map((s) => `• ${s}`),
-    "What to work on", ...report.weaknesses.map((w) => `${w.label}\nYou said: ${w.quote}\nBetter: ${w.betterVersion}`),
-    `Your first Unit: ${report.firstUnit.title}`, report.firstUnit.objective, `Start your first Lesson: ${home}`,
-  ].filter(Boolean).join("\n\n");
+    `Your English level: ${report.overallLevel}`,
+    partial,
+    ...skills,
+    "What's already working",
+    ...report.strengths.map((s) => `• ${s}`),
+    "What to work on",
+    ...report.weaknesses.map((w) => `${w.label}\nYou said: ${w.quote}\nBetter: ${w.betterVersion}`),
+    `Your first Unit: ${report.firstUnit.title}`,
+    report.firstUnit.objective,
+    `Start your first Lesson: ${home}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   // Inline styles and layout tables keep the Report readable in email clients without app CSS or remote images.
   return {
     to,

@@ -12,12 +12,14 @@ const modes: { mode: Mode; title: string; about: string }[] = [
   {
     mode: "voice",
     title: "Voice Assessment",
-    about: "A live spoken conversation with your coach. It takes up to 10 minutes and measures fluency too. Find a quiet place and allow the microphone.",
+    about:
+      "A live spoken conversation with your coach. It takes up to 10 minutes and measures fluency too. Find a quiet place and allow the microphone.",
   },
   {
     mode: "written",
     title: "Written Assessment",
-    about: "Type your answers to your coach's questions, plus a few short exercises. It takes up to 10 minutes. Fluency is measured later, once you speak in a Lesson.",
+    about:
+      "Type your answers to your coach's questions, plus a few short exercises. It takes up to 10 minutes. Fluency is measured later, once you speak in a Lesson.",
   },
 ];
 
@@ -40,7 +42,10 @@ function ChooseAssessment() {
       }
       const body = (await response.json()) as { error?: string; nextAllowedAt?: string };
       if (response.status === 429 && body.nextAllowedAt)
-        return setMessage({ tone: "info", text: `You can take the Assessment once a week. Your next one opens on ${when(body.nextAllowedAt)}.` });
+        return setMessage({
+          tone: "info",
+          text: `You can take the Assessment once a week. Your next one opens on ${when(body.nextAllowedAt)}.`,
+        });
       setMessage({ tone: "error", text: body.error ?? "We couldn't start your Assessment. Try again." });
     } catch {
       setMessage({ tone: "error", text: "We couldn't reach Impromptu. Check your connection and try again." });
@@ -55,28 +60,46 @@ function ChooseAssessment() {
         <Stack gap={8}>
           <Stack gap={3}>
             <CoachAvatar small />
-            <Text size="label" tone="muted">Meet your AI coach</Text>
-            <Heading level={1}>How would you like to connect?</Heading>
+            <Text size="label" tone="muted">
+              Meet your AI coach
+            </Text>
+            <Heading level={1}>Voice or written?</Heading>
             <Text>
-              A conversation of up to 10 minutes with your coach, to find your level and the Goals that fit. Stay at least 4 minutes
-              so it counts.
+              Your coach will ask questions for up to 10 minutes to find your level and suggest Goals. Stay at least 4
+              minutes for the Assessment to count.
             </Text>
           </Stack>
           {message && <Notice tone={message.tone}>{message.text}</Notice>}
-          {ready && <Notice tone="info">Find a quiet spot and check your microphone. When you join, your browser will ask for permission and your coach will begin the conversation.</Notice>}
-          <Grid>{modes.map(({ mode, title, about }) => (
-            <Card key={mode}>
-              <Stack gap={4} align="start">
-                <Heading level={2} size="title">
-                  {title}
-                </Heading>
-                <Text>{about}</Text>
-                <Button onClick={() => mode === "voice" && !ready ? setReady(true) : start(mode)} disabled={starting !== undefined}>
-                  {starting === mode ? "Starting…" : mode === "voice" ? ready ? "Join voice conversation" : "Talk with my coach" : "Type with my coach"}
-                </Button>
-              </Stack>
-            </Card>
-          ))}</Grid>
+          {ready && (
+            <Notice tone="info">
+              Find a quiet spot and check your microphone. When you join, your browser will ask for permission and your
+              coach will begin the conversation.
+            </Notice>
+          )}
+          <Grid>
+            {modes.map(({ mode, title, about }) => (
+              <Card key={mode}>
+                <Stack gap={4} align="start">
+                  <Heading level={2} size="title">
+                    {title}
+                  </Heading>
+                  <Text>{about}</Text>
+                  <Button
+                    onClick={() => (mode === "voice" && !ready ? setReady(true) : start(mode))}
+                    disabled={starting !== undefined}
+                  >
+                    {starting === mode
+                      ? "Starting…"
+                      : mode === "voice"
+                        ? ready
+                          ? "Join voice conversation"
+                          : "Talk with my coach"
+                        : "Type with my coach"}
+                  </Button>
+                </Stack>
+              </Card>
+            ))}
+          </Grid>
         </Stack>
       </Container>
     </Screen>

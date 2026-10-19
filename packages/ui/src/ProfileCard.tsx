@@ -9,7 +9,9 @@ export const railTileClasses = "rounded-2xl border border-line bg-subtle p-4 tex
 
 const body = cva(`flex flex-col gap-4 ${railTileClasses}`);
 const who = cva("flex items-center gap-3");
-const avatar = cva("grid size-14 shrink-0 place-items-center rounded-full bg-primary text-heading text-on-primary ring-4 ring-primary-soft");
+const avatar = cva(
+  "grid size-14 shrink-0 place-items-center rounded-full bg-primary text-heading text-on-primary ring-4 ring-primary-soft",
+);
 const name = cva("truncate text-body font-semibold");
 const levelsClasses = cva("flex flex-wrap gap-1.5 rounded-lg");
 const level = cva("rounded-full bg-primary-soft px-2 py-0.5 text-label font-semibold tracking-normal text-primary");
@@ -61,13 +63,28 @@ export function ProfileCard({ name: learner, levels, levelsRender, streak, xp, u
       <div className={stats()}>
         <Stat icon={Fire} tone="streak" value={streak} label="Day streak" />
         <Stat icon={Lightning} tone="xp" value={xp} label="XP" />
-        <Stat icon={Trophy} tone="mastery" value={unitsMastered} label={unitsMastered === 1 ? "Unit mastered" : "Units mastered"} />
+        <Stat
+          icon={Trophy}
+          tone="mastery"
+          value={unitsMastered}
+          label={unitsMastered === 1 ? "Unit mastered" : "Units mastered"}
+        />
       </div>
     </section>
   );
 }
 
-function Stat({ icon: StatIcon, tone, value: n, label: text }: { icon: Icon; tone: "streak" | "xp" | "mastery"; value: number; label: string }) {
+function Stat({
+  icon: StatIcon,
+  tone,
+  value: n,
+  label: text,
+}: {
+  icon: Icon;
+  tone: "streak" | "xp" | "mastery";
+  value: number;
+  label: string;
+}) {
   return (
     <p className={stat()}>
       <span className={value()}>

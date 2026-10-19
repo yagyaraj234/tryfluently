@@ -19,7 +19,7 @@ export type MascotProps = {
   size?: "sm" | "md" | "lg" | "xl";
 };
 
-/** A Get Fluency mascot. It's decoration, so screen readers skip it. */
+/** A Get Fluently mascot. It's decoration, so screen readers skip it. */
 export function Mascot({ name, size }: MascotProps) {
   return <img src={sources[name]} alt="" aria-hidden className={image({ size })} />;
 }

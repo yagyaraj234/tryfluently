@@ -51,7 +51,13 @@ describe("styles.css", () => {
   });
 
   test("orb reduced-motion override wins over inline amplitude and rings stay hidden without animation", async () => {
-    const css = await compileStyles(["motion-reduce:transform-none!", "opacity-0", "motion-safe:animate-orb-ring", "motion-safe:transition-transform", "motion-safe:duration-ui"]);
+    const css = await compileStyles([
+      "motion-reduce:transform-none!",
+      "opacity-0",
+      "motion-safe:animate-orb-ring",
+      "motion-safe:transition-transform",
+      "motion-safe:duration-ui",
+    ]);
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*[^{}]+\{\s*transform: none !important/);
     expect(css).toMatch(/\.opacity-0\s*\{\s*opacity: 0/);
     expect(css).toContain("@media (prefers-reduced-motion: no-preference)");
@@ -115,13 +121,18 @@ describe("apps lint config", async () => {
 
   test("every script file is covered", async () => {
     for (const file of ["app/a.js", "app/a.mjs", "app/a.ts", "app/a.mts", "app/a.cts"]) {
-      expect({ file, rules: await lintApp(`import "./a.css";`, file) }).toEqual({ file, rules: ["no-restricted-imports"] });
+      expect({ file, rules: await lintApp(`import "./a.css";`, file) }).toEqual({
+        file,
+        rules: ["no-restricted-imports"],
+      });
     }
   });
 
   test("className and style on any element or component fail", async () => {
     expect(await lintApp(`export const A = () => <div className="p-4" />;`)).toEqual(["no-restricted-syntax"]);
-    expect(await lintApp(`export const A = () => <Text style={{ color: "red" }} />;`)).toEqual(["no-restricted-syntax"]);
+    expect(await lintApp(`export const A = () => <Text style={{ color: "red" }} />;`)).toEqual([
+      "no-restricted-syntax",
+    ]);
     expect(await lintApp(`const n: number = 1;\nexport const A = () => <Text size="body">{n}</Text>;`)).toEqual([]);
   });
 
@@ -136,16 +147,23 @@ describe("apps lint config", async () => {
 describe("ui package lint config", () => {
   const eslint = new ESLint({ cwd: dirname(import.meta.dir) });
   const lintUi = (code: string) => lintWith(eslint, code, "src/Fixture.tsx");
-  const lintClasses = (classes: string) => lintUi(`import { cva } from "class-variance-authority";\nexport const fixture = cva("${classes}");`);
+  const lintClasses = (classes: string) =>
+    lintUi(`import { cva } from "class-variance-authority";\nexport const fixture = cva("${classes}");`);
   const RESTRICTED = "better-tailwindcss/no-restricted-classes";
 
   test("theme classes, Tailwind's scales, variants and opacity modifiers pass", async () => {
     expect(await lintClasses("bg-primary p-7 text-body shadow-card rounded-3xl md:grid-cols-2 lg:p-14")).toEqual([]);
-    expect(await lintClasses("data-open:bg-primary-soft data-disabled:text-muted dark:bg-paper bg-on-brand/15")).toEqual([]);
+    expect(
+      await lintClasses("data-open:bg-primary-soft data-disabled:text-muted dark:bg-paper bg-on-brand/15"),
+    ).toEqual([]);
   });
 
   test("arbitrary values pass, unless they hold a raw colour", async () => {
-    expect(await lintClasses("max-w-[40ch] origin-(--transform-origin) bg-[radial-gradient(circle,var(--color-ink)_1px,transparent_2px)]")).toEqual([]);
+    expect(
+      await lintClasses(
+        "max-w-[40ch] origin-(--transform-origin) bg-[radial-gradient(circle,var(--color-ink)_1px,transparent_2px)]",
+      ),
+    ).toEqual([]);
     for (const cls of ["bg-[#fff]", "text-[rgb(0_0_0)]", "shadow-[0_0_0_1px_oklch(0.5_0.1_200)]"]) {
       expect({ cls, rules: await lintClasses(cls) }).toEqual({ cls, rules: [RESTRICTED] });
     }
@@ -169,12 +187,23 @@ describe("ui package lint config", () => {
     for (const cls of ["border-3", "border-t-4", "focus:border-x-4", "divide-x-8"]) {
       expect({ cls, rules: await lintClasses(cls) }).toEqual({ cls, rules: [RESTRICTED] });
     }
-    expect(await lintClasses("border border-t border-2 border-b-2 border-0 border-line divide-y border-2!")).toEqual([]);
+    expect(await lintClasses("border border-t border-2 border-b-2 border-0 border-line divide-y border-2!")).toEqual(
+      [],
+    );
   });
 
   test("router, API, database and state-library imports fail", async () => {
-    for (const lib of ["@tanstack/react-router", "@tanstack/react-query", "@impromptu/api", "@impromptu/db", "zustand"]) {
-      expect({ lib, rules: await lintUi(`import { x } from "${lib}";`) }).toEqual({ lib, rules: ["no-restricted-imports"] });
+    for (const lib of [
+      "@tanstack/react-router",
+      "@tanstack/react-query",
+      "@impromptu/api",
+      "@impromptu/db",
+      "zustand",
+    ]) {
+      expect({ lib, rules: await lintUi(`import { x } from "${lib}";`) }).toEqual({
+        lib,
+        rules: ["no-restricted-imports"],
+      });
     }
     expect(await lintUi(`import { Dialog } from "@base-ui/react/dialog";`)).toEqual([]);
   });

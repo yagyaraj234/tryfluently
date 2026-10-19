@@ -24,155 +24,155 @@ Each colour is a Tailwind theme colour (`--color-<name>`), so it works with ever
 
 ### Canvas and surfaces
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `canvas` | `#F5F5F4` warm grey | `#121211` | The page background (`bg-canvas`) |
-| `paper` | `#FFFFFF` | `#262625` | Cards, dialogs, menus, toasts, inputs |
-| `subtle` | `#F5F4F1` | `#1B1B1A` | Inset panels, tracks, skeletons, the product frame |
-| `ink` | `#0E0E0F` | `#F3F2EF` | Text |
-| `muted` | `#66655F` | `#A3A29B` | Secondary text, captions |
-| `line` | ink at 9% | white at 10% | Hairlines around cards and panels; empty tracks |
-| `line-strong` | `#8F8E88` | `#7A7973` | Borders of form controls (3:1 against paper) |
-| `scrim` | black at 50% | same | Dims the page behind a Dialog or Sheet |
+| Token         | Light               | Dark         | Use                                                |
+| ------------- | ------------------- | ------------ | -------------------------------------------------- |
+| `canvas`      | `#F5F5F4` warm grey | `#121211`    | The page background (`bg-canvas`)                  |
+| `paper`       | `#FFFFFF`           | `#262625`    | Cards, dialogs, menus, toasts, inputs              |
+| `subtle`      | `#F5F4F1`           | `#1B1B1A`    | Inset panels, tracks, skeletons, the product frame |
+| `ink`         | `#0E0E0F`           | `#F3F2EF`    | Text                                               |
+| `muted`       | `#66655F`           | `#A3A29B`    | Secondary text, captions                           |
+| `line`        | ink at 9%           | white at 10% | Hairlines around cards and panels; empty tracks    |
+| `line-strong` | `#8F8E88`           | `#7A7973`    | Borders of form controls (3:1 against paper)       |
+| `scrim`       | black at 50%        | same         | Dims the page behind a Dialog or Sheet             |
 
 `canvas` isn't called `page` because `text-page` is a type size, and a colour with the same name would also set the text colour.
 
 ### Action
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `primary` | `#2F3BD6` cobalt | `#8CC4FF` sky | Primary buttons, links, focus ring, selected states |
-| `on-primary` | `#FFFFFF` | `#0B1240` | Text on primary |
-| `primary-soft` | `#E3EAFF` | `#1D2550` | Selected backgrounds, soft chips and pills |
+| Token          | Light            | Dark          | Use                                                 |
+| -------------- | ---------------- | ------------- | --------------------------------------------------- |
+| `primary`      | `#2F3BD6` cobalt | `#8CC4FF` sky | Primary buttons, links, focus ring, selected states |
+| `on-primary`   | `#FFFFFF`        | `#0B1240`     | Text on primary                                     |
+| `primary-soft` | `#E3EAFF`        | `#1D2550`     | Selected backgrounds, soft chips and pills          |
 
 ### Brand panels
 
 Cobalt panels (the auth story panel, the Roleplay preview, the closing call to action) stay cobalt in both themes, so white text always reads. They're built from a gradient plus blurred glows: `bg-linear-160 from-brand-mid to-brand`, with `bg-brand-hi/85 blur-3xl` blobs behind the content.
 
-| Token | Value (both themes) | Use |
-|---|---|---|
-| `brand` | `#2F3BD6` | Panel fill |
-| `brand-mid` | `#4466E0` | Gradient start |
-| `brand-deep` | `#181C8C` | Deep corner glow |
-| `brand-hi` | `#8CC4FF` | Sky glow, filled meter segments |
-| `on-brand` | `#FFFFFF` | Text and glass on a panel (`bg-on-brand/12`, `border-on-brand/24`) |
-| `white` / `black` | `#FFFFFF` / `#0E0E0F` | Pills that sit on a panel (`Button variant="inverse"`) |
+| Token             | Value (both themes)   | Use                                                                |
+| ----------------- | --------------------- | ------------------------------------------------------------------ |
+| `brand`           | `#2F3BD6`             | Panel fill                                                         |
+| `brand-mid`       | `#4466E0`             | Gradient start                                                     |
+| `brand-deep`      | `#181C8C`             | Deep corner glow                                                   |
+| `brand-hi`        | `#8CC4FF`             | Sky glow, filled meter segments                                    |
+| `on-brand`        | `#FFFFFF`             | Text and glass on a panel (`bg-on-brand/12`, `border-on-brand/24`) |
+| `white` / `black` | `#FFFFFF` / `#0E0E0F` | Pills that sit on a panel (`Button variant="inverse"`)             |
 
 ### Live voice
 
 Use these **only** while the microphone is recording or a Realtime call is connected.
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `live` | `#FF2E6E` | `#FF6B98` | Pulsing dot, live border, recording ring |
+| Token       | Light     | Dark      | Use                                                |
+| ----------- | --------- | --------- | -------------------------------------------------- |
+| `live`      | `#FF2E6E` | `#FF6B98` | Pulsing dot, live border, recording ring           |
 | `live-text` | `#D1105A` | `#FF6B98` | "LIVE" label and timer text (meets 4.5:1 on paper) |
 
 ### Verdicts
 
 Every verdict is shown as a coloured word (Correct / Almost / Incorrect), never colour alone. Each tint is an opaque mix with paper, so it follows dark mode.
 
-| Token | Light | Dark | Tint |
-|---|---|---|---|
-| `correct` | `#08753D` | `#4FD18A` | `correct-tint` |
-| `almost` | `#805800` | `#FFD24D` | `almost-tint` |
+| Token       | Light     | Dark      | Tint             |
+| ----------- | --------- | --------- | ---------------- |
+| `correct`   | `#08753D` | `#4FD18A` | `correct-tint`   |
+| `almost`    | `#805800` | `#FFD24D` | `almost-tint`    |
 | `incorrect` | `#BE1E55` | `#FF7FA3` | `incorrect-tint` |
 
 Incorrect is a soft rose, not an alarm red, so that a mistake doesn't feel like a punishment.
 
 ### Skills (charts only)
 
-| Token | Light | Dark |
-|---|---|---|
-| `skill-fluency` | `#6A3DF0` | `#A98BFF` |
-| `skill-grammar` | `#1F6FEB` | `#6EA8FF` |
+| Token              | Light     | Dark      |
+| ------------------ | --------- | --------- |
+| `skill-fluency`    | `#6A3DF0` | `#A98BFF` |
+| `skill-grammar`    | `#1F6FEB` | `#6EA8FF` |
 | `skill-vocabulary` | `#F0711A` | `#FF9A4D` |
 
 ### CEFR scale
 
 A single violet hue, darker from A1 to C2 (`cefr-a1` to `cefr-c2`). Use ink text on A1–B1 and `on-primary` text on B2–C2.
 
-| | A1 | A2 | B1 | B2 | C1 | C2 |
-|---|---|---|---|---|---|---|
+|       | A1        | A2        | B1        | B2        | C1        | C2        |
+| ----- | --------- | --------- | --------- | --------- | --------- | --------- |
 | Light | `#E7E0FD` | `#CCBDFA` | `#AD94F6` | `#7955D7` | `#6A3DF0` | `#4B2EA2` |
-| Dark | `#323433` | `#4B465F` | `#695C92` | `#8D76CE` | `#A98BFF` | `#C2B4EF` |
+| Dark  | `#323433` | `#4B465F` | `#695C92` | `#8D76CE` | `#A98BFF` | `#C2B4EF` |
 
 ## Typography
 
-- **Family:** Familjen Grotesk (Google Fonts, variable 400–700), falling back to `system-ui, sans-serif`. One font for display and body text, so there is one font request.
+- **Family:** Inter (Google Fonts, variable 400–700), falling back to `system-ui, sans-serif`. One font for display and body text, so there is one font request.
 - **Weights:** Tailwind's `font-normal` (400), `font-medium` (500, nav links), `font-semibold` (600, buttons, pills, labels) and `font-bold` (700, headings). Headings are bold; small UI text is semibold, so the page doesn't read as bold everywhere.
 - **Tracking tightens as type grows:** `tracking-tighter` on the hero headline and wordmark, `tracking-tight` on section headings and card titles.
 - **Numbers:** `tabular-nums` (`Text tabular`) on XP, Streak, timers, scores and anything else that lines up.
 
 Product copy uses the **type roles**, through `Text size` and `Heading`. Each role carries its own line height, weight and tracking:
 
-| Role | Size | Line height | Weight | Use |
-|---|---|---|---|---|
-| `text-label` | 0.8125rem (13px) | 1.4 | 600, uppercase, +0.08em | Labels like "LIVE" and "STEP 4 OF ~7" |
-| `text-caption` | 0.9375rem (15px) | 1.5 | 400 | Captions, explanations |
-| `text-body` | 1.0625rem (17px) | 1.6 | 400 | Body and answers |
-| `text-title` | 1.3125rem (21px) | 1.35 | 700 | Step questions, card titles |
-| `text-heading` | 1.6875rem (27px) | 1.2 | 700 | Section headings |
-| `text-page` | 2.125rem (34px) | 1.1 | 700 | Page titles |
-| `text-hero` | 3.375rem (54px) | 1.0 | 700 | Streak and XP numbers, CEFR reveal |
+| Role           | Size             | Line height | Weight                  | Use                                   |
+| -------------- | ---------------- | ----------- | ----------------------- | ------------------------------------- |
+| `text-label`   | 0.8125rem (13px) | 1.4         | 600, uppercase, +0.08em | Labels like "LIVE" and "STEP 4 OF ~7" |
+| `text-caption` | 0.9375rem (15px) | 1.5         | 400                     | Captions, explanations                |
+| `text-body`    | 1.0625rem (17px) | 1.6         | 400                     | Body and answers                      |
+| `text-title`   | 1.3125rem (21px) | 1.35        | 700                     | Step questions, card titles           |
+| `text-heading` | 1.6875rem (27px) | 1.2         | 700                     | Section headings                      |
+| `text-page`    | 2.125rem (34px)  | 1.1         | 700                     | Page titles                           |
+| `text-hero`    | 3.375rem (54px)  | 1.0         | 700                     | Streak and XP numbers, CEFR reveal    |
 
 Display type on the landing page and auth panels uses Tailwind's scale and steps up at breakpoints instead of fluid `clamp()` sizes: the hero is `text-5xl sm:text-6xl lg:text-7xl`, section headings `text-4xl sm:text-5xl`. Headings use `text-balance`, paragraphs `text-pretty`. Running text sits in `Container width="prose"` (65ch). Nothing is smaller than 12px (`text-xs`).
 
 ## Shape, space and depth
 
-| What | Utilities | Use |
-|---|---|---|
-| Hairline | `border border-line` | Every card, panel, chip and nav |
-| Form border | `border border-line-strong` | Inputs, selects, switches, choice chips |
-| Emphasis | `border-2`, `inset-ring-2` | Spinner, the gap slot, the CEFR target cell |
-| Radius | `rounded-lg` (8px) small tags · `rounded-xl` (12px) inputs, list rows · `rounded-2xl` (16px) bubbles, FAQ items · `rounded-3xl` (24px) cards · `rounded-4xl` (32px) panels, frames · `rounded-full` buttons, chips, pills | |
-| `shadow-card` | two soft layers plus a 1px inner highlight | Cards, secondary buttons, overlays |
-| `shadow-lift` | a deeper `shadow-card` | Landing cards on hover, with `hover:-translate-y-0.5` |
-| `shadow-frame` | a long, low shadow | The product frame under the hero |
-| `shadow-float` | black at 35% | Pills sitting on a cobalt panel |
-| `shadow-glow` | tinted with `shadow-primary/55` | The one call to action on a page, with a `ring-2 ring-primary ring-offset-2` |
-| Spacing | Tailwind's 4px scale (`p-4`, `gap-3.5`, `pt-14`) | Use `gap` on flex and grid, not margins between siblings |
-| Touch target | `min-h-11` / `size-11` (44px) | The smallest touch target |
-| Layers | `z-behind` (−1) · `z-sticky` (10) · `z-overlay` (20) · `z-toast` (30) | The only stacking levels. `z-behind` sits decoration behind content inside an `isolate` parent |
-| Widths | `max-w-content` (40rem) · `max-w-prose` (65ch) · `max-w-page` (67.5rem) · `w-sidebar` (15rem) | The Lesson column and dialogs · running text · the landing page · the app sidebar |
+| What           | Utilities                                                                                                                                                                                                                 | Use                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Hairline       | `border border-line`                                                                                                                                                                                                      | Every card, panel, chip and nav                                                                |
+| Form border    | `border border-line-strong`                                                                                                                                                                                               | Inputs, selects, switches, choice chips                                                        |
+| Emphasis       | `border-2`, `inset-ring-2`                                                                                                                                                                                                | Spinner, the gap slot, the CEFR target cell                                                    |
+| Radius         | `rounded-lg` (8px) small tags · `rounded-xl` (12px) inputs, list rows · `rounded-2xl` (16px) bubbles, FAQ items · `rounded-3xl` (24px) cards · `rounded-4xl` (32px) panels, frames · `rounded-full` buttons, chips, pills |                                                                                                |
+| `shadow-card`  | two soft layers plus a 1px inner highlight                                                                                                                                                                                | Cards, secondary buttons, overlays                                                             |
+| `shadow-lift`  | a deeper `shadow-card`                                                                                                                                                                                                    | Landing cards on hover, with `hover:-translate-y-0.5`                                          |
+| `shadow-frame` | a long, low shadow                                                                                                                                                                                                        | The product frame under the hero                                                               |
+| `shadow-float` | black at 35%                                                                                                                                                                                                              | Pills sitting on a cobalt panel                                                                |
+| `shadow-glow`  | tinted with `shadow-primary/55`                                                                                                                                                                                           | The one call to action on a page, with a `ring-2 ring-primary ring-offset-2`                   |
+| Spacing        | Tailwind's 4px scale (`p-4`, `gap-3.5`, `pt-14`)                                                                                                                                                                          | Use `gap` on flex and grid, not margins between siblings                                       |
+| Touch target   | `min-h-11` / `size-11` (44px)                                                                                                                                                                                             | The smallest touch target                                                                      |
+| Layers         | `z-behind` (−1) · `z-sticky` (10) · `z-overlay` (20) · `z-toast` (30)                                                                                                                                                     | The only stacking levels. `z-behind` sits decoration behind content inside an `isolate` parent |
+| Widths         | `max-w-content` (40rem) · `max-w-prose` (65ch) · `max-w-page` (67.5rem) · `w-sidebar` (15rem)                                                                                                                             | The Lesson column and dialogs · running text · the landing page · the app sidebar              |
 
 ## Responsive layout
 
 Design for phones first, then add breakpoints with Tailwind's defaults:
 
-| Prefix | Min width | Typical change |
-|---|---|---|
-| (none) | 0 | One column, 16px side gutters (`px-4`) |
-| `sm:` | 40rem | Nav links appear; larger display type; looser section padding |
-| `md:` | 48rem | Landing grids go to two or three columns; auth shows the full story panel beside the form |
-| `lg:` | 64rem | App navigation becomes a sidebar with the logo; Home's rail docks to the right; `Split` goes two thirds / one third; Sheets centre |
+| Prefix | Min width | Typical change                                                                                                                     |
+| ------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| (none) | 0         | One column, 16px side gutters (`px-4`)                                                                                             |
+| `sm:`  | 40rem     | Nav links appear; larger display type; looser section padding                                                                      |
+| `md:`  | 48rem     | Landing grids go to two or three columns; auth shows the full story panel beside the form                                          |
+| `lg:`  | 64rem     | App navigation becomes a sidebar with the logo; Home's rail docks to the right; `Split` goes two thirds / one third; Sheets centre |
 
 Use `max-*:` variants (`max-sm:w-full`) only when a phone-only style is simpler than undoing it at a breakpoint.
 
-| Screens | Phone | `lg` (64rem) and above |
-|---|---|---|
-| Landing | One column; product frame stacks; nav shows the wordmark and "Start free" | Two-column features; three-column steps and cards (from `md`) |
-| Sign-in / sign-up | The cobalt panel shrinks to the wordmark and headline above the form | Story panel with steps beside the form (from `md`) |
-| Home | Continue learning, Up next, then the rail as one white panel | `Dashboard`: the main column, and a full-height white rail flush against the right edge with the profile card, This week and the stat tiles |
-| Roadmap | Numbered Unit cards in one column | The same cards two to a row at `Container width="page"`, in Roadmap order |
-| Unit | The Unit's header card with its main action, then its finished Lessons as rows | Centred content column |
-| Goals / Assessment choice / confirmation | Single column with full-width main action | Centred prose column; keep forms together |
-| Lesson / live Assessment / Roleplay | Single column; controls wrap; a Lesson's Step sits on a paper card | Same focused content width; no side panels while practising |
-| Assessment Report / Debrief | Sections in reading order | Centred prose or content column; keep quote and correction together |
-| Progress / Settings | One section at a time | Centred content or prose column; don't stretch tables or forms |
+| Screens                                  | Phone                                                                          | `lg` (64rem) and above                                                                                                                      |
+| ---------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Landing                                  | One column; product frame stacks; nav shows the wordmark and "Start free"      | Two-column features; three-column steps and cards (from `md`)                                                                               |
+| Sign-in / sign-up                        | The cobalt panel shrinks to the wordmark and headline above the form           | Story panel with steps beside the form (from `md`)                                                                                          |
+| Home                                     | Continue learning, Up next, then the rail as one white panel                   | `Dashboard`: the main column, and a full-height white rail flush against the right edge with the profile card, This week and the stat tiles |
+| Roadmap                                  | Numbered Unit cards in one column                                              | The same cards two to a row at `Container width="page"`, in Roadmap order                                                                   |
+| Unit                                     | The Unit's header card with its main action, then its finished Lessons as rows | Centred content column                                                                                                                      |
+| Goals / Assessment choice / confirmation | Single column with full-width main action                                      | Centred prose column; keep forms together                                                                                                   |
+| Lesson / live Assessment / Roleplay      | Single column; controls wrap; a Lesson's Step sits on a paper card             | Same focused content width; no side panels while practising                                                                                 |
+| Assessment Report / Debrief              | Sections in reading order                                                      | Centred prose or content column; keep quote and correction together                                                                         |
+| Progress / Settings                      | One section at a time                                                          | Centred content or prose column; don't stretch tables or forms                                                                              |
 
 Long pasted text wraps inside its container (`wrap-anywhere` on `body`). App navigation is bottom tabs on phone and a sidebar at `lg`. Dialogs are centred; Sheets rise from the bottom on phone and centre at `lg`. Overlays stay within the viewport and scroll when needed.
 
 ## Motion
 
-| Token | Value | Use |
-|---|---|---|
-| `duration-press`, `ease-press` | 160ms, `cubic-bezier(0.23, 1, 0.32, 1)` | Button press (`active:scale-97`), card lift, FAQ open |
-| `duration-ui`, `ease-ui` | 160ms, `cubic-bezier(0.2, 0, 0, 1)` | Overlays, progress, small state changes |
-| `animate-pulse` | 1.6s | Live dot, recording ring, skeletons |
-| `animate-spin` | 0.8s per turn | `Spinner` |
-| `animate-celebrate` | 800ms, once | Lesson complete, current CEFR cell, Streak milestones |
-| `animate-rise` | 520ms fade up | The landing hero, staggered with `[animation-delay:60ms]` steps |
-| `animate-draw`, `animate-bob`, `animate-wave`, `animate-blink` | | The hero underline, floating chips, the waveform, the typing caret |
+| Token                                                          | Value                                   | Use                                                                |
+| -------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------ |
+| `duration-press`, `ease-press`                                 | 160ms, `cubic-bezier(0.23, 1, 0.32, 1)` | Button press (`active:scale-97`), card lift, FAQ open              |
+| `duration-ui`, `ease-ui`                                       | 160ms, `cubic-bezier(0.2, 0, 0, 1)`     | Overlays, progress, small state changes                            |
+| `animate-pulse`                                                | 1.6s                                    | Live dot, recording ring, skeletons                                |
+| `animate-spin`                                                 | 0.8s per turn                           | `Spinner`                                                          |
+| `animate-celebrate`                                            | 800ms, once                             | Lesson complete, current CEFR cell, Streak milestones              |
+| `animate-rise`                                                 | 520ms fade up                           | The landing hero, staggered with `[animation-delay:60ms]` steps    |
+| `animate-draw`, `animate-bob`, `animate-wave`, `animate-blink` |                                         | The hero underline, floating chips, the waveform, the typing caret |
 
 - **Press:** buttons shrink to 97% on `:active`. It feels like a physical key without moving the layout.
 - **Celebrations** happen at brand moments, never during practice, and last under 1.2s.
@@ -185,37 +185,37 @@ Every component lives in `@impromptu/ui` and is imported from the package root. 
 
 ### Base components
 
-| Group | Component | Built on | Key props |
-|---|---|---|---|
-| Layout | `Screen` | — | Renders `<main>` on the canvas with side gutters |
-| | `Stack` | — | `gap` (spacing step), `align` |
-| | `Cluster` | — | `gap`, `justify`, `align`; wraps |
-| | `Container` | — | `width: "content" \| "prose" \| "page"`; centred. `page` is for dashboards with a side column |
-| | `Grid` | — | `columns: "responsive" \| 2` (one column on phones, two from `sm`; or always two); `ordered` renders a list |
-| | `Split` | — | `main` and `side` slots; stacked below `lg`, two thirds and one third at it |
-| | `Dashboard` | — | `main` and `rail` slots, for Home inside `AppShell`; the rail is a white panel below the main column on phones and a full-height column on the right at `lg` |
-| Type | `Text` | — | `size` (label…hero), `tone: "ink" \| "muted"`, `as`, `tabular` |
-| | `Heading` | — | `level: 1 \| 2 \| 3` → page / heading / title; `size` overrides |
-| Actions | `Button` | Base UI Button | `variant: "primary" \| "secondary" \| "inverse"`, `size: "md" \| "sm"`, `glow`, `fullWidth`, `icon`, `render` |
-| | `IconButton` | Base UI Button | `icon`, required `label`, `render` |
-| | `TextLink` | — | `render` |
-| Forms | `TextField` | Field, Input | required `label`, `description`, `error` |
-| | `TextArea` | Field | as `TextField` |
-| | `ChoiceChips` | RadioGroup / CheckboxGroup | `label`, `options`, `multiple`, `value`, `onValueChange` |
-| | `Select` | Select | `label`, `options`, `value`, `onValueChange` |
-| | `Switch` | Switch | `label`, `checked`, `onCheckedChange` |
-| Overlays | `Dialog` | Dialog | `open`, `onOpenChange`, `title`, `description`; modal |
-| | `Sheet` | Dialog | as `Dialog`; bottom sheet below `lg` |
-| | `Menu` | Menu | `trigger`, and `items` each with `onSelect` or `render` |
-| Feedback | Toasts (`toastManager`) | Toast | `toastManager.add({ title, description, actionProps })`, callable from anywhere; rendered by `UIProvider` |
-| | `ProgressBar` | Progress | `value`, `max`, `label` |
-| | `Meter` | Meter | `value`, `max`, `label` |
-| | `Spinner` | — | `label` |
-| | `Skeleton` | — | `shape: "text" \| "block" \| "circle"`, `size` |
-| Display | `Card` | — | `render` (makes the whole card a link), `size: "md" \| "sm"` (`sm` is the denser dashboard card) |
-| | `CardList` | — | Rows on one card, split by hairlines |
-| | `Chip` | — | `tone: "paper" \| "soft"`, `icon` |
-| | `VerdictTag` | — | `verdict: "correct" \| "almost" \| "incorrect"`; the word is always shown |
+| Group    | Component               | Built on                   | Key props                                                                                                                                                    |
+| -------- | ----------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Layout   | `Screen`                | —                          | Renders `<main>` on the canvas with side gutters                                                                                                             |
+|          | `Stack`                 | —                          | `gap` (spacing step), `align`                                                                                                                                |
+|          | `Cluster`               | —                          | `gap`, `justify`, `align`; wraps                                                                                                                             |
+|          | `Container`             | —                          | `width: "content" \| "prose" \| "page"`; centred. `page` is for dashboards with a side column                                                                |
+|          | `Grid`                  | —                          | `columns: "responsive" \| 2` (one column on phones, two from `sm`; or always two); `ordered` renders a list                                                  |
+|          | `Split`                 | —                          | `main` and `side` slots; stacked below `lg`, two thirds and one third at it                                                                                  |
+|          | `Dashboard`             | —                          | `main` and `rail` slots, for Home inside `AppShell`; the rail is a white panel below the main column on phones and a full-height column on the right at `lg` |
+| Type     | `Text`                  | —                          | `size` (label…hero), `tone: "ink" \| "muted"`, `as`, `tabular`                                                                                               |
+|          | `Heading`               | —                          | `level: 1 \| 2 \| 3` → page / heading / title; `size` overrides                                                                                              |
+| Actions  | `Button`                | Base UI Button             | `variant: "primary" \| "secondary" \| "inverse"`, `size: "md" \| "sm"`, `glow`, `fullWidth`, `icon`, `render`                                                |
+|          | `IconButton`            | Base UI Button             | `icon`, required `label`, `render`                                                                                                                           |
+|          | `TextLink`              | —                          | `render`                                                                                                                                                     |
+| Forms    | `TextField`             | Field, Input               | required `label`, `description`, `error`                                                                                                                     |
+|          | `TextArea`              | Field                      | as `TextField`                                                                                                                                               |
+|          | `ChoiceChips`           | RadioGroup / CheckboxGroup | `label`, `options`, `multiple`, `value`, `onValueChange`                                                                                                     |
+|          | `Select`                | Select                     | `label`, `options`, `value`, `onValueChange`                                                                                                                 |
+|          | `Switch`                | Switch                     | `label`, `checked`, `onCheckedChange`                                                                                                                        |
+| Overlays | `Dialog`                | Dialog                     | `open`, `onOpenChange`, `title`, `description`; modal                                                                                                        |
+|          | `Sheet`                 | Dialog                     | as `Dialog`; bottom sheet below `lg`                                                                                                                         |
+|          | `Menu`                  | Menu                       | `trigger`, and `items` each with `onSelect` or `render`                                                                                                      |
+| Feedback | Toasts (`toastManager`) | Toast                      | `toastManager.add({ title, description, actionProps })`, callable from anywhere; rendered by `UIProvider`                                                    |
+|          | `ProgressBar`           | Progress                   | `value`, `max`, `label`                                                                                                                                      |
+|          | `Meter`                 | Meter                      | `value`, `max`, `label`                                                                                                                                      |
+|          | `Spinner`               | —                          | `label`                                                                                                                                                      |
+|          | `Skeleton`              | —                          | `shape: "text" \| "block" \| "circle"`, `size`                                                                                                               |
+| Display  | `Card`                  | —                          | `render` (makes the whole card a link), `size: "md" \| "sm"` (`sm` is the denser dashboard card)                                                             |
+|          | `CardList`              | —                          | Rows on one card, split by hairlines                                                                                                                         |
+|          | `Chip`                  | —                          | `tone: "paper" \| "soft"`, `icon`                                                                                                                            |
+|          | `VerdictTag`            | —                          | `verdict: "correct" \| "almost" \| "incorrect"`; the word is always shown                                                                                    |
 
 Form controls work controlled or uncontrolled (`defaultValue`, `defaultChecked`). There's no destructive button variant: destructive actions ask for confirmation in a `Dialog`.
 
@@ -231,23 +231,24 @@ How they look:
 
 The shipped domain components include `AppShell`, `PracticeShell`, `UnitCard`, `ProfileCard`, `WeekStrip`, `StatTile`, `StepFeedback`, `LiveBar`, `RecordButton`, `SkillBar`, `CefrScale`, `StreakCard`, `LessonComplete`, `Report` and `Debrief`. The table records their visual intent; use the exports in `packages/ui/src/index.ts` for current props.
 
-| Component | Spec |
-|---|---|
-| **App bar** | A sticky top bar: the page's `h1` in `title` on the left (from the route's `staticData.title`), Streak and XP chips on the right, a hairline below. Pages with their own heading, like a Unit, leave the title out. |
-| **Sidebar** | The landing page's lowercase cobalt "impromptu" logo, a muted "MENU" label, then compact `caption` rows with an icon. The current row fills with `primary-soft` and turns cobalt. |
-| **Rail tiles** | On Home's white rail, the profile card, week strip and stat tiles are `subtle` tiles with a hairline and `rounded-2xl` (`railTileClasses`), like cards in a tray. |
-| **Practice bar** | The close button, and beside it what's being practised (a Lesson's Unit) in muted `caption`. It sticks to the top. |
-| **Unit card** | A dense card (`Card size="sm"`): the icon tile, the title in semibold `body` with "UNIT 3 · GRAMMAR" below, the status tag, and the objective in two lines. The active Unit adds a thick bar with "2 Lessons done" and "58% to the objective" under it. `cover` adds a cobalt brand cover with the Unit's icon, standing in for a thumbnail. With an action (Resume), only the title is the link. |
-| **Profile card** | A cobalt avatar with the initial, the name, the CEFR Level of each measured skill as small cobalt pills (a link to Progress), and Streak · XP · Units mastered with icons on a white strip. |
-| **Week strip** | "This week" with "4/7 days", then seven day pills, Monday to Sunday, each with the weekday and date. Practised days fill cobalt, earlier days are white, later days are muted, and today has an offset cobalt ring. Screen readers hear "practised" and "today". |
-| **Stat tile** | A rail tile: a white icon tile, a number in `title`, and a muted label that reads on from it ("2 Lessons done"). |
-| **`StepFeedback`** | A verdict-tint background with the `VerdictTag`, the corrected sentence in bold, a one-sentence explanation, a "Hear it" secondary button and a "Next step" primary button. |
-| **Live bar** | A `live` border with a pulsing dot, the "LIVE" label in `text-live-text`, the Roleplay kind and tone, the remaining minutes (tabular) and a secondary "End" button. It sticks to the top of the Roleplay screen. |
-| **Recording button** | A 72px round button (`size-18`). Idle: cobalt with the glow. Recording: paper with a pulsing `live` ring. Processing: a spinner on `subtle`. |
-| **Skill bar** | An 8px `subtle` track filled with the skill colour; the label on the left, score and CEFR Level on the right (tabular). |
-| **CEFR scale** | Six cells from the CEFR scale. The current Level has a 2px ink outline and celebrates once. |
-| **Streak card** | The number in `hero`, a "day streak" label, in a `Card`. It should look good cropped square, since people screenshot it. |
-| **Lesson complete** | A card with the celebrating icon, the XP gained, the Streak card and the next actions. |
+| Component            | Spec                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **App bar**          | A sticky top bar: the page's `h1` in `title` on the left (from the route's `staticData.title`), Streak and XP chips on the right, a hairline below. Pages with their own heading, like a Unit, leave the title out.                                                                                                                                                                               |
+| **Sidebar**          | The landing page's lowercase cobalt "impromptu" logo, a muted "MENU" label, then compact `caption` rows with an icon. The current row fills with `primary-soft` and turns cobalt.                                                                                                                                                                                                                 |
+| **Rail tiles**       | On Home's white rail, the profile card, week strip and stat tiles are `subtle` tiles with a hairline and `rounded-2xl` (`railTileClasses`), like cards in a tray.                                                                                                                                                                                                                                 |
+| **Practice bar**     | The close button, and beside it what's being practised (a Lesson's Unit) in muted `caption`. It sticks to the top.                                                                                                                                                                                                                                                                                |
+| **Unit card**        | A dense card (`Card size="sm"`): the icon tile, the title in semibold `body` with "UNIT 3 · GRAMMAR" below, the status tag, and the objective in two lines. The active Unit adds a thick bar with "2 Lessons done" and "58% to the objective" under it. `cover` adds a cobalt brand cover with the Unit's icon, standing in for a thumbnail. With an action (Resume), only the title is the link. |
+| **Profile card**     | A cobalt avatar with the initial, the name, the CEFR Level of each measured skill as small cobalt pills (a link to Progress), and Streak · XP · Units mastered with icons on a white strip.                                                                                                                                                                                                       |
+| **Week strip**       | "This week" with "4/7 days", then seven day pills, Monday to Sunday, each with the weekday and date. Practised days fill cobalt, earlier days are white, later days are muted, and today has an offset cobalt ring. Screen readers hear "practised" and "today".                                                                                                                                  |
+| **Stat tile**        | A rail tile: a white icon tile, a number in `title`, and a muted label that reads on from it ("2 Lessons done").                                                                                                                                                                                                                                                                                  |
+| **`StepFeedback`**   | A verdict-tint background with the `VerdictTag`, the corrected sentence in bold, a one-sentence explanation, a "Hear it" secondary button and a "Next step" primary button.                                                                                                                                                                                                                       |
+| **Live bar**         | A `live` border with a pulsing dot, the "LIVE" label in `text-live-text`, the Roleplay kind and tone, the remaining minutes (tabular) and a secondary "End" button. It sticks to the top of the Roleplay screen.                                                                                                                                                                                  |
+| **Recording button** | A 72px round button (`size-18`). Idle: cobalt with the glow. Recording: paper with a pulsing `live` ring. Processing: a spinner on `subtle`.                                                                                                                                                                                                                                                      |
+| **Skill bar**        | An 8px `subtle` track filled with the skill colour; the label on the left, score and CEFR Level on the right (tabular).                                                                                                                                                                                                                                                                           |
+| **CEFR scale**       | Six cells from the CEFR scale. The current Level has a 2px ink outline and celebrates once.                                                                                                                                                                                                                                                                                                       |
+| **Streak card**      | The number in `hero`, a "day streak" label, in a `Card`. It should look good cropped square, since people screenshot it.                                                                                                                                                                                                                                                                          |
+| **Lesson complete**  | A card with the celebrating icon, the XP gained, the Streak card and the next actions.                                                                                                                                                                                                                                                                                                            |
+| **Chat**             | `ChatThread` is a scrolling conversation log that follows new turns unless the Learner has scrolled back. `ChatTurn` shows a blinking caret while text streams. `ChatWriting` is the skeleton bubble while the coach's reply is on its way, and `ChatComposer` sends on Enter while Shift+Enter starts a new line.                                                                                |
 
 ### Step types
 

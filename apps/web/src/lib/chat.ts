@@ -5,7 +5,11 @@ import { DefaultChatTransport, type ChatAddToolOutputFunction, type ChatInit, ty
  * The server keeps the history, so each request sends only the newest message as `{ message }`. Seed `messages`
  * with the stored transcript to resume. Nothing is sent automatically: answer a Step with `answerStep`.
  */
-export const chatOptions = (api: string, messages: UIMessage[], fetch?: typeof globalThis.fetch): ChatInit<UIMessage> => ({
+export const chatOptions = (
+  api: string,
+  messages: UIMessage[],
+  fetch?: typeof globalThis.fetch,
+): ChatInit<UIMessage> => ({
   messages,
   transport: new DefaultChatTransport({
     api,
@@ -23,7 +27,11 @@ type ChatHelpers = { addToolOutput: ChatAddToolOutputFunction<UIMessage>; sendMe
  * Sent explicitly rather than with `sendAutomaticallyWhen`: a Lesson's last message ends with server tools
  * (giveFeedback, endLesson) that are all complete, which would otherwise be sent again.
  */
-export async function answerStep(chat: ChatHelpers, step: { type: string; toolCallId: string }, output: string | { recordingId: string }) {
+export async function answerStep(
+  chat: ChatHelpers,
+  step: { type: string; toolCallId: string },
+  output: string | { recordingId: string },
+) {
   await chat.addToolOutput({
     tool: step.type.replace(/^tool-/, ""),
     toolCallId: step.toolCallId,

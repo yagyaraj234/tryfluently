@@ -39,7 +39,16 @@ export type ButtonProps = Omit<ComponentProps<"button">, "className" | "style"> 
   render?: ReactElement;
 };
 
-export function Button({ variant = "primary", size = "md", glow = false, fullWidth = false, icon: Icon, children, render, ...props }: ButtonProps) {
+export function Button({
+  variant = "primary",
+  size = "md",
+  glow = false,
+  fullWidth = false,
+  icon: Icon,
+  children,
+  render,
+  ...props
+}: ButtonProps) {
   return useRender({
     render: render ?? <BaseButton />,
     props: mergeProps<"button">(

@@ -11,25 +11,44 @@ export type CallState =
   /** The API refused the call (`response`, for example 409 already live or 429 voice-minutes cap), or the network failed. */
   | { status: "failed"; response?: { status: number; body: unknown } };
 
-export type ConversationState = { phase: "ready" | "listening" | "thinking" | "speaking"; caption?: string; speaker?: "coach" | "learner" };
+export type ConversationState = {
+  phase: "ready" | "listening" | "thinking" | "speaking";
+  caption?: string;
+  speaker?: "coach" | "learner";
+};
 
 export function conversationEvent(current: ConversationState, event: unknown): ConversationState {
   if (!event || typeof event !== "object" || !("type" in event)) return current;
   const e = event as Record<string, unknown>;
   switch (e.type) {
-    case "input_audio_buffer.speech_started": return { phase: "listening", speaker: "learner", caption: "" };
-    case "input_audio_buffer.speech_stopped": return { ...current, phase: "thinking" };
-    case "output_audio_buffer.started": return { phase: "speaking", speaker: "coach", caption: current.speaker === "coach" ? current.caption : "" };
+    case "input_audio_buffer.speech_started":
+      return { phase: "listening", speaker: "learner", caption: "" };
+    case "input_audio_buffer.speech_stopped":
+      return { ...current, phase: "thinking" };
+    case "output_audio_buffer.started":
+      return { phase: "speaking", speaker: "coach", caption: current.speaker === "coach" ? current.caption : "" };
     case "output_audio_buffer.stopped":
-    case "output_audio_buffer.cleared": return current.phase === "speaking" ? { ...current, phase: "ready" } : current;
+    case "output_audio_buffer.cleared":
+      return current.phase === "speaking" ? { ...current, phase: "ready" } : current;
     case "response.output_audio_transcript.delta":
-      return typeof e.delta === "string" ? { ...current, speaker: "coach", caption: ((current.speaker === "coach" ? current.caption ?? "" : "") + e.delta).slice(-2000) } : current;
+      return typeof e.delta === "string"
+        ? {
+            ...current,
+            speaker: "coach",
+            caption: ((current.speaker === "coach" ? (current.caption ?? "") : "") + e.delta).slice(-2000),
+          }
+        : current;
     case "response.output_audio_transcript.done":
-      return typeof e.transcript === "string" ? { ...current, speaker: "coach", caption: e.transcript.slice(-2000) } : current;
+      return typeof e.transcript === "string"
+        ? { ...current, speaker: "coach", caption: e.transcript.slice(-2000) }
+        : current;
     case "conversation.item.input_audio_transcription.completed":
       // A delayed Learner transcript must not replace the coach's current captions.
-      return current.speaker !== "coach" && typeof e.transcript === "string" ? { ...current, speaker: "learner", caption: e.transcript.slice(-2000) } : current;
-    default: return current;
+      return current.speaker !== "coach" && typeof e.transcript === "string"
+        ? { ...current, speaker: "learner", caption: e.transcript.slice(-2000) }
+        : current;
+    default:
+      return current;
   }
 }
 
@@ -49,14 +68,24 @@ const browser = (): CallDeps => ({
     const audio = new Audio();
     audio.autoplay = true;
     audio.srcObject = stream;
-    return () => { audio.pause(); audio.srcObject = null; };
+    return () => {
+      audio.pause();
+      audio.srcObject = null;
+    };
   },
 });
 
 export type Call = { mute(muted: boolean): void; hangUp(): void };
 
 /** Starts a call: microphone, peer connection, SDP exchange with `url`. Every change of state goes to `onChange`. */
-export function startCall(url: string, { onChange, onConversation }: { onChange: (state: CallState) => void; onConversation?: (state: ConversationState) => void }, deps: CallDeps = browser()): Call {
+export function startCall(
+  url: string,
+  {
+    onChange,
+    onConversation,
+  }: { onChange: (state: CallState) => void; onConversation?: (state: ConversationState) => void },
+  deps: CallDeps = browser(),
+): Call {
   let stream: MediaStream | undefined;
   let peer: RTCPeerConnection | undefined;
   let over = false;
@@ -85,14 +114,21 @@ export function startCall(url: string, { onChange, onConversation }: { onChange:
       peer = new deps.RTCPeerConnection();
       const pc = peer;
       for (const track of stream.getTracks()) pc.addTrack(track, stream);
-      pc.ontrack = (event) => { if (!over) stopPlayback = deps.play(event.streams[0]!); };
+      pc.ontrack = (event) => {
+        if (!over) stopPlayback = deps.play(event.streams[0]!);
+      };
       channel = pc.createDataChannel("oai-events");
       channel.onmessage = (message) => {
         if (over) return;
         try {
           const next = conversationEvent(conversation, JSON.parse(message.data));
-          if (next !== conversation) { conversation = next; onConversation?.(next); }
-        } catch { /* Ignore malformed or unrelated data-channel events. */ }
+          if (next !== conversation) {
+            conversation = next;
+            onConversation?.(next);
+          }
+        } catch {
+          /* Ignore malformed or unrelated data-channel events. */
+        }
       };
       pc.onconnectionstatechange = () => {
         if (over) return;
@@ -102,7 +138,11 @@ export function startCall(url: string, { onChange, onConversation }: { onChange:
       };
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      const response = await deps.fetch(url, { method: "POST", headers: { "content-type": "application/sdp" }, body: offer.sdp });
+      const response = await deps.fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/sdp" },
+        body: offer.sdp,
+      });
       if (over) return;
       if (!response.ok) {
         const body = await response.json().catch(() => null);

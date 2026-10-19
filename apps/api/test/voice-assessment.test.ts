@@ -34,7 +34,9 @@ const learnerTurn = (itemId: string, startMs: number, endMs: number, transcript:
   { type: "input_audio_buffer.speech_stopped", item_id: itemId, audio_end_ms: endMs },
   { type: "conversation.item.input_audio_transcription.completed", item_id: itemId, transcript },
 ];
-const coachTurn = (itemId: string, transcript: string) => [{ type: "response.output_audio_transcript.done", item_id: itemId, transcript }];
+const coachTurn = (itemId: string, transcript: string) => [
+  { type: "response.output_audio_transcript.done", item_id: itemId, transcript },
+];
 
 describe("voice assessment over Realtime", () => {
   test("starting the call returns only the SDP answer; the session has token limits and gets the Assessment instructions", async () => {
@@ -122,7 +124,9 @@ describe("voice assessment over Realtime", () => {
 
   test("the Report scores fluency from speaking speed, pauses and the judge's view of coherence", async () => {
     const reply = reportReply();
-    const { app, clock, realtime } = setup([{ ...reply, skills: { ...reply.skills, fluency: { score: 70, evidence: [] } } }]);
+    const { app, clock, realtime } = setup([
+      { ...reply, skills: { ...reply.skills, fluency: { score: 70, evidence: [] } } },
+    ]);
     const { cookie } = await signUp(app);
     const id = await startVoice(app, cookie);
     await app.request(`/api/assessments/${id}/call`, sdp(cookie));
@@ -130,7 +134,8 @@ describe("voice assessment over Realtime", () => {
     const sb = realtime.sideband();
     const sixtyWords = Array(60).fill("word").join(" ");
     // 120 words in 60 s of speech (120 wpm), with one 1 s hesitation between the two stretches.
-    for (const e of [...learnerTurn("u1", 0, 30_000, sixtyWords), ...learnerTurn("u2", 31_000, 61_000, sixtyWords)]) sb.emit(e);
+    for (const e of [...learnerTurn("u1", 0, 30_000, sixtyWords), ...learnerTurn("u2", 31_000, 61_000, sixtyWords)])
+      sb.emit(e);
 
     clock.advance({ minutes: 10 });
     const end = await app.request(`/api/assessments/${id}/end`, json({}, cookie));
@@ -139,7 +144,9 @@ describe("voice assessment over Realtime", () => {
 
     // speed (120 − 60) / 100 → 60; pauses 1 − 1/61 → 98.4; coherence 70
     // 0.4 × 60 + 0.2 × 98.4 + 0.4 × 70 = 71.7 → 72
-    expect(await (await app.request("/api/skill-profile", get(cookie))).json()).toMatchObject({ fluency: { score: 72, level: "C1" } });
+    expect(await (await app.request("/api/skill-profile", get(cookie))).json()).toMatchObject({
+      fluency: { score: 72, level: "C1" },
+    });
     expect((await read(app, cookie, id)).report.skills.fluency).toMatchObject({ score: 72, level: "C1" });
   });
 
@@ -150,7 +157,9 @@ describe("voice assessment over Realtime", () => {
     await app.request(`/api/assessments/${id}/call`, sdp(cookie));
 
     clock.advance({ minutes: 2 });
-    expect(await (await app.request(`/api/assessments/${id}/end`, json({}, cookie))).json()).toMatchObject({ status: "discarded" });
+    expect(await (await app.request(`/api/assessments/${id}/end`, json({}, cookie))).json()).toMatchObject({
+      status: "discarded",
+    });
     expect(realtime.sideband().hungUp).toBe(true);
   });
 
@@ -159,7 +168,9 @@ describe("voice assessment over Realtime", () => {
     const asha = await signUp(app);
     const ravi = await signUp(app);
     const voice = await startVoice(app, asha.cookie);
-    const written = ((await (await app.request("/api/assessments", json({ mode: "written" }, ravi.cookie))).json()) as any).id;
+    const written = (
+      (await (await app.request("/api/assessments", json({ mode: "written" }, ravi.cookie))).json()) as any
+    ).id;
 
     expect((await app.request(`/api/assessments/${voice}/call`, sdp(ravi.cookie))).status).toBe(404);
     expect((await app.request(`/api/assessments/${written}/call`, sdp(ravi.cookie))).status).toBe(409);

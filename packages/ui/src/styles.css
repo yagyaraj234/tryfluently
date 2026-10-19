@@ -2,7 +2,7 @@
  * The one stylesheet: Tailwind plus the Impromptu theme. The landing page and the app share every token here.
  * Components style themselves with utilities; this file only holds tokens, dark values, keyframes and base rules.
  */
-@import 'tailwindcss' source(none);
+@import "tailwindcss" source(none);
 
 @source "./";
 
@@ -17,7 +17,7 @@
 
 /* `static` keeps every token in the output, so a var() in an arbitrary value always resolves. */
 @theme static {
-  --font-sans: 'Familjen Grotesk', system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
 
   /* Colours, light. Dark values are below. */
   --color-canvas: #f5f5f4; /* warm grey page background. Not "page": text-page is a type size */
@@ -87,8 +87,10 @@
   --text-hero--letter-spacing: -0.045em;
 
   /* Depth: soft, layered shadows. */
-  --shadow-card: 0 1px 2px var(--color-shadow), 0 8px 24px -8px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
-  --shadow-lift: 0 2px 4px var(--color-shadow), 0 16px 32px -12px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
+  --shadow-card:
+    0 1px 2px var(--color-shadow), 0 8px 24px -8px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
+  --shadow-lift:
+    0 2px 4px var(--color-shadow), 0 16px 32px -12px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
   --shadow-frame: 0 40px 70px -40px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
   --shadow-float: 0 8px 24px -6px rgb(0 0 0 / 0.35);
   --shadow-glow: 0 6px 20px -4px rgb(0 0 0 / 0.25); /* tint it with shadow-primary/55 */
@@ -126,51 +128,83 @@
   --container-page: 67.5rem; /* the landing page */
 
   @keyframes celebrate {
-    0% { transform: scale(0.8) rotate(-12deg); }
-    50% { transform: scale(1.15) rotate(8deg); }
-    100% { transform: scale(1) rotate(0); }
+    0% {
+      transform: scale(0.8) rotate(-12deg);
+    }
+    50% {
+      transform: scale(1.15) rotate(8deg);
+    }
+    100% {
+      transform: scale(1) rotate(0);
+    }
   }
   @keyframes rise {
-    from { opacity: 0; transform: translateY(10px); }
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
   }
   @keyframes draw {
-    from { stroke-dashoffset: 1; }
+    from {
+      stroke-dashoffset: 1;
+    }
   }
   @keyframes bob {
-    50% { transform: translateY(-4px); }
+    50% {
+      transform: translateY(-4px);
+    }
   }
   @keyframes wave {
-    50% { transform: scaleY(1); }
+    50% {
+      transform: scaleY(1);
+    }
   }
   @keyframes blink {
-    50% { opacity: 0; }
+    50% {
+      opacity: 0;
+    }
   }
   @keyframes orb-breathe {
-    50% { transform: scale(1.05); }
+    50% {
+      transform: scale(1.05);
+    }
   }
   @keyframes orb-wave {
-    to { transform: translateX(-200px); }
+    to {
+      transform: translateX(-200px);
+    }
   }
   @keyframes orb-ring {
-    from { transform: scale(1); opacity: 0.3; }
-    to { transform: scale(1.55); opacity: 0; }
+    from {
+      transform: scale(1);
+      opacity: 0.3;
+    }
+    to {
+      transform: scale(1.55);
+      opacity: 0;
+    }
   }
   @keyframes fill-up {
-    from { transform: scaleY(0.2); opacity: 0.2; }
+    from {
+      transform: scaleY(0.2);
+      opacity: 0.2;
+    }
   }
   @keyframes fill-across {
-    from { transform: scaleX(0); }
+    from {
+      transform: scaleX(0);
+    }
   }
 }
 
 /* Dark follows the system unless <html data-theme> says otherwise, in either direction. */
 @custom-variant dark {
   @media (prefers-color-scheme: dark) {
-    &:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
       @slot;
     }
   }
-  &:where([data-theme='dark'], [data-theme='dark'] *) {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
     @slot;
   }
 }

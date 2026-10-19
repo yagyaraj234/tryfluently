@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { startWeb } from "./helpers.mjs";
+import { buttons, startWeb } from "./helpers.mjs";
 
-const goal = (id, kind, status = "confirmed") => ({ id, kind, status, targetLevels: {}, brief: null, hasContext: false });
+const goal = (id, kind, status = "confirmed") => ({
+  id,
+  kind,
+  status,
+  targetLevels: {},
+  brief: null,
+  hasContext: false,
+});
 // Each Learner (by cookie) has their own Goals.
 const goals = {
   asha: [goal("g1", "job_interview"), goal("g2", "general_fluency", "proposed")],
@@ -15,13 +22,31 @@ const goals = {
 
 const say = (role, text) => ({ id: `${role}-${text.length}`, role, parts: [{ type: "text", text }] });
 const roleplay = (id, over) => ({
-  id, kind: "roleplay", roleplayKind: "mock_interview", tone: "tough", textMode: true, status: "in_progress",
-  unitId: null, title: "Mock Interview", objective: "Answer Mock Interview questions", messages: [], steps: [], debrief: null, ...over,
+  id,
+  kind: "roleplay",
+  roleplayKind: "mock_interview",
+  tone: "tough",
+  textMode: true,
+  status: "in_progress",
+  unitId: null,
+  title: "Mock Interview",
+  objective: "Answer Mock Interview questions",
+  messages: [],
+  steps: [],
+  debrief: null,
+  ...over,
 });
 const debrief = {
   textMode: true,
   overallImpression: "You kept the conversation going and explained your project clearly.",
-  questions: [{ question: "Tell me about yourself.", quote: "I am working here since 2020.", strongerPhrasing: "I've been working here since 2020.", languageIssues: ["Present perfect continuous with since"] }],
+  questions: [
+    {
+      question: "Tell me about yourself.",
+      quote: "I am working here since 2020.",
+      strongerPhrasing: "I've been working here since 2020.",
+      languageIssues: ["Present perfect continuous with since"],
+    },
+  ],
   phrasesToLearn: ["walk you through", "on the same page", "a quick win"],
   skillChanges: { grammar: { from: 54, to: 58 } },
 };
@@ -30,10 +55,17 @@ const roleplays = {
   // A Unit-closing Roleplay from /api/lessons/next: voice until the Learner types.
   closing: roleplay("closing", { textMode: false, unitId: "u1" }),
   spoken: roleplay("spoken", { textMode: false, messages: [say("assistant", "Hi, thanks for joining.")] }),
-  done: roleplay("done", { status: "completed", unitId: "u1", debrief }),
+  done: roleplay("done", {
+    status: "completed",
+    unitId: "u1",
+    debrief,
+    messages: [say("user", "I led the billing project.")],
+  }),
   quiet: roleplay("quiet", { status: "abandoned" }),
   practice: { ...roleplay("practice"), kind: "practice" },
-  typing: roleplay("typing", { messages: [say("user", "Hello!"), say("assistant", "Thanks for coming in. Tell me about yourself.")] }),
+  typing: roleplay("typing", {
+    messages: [say("user", "Hello!"), say("assistant", "Thanks for coming in. Tell me about yourself.")],
+  }),
 };
 
 const minutesLeft = (learner) => {
@@ -45,10 +77,16 @@ let web;
 
 before(async () => {
   web = await startWeb((req, res) => {
-    const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
+    const json = (status, body) =>
+      res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     const learner = /learner=(\w+)/.exec(req.headers.cookie ?? "")?.[1];
     if (!learner) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/me") return json(200, { id: learner, name: learner });
+    if (req.url === "/api/roleplays")
+      return json(200, [
+        { ...roleplays.done, startedAt: "2026-10-19T09:00:00Z" },
+        { ...roleplays.quiet, startedAt: "2026-10-18T09:00:00Z" },
+      ]);
     if (req.url === "/api/goals") return json(200, goals[learner] ?? []);
     if (req.url === "/api/voice-minutes") return json(200, { limitMinutes: 15, ...minutesLeft(learner) });
     const id = /^\/api\/lessons\/(\w+)$/.exec(req.url)?.[1];
@@ -59,7 +97,8 @@ before(async () => {
 
 after(() => web.close());
 
-const get = (path, learner = "asha") => fetch(web.url + path, { headers: { cookie: `learner=${learner}` }, redirect: "manual" });
+const get = (path, learner = "asha") =>
+  fetch(web.url + path, { headers: { cookie: `learner=${learner}` }, redirect: "manual" });
 
 async function page(path, learner) {
   const response = await get(path, learner);
@@ -67,7 +106,11 @@ async function page(path, learner) {
   return (await response.text()).match(/<main[\s\S]*<\/main>/)[0];
 }
 
-const text = (html) => html.replace(/<!--.*?-->/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+const text = (html) =>
+  html
+    .replace(/<!--.*?-->/g, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ");
 
 test("Roleplay setup offers the confirmed Goals, the tone and voice or text", async () => {
   const t = text(await page("/roleplays/new"));
@@ -99,14 +142,15 @@ test("a text Roleplay is a chat with the character, with its kind, tone and an E
   assert.match(t, /Mock Interview · Tough/);
   assert.match(t, /You: Hello!/);
   assert.match(t, /Interviewer: Thanks for coming in\. Tell me about yourself\./);
-  assert.match(html, /<button[^>]*>End<\/button>/);
+  assert.ok(buttons(html).includes("End"));
   assert.match(html, /<textarea/);
+  assert.match(html, /role="log"/);
 });
 
 test("a new text Roleplay waits for the Learner to say hello", async () => {
   const t = text(await page("/roleplays/fresh"));
   assert.match(t, /Client Call · Friendly/);
-  assert.match(t, /Your client is ready .* Say hello to start\./);
+  assert.match(t, /Say hello to start\. Your client stays in character/);
 });
 
 test("Type instead isn't offered while a call is connecting or live, since it can't be taken back", async () => {
@@ -117,7 +161,10 @@ test("a finished Roleplay shows its Debrief, and one that closed a Unit goes on 
   const t = text(await page("/roleplays/done"));
   assert.match(t, /Your Debrief/);
   assert.match(t, /You kept the conversation going/);
-  assert.match(t, /Tell me about yourself\. You said I am working here since 2020\. Stronger I&#x27;ve been working here since 2020\./);
+  assert.match(
+    t,
+    /Tell me about yourself\. You said I am working here since 2020\. Stronger I&#x27;ve been working here since 2020\./,
+  );
   assert.match(t, /Present perfect continuous with since/);
   assert.match(t, /walk you through Hear it/);
   assert.match(t, /Grammar 54 → 58/);
@@ -139,14 +186,14 @@ test("a voice Roleplay opens on the live bar, connecting, with its kind and tone
   assert.match(t, /Connecting… Mock Interview · Tough/);
   assert.match(t, /15:00 left today/);
   assert.match(html, /aria-label="Mute"/);
-  assert.match(html, /<button[^>]*>End<\/button>/);
+  assert.ok(buttons(html).includes("End"));
 });
 
 test("with today's voice minutes used up, a voice Roleplay shows the cap and when it resets, and offers to type instead", async () => {
   const t = text(await page("/roleplays/closing", "zoe"));
   assert.match(t, /You&#x27;ve used today&#x27;s voice minutes/);
   assert.match(t, /15 minutes a day/);
-  assert.match(t, /back at midnight/);
+  assert.match(t, /available at midnight/);
   assert.match(t, /Type instead/);
   assert.doesNotMatch(t, /Connecting/, "no call is started");
 });
@@ -163,4 +210,20 @@ test("in the last minute of today's voice minutes, a gentle warning says the cal
   assert.match(t, /0:45 left today/);
   assert.match(t, /About a minute of voice time is left today/);
   assert.doesNotMatch(text(await page("/roleplays/closing")), /About a minute/, "not before the last minute");
+});
+
+test("Roleplays page lists saved sessions with feedback and abandoned status", async () => {
+  const html = await page("/roleplays");
+  assert.match(text(html), /Mock Interview/);
+  assert.match(text(html), /Abandoned/);
+  assert.match(html, /href="\/roleplays\/done"/);
+  assert.match(text(html), /View feedback/);
+  assert.match(html, /href="\/roleplays\/new"/);
+});
+
+test("saved Roleplay feedback includes its conversation history", async () => {
+  const html = await page("/roleplays/done");
+  assert.match(text(html), /Conversation history/);
+  assert.match(text(html), /I led the billing project/);
+  assert.match(html, /href="\/roleplays"/);
 });

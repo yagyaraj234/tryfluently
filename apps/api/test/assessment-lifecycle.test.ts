@@ -1,8 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { reportReply, takeWrittenAssessment } from "./fixtures";
-import { fakeMailer, get, json, makeApp, makeClock, mockChat, mockModel, signUp, userMessage, WEB_ORIGIN, type TestApp } from "./helpers";
+import {
+  fakeMailer,
+  get,
+  json,
+  makeApp,
+  makeClock,
+  mockChat,
+  mockModel,
+  signUp,
+  userMessage,
+  WEB_ORIGIN,
+  type TestApp,
+} from "./helpers";
 
-const start = async (app: TestApp, cookie: string) => app.request("/api/assessments", json({ mode: "written" }, cookie));
+const start = async (app: TestApp, cookie: string) =>
+  app.request("/api/assessments", json({ mode: "written" }, cookie));
 
 async function startAndChat(app: TestApp, cookie: string) {
   const { id } = (await (await start(app, cookie)).json()) as { id: string };
@@ -22,16 +35,18 @@ const setup = (reports: unknown[] = [], mailer = fakeMailer()) => {
   });
   return { app, clock, mailer };
 };
-const reportEmails = (mailer: ReturnType<typeof fakeMailer>) => mailer.sent.filter((email) => typeof email.subject === "string" && email.subject.includes("Assessment Report"));
+const reportEmails = (mailer: ReturnType<typeof fakeMailer>) =>
+  mailer.sent.filter((email) => typeof email.subject === "string" && email.subject.includes("Assessment Report"));
 
 describe("assessment lifecycle", () => {
   test("two requests ending the same Assessment persist one Report and one set of learning results", async () => {
     const { app, clock, mailer } = setup([reportReply(), reportReply()]);
-    const { cookie } = await signUp(app);
+    const { cookie, id: userId } = await signUp(app);
     const id = await startAndChat(app, cookie);
     clock.advance({ minutes: 10 });
     const results = await Promise.all([0, 1].map(() => app.request(`/api/assessments/${id}/end`, json({}, cookie))));
-    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(results.map((r) => r.status)).toEqual([200, 200]);
+    await app.runJobs(userId);
     expect(await (await app.request("/api/skill-profile/history", get(cookie))).json()).toHaveLength(2);
     expect(await (await app.request("/api/focus-items", get(cookie))).json()).toHaveLength(3);
     expect(reportEmails(mailer)).toHaveLength(1);
@@ -151,7 +166,7 @@ describe("first-Report email", () => {
     expect(reportEmails(mailer)).toHaveLength(1);
   });
 
-  test("an email that fails to send doesn't lose the Report, and is tried again next time", async () => {
+  test("an email that fails to send doesn't lose the Report, and the worker retries it", async () => {
     let fail = true;
     const sent: unknown[] = [];
     const mailer = {
@@ -161,7 +176,11 @@ describe("first-Report email", () => {
       },
     };
     const clock = makeClock();
-    const app = makeApp({ now: clock, mailer, models: { step: mockChat("Hi", "Hi"), report: mockModel(reportReply(), reportReply()) } });
+    const app = makeApp({
+      now: clock,
+      mailer,
+      models: { step: mockChat("Hi", "Hi"), report: mockModel(reportReply(), reportReply()) },
+    });
     const { cookie } = await signUp(app);
 
     const { id, end } = await takeWrittenAssessment(app, cookie, clock);
@@ -169,8 +188,9 @@ describe("first-Report email", () => {
     expect(await read(app, cookie, id)).toMatchObject({ status: "completed", emailedAt: null });
 
     fail = false;
-    clock.advance({ days: 7 });
-    await takeWrittenAssessment(app, cookie, clock);
+    clock.advance({ seconds: 5 });
+    const me = (await (await app.request("/api/me", get(cookie))).json()) as { id: string };
+    await app.runJobs(me.id);
     expect(sent).toHaveLength(1);
   });
 });
