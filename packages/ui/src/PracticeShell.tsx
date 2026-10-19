@@ -5,9 +5,9 @@ import { IconButton } from "./IconButton";
 
 // No navigation, so the Learner can concentrate. One column at any width.
 const shell = cva("flex min-h-dvh flex-col bg-canvas px-4 text-ink");
-const header = cva("sticky top-0 z-sticky mx-auto flex w-full max-w-content items-center gap-3 bg-canvas py-3");
+const header = cva("sticky top-0 z-sticky mx-auto flex w-full max-w-3xl items-center gap-3 bg-canvas py-3");
 const title = cva("min-w-0 truncate text-caption font-semibold text-muted");
-const main = cva("mx-auto w-full max-w-content flex-1 pb-10");
+const main = cva("mx-auto w-full max-w-3xl flex-1 pb-10 pt-4");
 
 export type PracticeShellProps = {
   /** Called when the Learner closes the screen; call `preventDefault()` to stop a `closeRender` link navigating. */

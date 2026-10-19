@@ -1,8 +1,13 @@
-# Units, Lessons and Steps are generated one at a time
+# Plan Lesson outlines; generate practice when reached
 
-Nothing below the Roadmap outline is generated ahead of time. Each Unit, Lesson and Step is generated only when the Learner reaches it, using how they did on everything before it. This makes the Learner wait a moment at each boundary and means every Step needs an LLM call, but it lets the practice adapt within a single Lesson. The Roadmap is only an outline of Unit titles and objectives, and it gets revised whenever the Skill Profile moves.
+Updated 19 October 2026: the Roadmap includes distinct Lesson titles and objectives inside each Unit. This lets the Learner see several meaningful next activities instead of repeated placeholders. Outlines can include vocabulary, clarifying a concept, rewriting and speaking, chosen for that Unit and the Learner’s Goals.
+
+An outline is not a generated Lesson sitting. Starting a Lesson still uses the Learner’s current Skill Profile, earlier results and Focus Items to adapt its objective and generate Steps one at a time. Completed and in-progress Lessons remain intact. Future Unit outlines can change when the Roadmap is revised; mastery can advance the Learner before every outlined Lesson is needed, or require additional practice.
+
+Existing Roadmaps receive missing outlines without replacing their Units or practice history. Preparing an outline does not start or complete a Lesson and earns no XP or Streak.
 
 ## Considered Options
 
-- **Generate the whole course after the Assessment**: faster to load and cheaper, but the course is out of date after the first Lesson.
-- **A fixed curriculum, chosen per CEFR Level**: predictable, but it ignores Goal Context, which is the whole point of personalisation.
+- **Generate all practice after the Assessment**: faster navigation, but content becomes stale after the first Lesson.
+- **Show only Unit titles**: keeps planning minimal, but hides the variety within each Unit and leads to generic Lesson placeholders.
+- **A fixed curriculum per CEFR Level**: predictable, but ignores Goal Context and progress within a Unit.

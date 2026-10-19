@@ -1,7 +1,11 @@
 import { useChat } from "@ai-sdk/react";
 import {
   Button,
-  Card,
+  LessonStage,
+  TeachingPage,
+  TextLink,
+  ReorderStep,
+  FillGapsStep,
   ErrorState,
   EmptyState,
   FillGapStep,
@@ -65,12 +69,13 @@ function LessonError({ error }: ErrorComponentProps) {
 
 function LessonScreen() {
   const lesson = Route.useLoaderData();
+  const [review, setReview] = useState(false);
   // A new Lesson (from Lesson complete's "Next Lesson") gets a fresh player.
   if (lesson.status === "abandoned")
     return <EmptyState title="This Lesson has ended" description="Its Unit was skipped. Continue with your active Unit." action={<Button render={<Link to="/home" />}>Back to Home</Button>} />;
   return lesson.status === "in_progress"
     ? <Player key={lesson.id} lesson={lesson} />
-    : <Complete xpGained={20 + 10 * lesson.steps.filter((s) => s.answeredAt).length} />;
+    : review ? <LessonReview lesson={lesson} onClose={() => setReview(false)} /> : <Stack gap={6}><Complete xpGained={20 + 10 * lesson.steps.filter((s) => s.answeredAt).length} />{lesson.steps.length > 0 && <Button variant="secondary" onClick={() => setReview(true)}>Review this Lesson</Button>}</Stack>;
 }
 
 // ---- Step types --------------------------------------------------------------------------------------------------
@@ -95,6 +100,12 @@ const stepKinds: Record<string, StepKind<unknown>> = {
     type: "Fill the gap",
     question: () => "Complete the sentence",
     render: (input, answer) => <FillGapStep {...input} {...answer} />,
+  }),
+  fillGaps: kind<{ sentence: string; choices?: string[] }>({
+    type: "Fill the blanks", question: () => "Complete the sentence", render: (input, answer) => <FillGapsStep {...input} {...answer} />,
+  }),
+  reorder: kind<{ prompt: string; items: string[] }>({
+    type: "Put it in order", question: (input) => input.prompt, render: (input, answer) => <ReorderStep {...input} {...answer} />,
   }),
   rewrite: kind<Omit<RewriteStepProps, keyof Answer> & { aim: string }>({
     type: "Rewrite",
@@ -156,7 +167,8 @@ function Player({ lesson }: { lesson: Lesson }) {
   const busy = chat.status === "submitted" || chat.status === "streaming";
 
   // The Step the Learner just answered, kept on screen with its feedback until they move on.
-  const [reviewingId, setReviewingId] = useState<string>();
+  const [reviewingId, setReviewingId] = useState<string | undefined>(() => read(lesson.messages).steps.findLast((s) => s.state === "output-available")?.toolCallId);
+  const [taughtId, setTaughtId] = useState<string>();
   // Answers since the last Step was asked for; see the nudge below.
   const nudges = useRef(0);
   function answer(step: ToolUIPart, output: string | { recordingId: string }) {
@@ -232,15 +244,14 @@ function Player({ lesson }: { lesson: Lesson }) {
     const spoken = typeof output?.recordingId === "string";
     const transcript = spoken && said?.stepId === reviewing.toolCallId ? said.text : undefined;
     return (
-      <Card>
-        <Stack gap={6}>
+      <LessonStage>
           <Header step={reviewing} position={position} />
           {feedback ? (
             <StepFeedback
               {...feedback}
-              answer={typed ?? transcript}
+              answer={typed ? displayAnswer(stepName(reviewing), reviewing.input, typed) : transcript}
               spoken={spoken}
-              nextLabel={ended ? "See how you did" : "Next step"}
+              nextLabel={ended ? "See how you did" : "Continue"}
               onNext={() => setReviewingId(undefined)}
               onHearIt={canHear(feedback.corrected) ? () => void play(feedback.corrected) : undefined}
             />
@@ -254,8 +265,7 @@ function Player({ lesson }: { lesson: Lesson }) {
               <LoadingState title="Checking your answer" />
             </>
           )}
-        </Stack>
-      </Card>
+      </LessonStage>
     );
   }
 
@@ -270,15 +280,49 @@ function Player({ lesson }: { lesson: Lesson }) {
     );
 
   const step = pending;
+  const teaching = (step.input as { teaching?: { title: string; body: string; example?: string } }).teaching;
+  const showTeaching = Boolean(teaching && taughtId !== step.toolCallId);
   return (
-    <Card>
-      <Stack gap={6}>
+    <>
+    {showTeaching && <TeachingPage {...teaching!} onNext={() => setTaughtId(step.toolCallId)} />}
+    <div hidden={showTeaching}><LessonStage>
         <Header step={step} position={steps.length} />
+        {teaching && <TextLink disabled={recorder.state.status === "recording" || recorder.state.status === "processing"} onClick={() => setTaughtId(undefined)}>Back to the idea</TextLink>}
         {/* Keyed, so a Step's own state (like "Type instead") doesn't carry over to the next. */}
         <Fragment key={step.toolCallId}>{stepKinds[stepName(step)]!.render(step.input, { pending: busy, onAnswer: (a) => answer(step, a) }, voice)}</Fragment>
-      </Stack>
-    </Card>
+    </LessonStage></div>
+    </>
   );
+}
+
+function displayAnswer(type: string, input: any, answer: string): string {
+  if (type !== "fillGaps" && type !== "reorder") return answer;
+  try {
+    const values = JSON.parse(answer);
+    if (type === "reorder") return values.map((i: number) => input.items[i]).join(" ");
+    let i = 0;
+    return input.sentence.replace(/_{2,}/g, () => values[i++]);
+  } catch { return answer; }
+}
+
+function LessonReview({ lesson, onClose }: { lesson: Lesson; onClose: () => void }) {
+  const [index, setIndex] = useState(0);
+  const step = lesson.steps[index]!;
+  const k = stepKinds[step.type];
+  const feedback = step.feedback as Feedback | null;
+  const input = step.input as any;
+  const output = step.output as { answer?: string } | null;
+  return <LessonStage>
+    <Text size="label" tone="muted">Review · {index + 1} of {lesson.steps.length} · no new XP</Text>
+    {k && <StepHeader type={k.type} question={k.question(input)} />}
+    {input.teaching && <Stack gap={3}><Text>{input.teaching.body}</Text>{input.teaching.example && <Text tone="muted">{input.teaching.example}</Text>}</Stack>}
+    {k && k.render(input, { answered: output?.answer ?? "", pending: true, onAnswer: () => {} }, { recording: { status: "idle" }, onStart: () => {}, onStop: () => {}, onRetry: () => {} })}
+    {feedback ? <StepFeedback {...feedback} answer={output?.answer ? displayAnswer(step.type, input, output.answer) : undefined}
+      nextLabel={index + 1 < lesson.steps.length ? "Next reviewed Step" : "Finish review"}
+      onNext={() => index + 1 < lesson.steps.length ? setIndex(index + 1) : onClose()} />
+      : <><Text>{output?.answer ? displayAnswer(step.type, input, output.answer) : "No saved answer"}</Text><Button onClick={() => index + 1 < lesson.steps.length ? setIndex(index + 1) : onClose()}>Continue</Button></>}
+    <Button variant="secondary" onClick={onClose}>Back to Lesson summary</Button>
+  </LessonStage>;
 }
 
 // ---- Lesson complete ---------------------------------------------------------------------------------------------

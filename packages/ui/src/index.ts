@@ -6,6 +6,8 @@ export {
   AnswerBox,
   ChatTurn,
   FillGapStep,
+  FillGapsStep,
+  ReorderStep,
   RewriteStep,
   SpeakPromptStep,
   StepFeedback,
@@ -15,6 +17,8 @@ export {
   type AnswerBoxProps,
   type ChatTurnProps,
   type FillGapStepProps,
+  type FillGapsStepProps,
+  type ReorderStepProps,
   type RecordingState,
   type RewriteStepProps,
   type SpeakPromptStepProps,
@@ -38,6 +42,8 @@ export { Grid, type GridProps } from "./Grid";
 export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { LiveBar, type LiveBarProps } from "./LiveBar";
+export { VoiceOrb, type VoiceOrbProps, type VoicePhase } from "./VoiceOrb";
+export { Mascot, type MascotName, type MascotProps } from "./Mascot";
 export { LessonComplete, type LessonCompleteProps } from "./LessonComplete";
 export {
   AuthLayout,
@@ -96,3 +102,5 @@ export { UnitCard, UnitIcon, UnitStatusTag, type UnitCardProps, type UnitIconPro
 export { VerdictTag, type VerdictTagProps } from "./VerdictTag";
 export { WeekStrip, type WeekStripProps } from "./WeekStrip";
 export { XpChip, type XpChipProps } from "./XpChip";
+
+export { CoachAvatar, CoachCall, LessonStage, RoadmapNode, RoadmapUnit, StarterShell, TeachingPage, type CoachState } from "./Learning";

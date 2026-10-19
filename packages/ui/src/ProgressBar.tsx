@@ -7,7 +7,7 @@ export const labelledBarParts = {
   label: cva("text-caption font-bold"),
   value: cva("text-caption text-right tabular-nums"),
   track: cva("col-span-2 h-2 overflow-hidden rounded-full border border-line bg-subtle"),
-  indicator: cva("block h-full bg-primary motion-safe:transition-all motion-safe:duration-ui motion-safe:ease-ui"),
+  indicator: cva("block h-full bg-primary"),
 };
 
 export type ProgressBarProps = {

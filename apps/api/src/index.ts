@@ -23,6 +23,8 @@ for (const key of required) {
 
 export default {
   port: Number(env.PORT ?? 3000),
+  // AI streams can pause while the model thinks; Bun's default closes idle sockets after 10 seconds.
+  idleTimeout: 120,
   fetch: createApp({
     db: createDb(env.DATABASE_URL!),
     now: () => new Date(),
@@ -30,7 +32,7 @@ export default {
     models: modelsFromSettings(env),
     mailer: resendMailer(env.RESEND_API_KEY!, env.EMAIL_FROM!),
     speech: kenpathSpeech(env.KENPATH_BASE_URL!, env.KENPATH_API_KEY!, env.KENPATH_MODEL!),
-    realtime: openaiRealtime(env.OPENAI_API_KEY!),
+    realtime: openaiRealtime(env.OPENAI_API_KEY!, env.MODEL_REALTIME || undefined),
     transcriber: openaiTranscriber(env.OPENAI_API_KEY!),
   }).fetch,
 };

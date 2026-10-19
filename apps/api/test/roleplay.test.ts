@@ -276,7 +276,7 @@ describe("Roleplay at the end of a Unit", () => {
     const res = await app.request("/api/lessons/next", json({}, cookie));
     expect(res.status).toBe(201);
     const roleplay = (await res.json()) as any;
-    expect(roleplay).toMatchObject({ kind: "roleplay", unitId: last.id, roleplayKind: "mock_interview", tone: "standard", title: "Mock Interview" });
+    expect(roleplay).toMatchObject({ kind: "roleplay", unitId: last.id, roleplayKind: "mock_interview", tone: "standard", title: last.lessonOutline.find((l: any) => l.kind === "roleplay").title });
 
     await app.request(`/api/roleplays/${roleplay.id}/call`, sdp(cookie));
     const sb = realtime.sideband();

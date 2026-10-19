@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Button } from "./Button";
 import { Cluster } from "./Cluster";
 import { Heading } from "./Heading";
-import { spinner } from "./Spinner";
+import { Mascot } from "./Mascot";
 import { Text } from "./Text";
 
 // Empty, loading and error share one centred column, so every screen waits and fails the same way.
@@ -47,7 +47,7 @@ export type LoadingStateProps = {
 export function LoadingState({ title, description }: LoadingStateProps) {
   return (
     <div role="status" className={state()}>
-      <span aria-hidden className={spinner()} />
+      <Mascot name="hush" />
       <Text size="title">{title}</Text>
       {description && <Text tone="muted">{description}</Text>}
     </div>

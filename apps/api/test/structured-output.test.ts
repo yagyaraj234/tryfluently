@@ -2,10 +2,10 @@ import { expect, test } from "bun:test";
 import { reportOutput } from "../src/assessments";
 import { debriefOutput, judgeOutput } from "../src/completion";
 import { planOutput } from "../src/lessons";
-import { revisionOutput, roadmapOutput } from "../src/roadmap";
+import { outlineOutput, revisionOutput, roadmapOutput } from "../src/roadmap";
 import { z } from "zod";
 
-const outputSchemas = [reportOutput, judgeOutput, debriefOutput, planOutput, roadmapOutput, revisionOutput];
+const outputSchemas = [reportOutput, judgeOutput, debriefOutput, planOutput, roadmapOutput, revisionOutput, outlineOutput];
 
 function everyObjectRequiresItsProperties(schema: any): boolean {
   if (schema.type === "object" && !Object.keys(schema.properties ?? {}).every((key) => schema.required?.includes(key))) return false;

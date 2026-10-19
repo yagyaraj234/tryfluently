@@ -9,6 +9,7 @@ import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
 import { findRecording, recordedSecondsToday, recordingForm, timingOf, type Timing } from "./recordings";
 import { createRoleplay, roleplayKindFor } from "./roleplays";
+import { readyForRoleplay } from "./roadmap";
 import { skillProfile } from "./scoring";
 import { stepTools, stepTypes, takeAnswer } from "./steps";
 
@@ -17,7 +18,6 @@ const { lesson, step, unit, goal, focusItem } = schema;
 const MIN_STEPS = 3;
 const MAX_STEPS = 10;
 const HITS_TO_CLOSE = 3;
-const ROLEPLAY_AT = 80;
 
 const feedbackInput = z.object({
   verdict: z.enum(["correct", "almost", "incorrect"]),
@@ -42,7 +42,10 @@ ${focus.length ? `Their open Focus Items, to weave in where natural (id: label):
 Steps answered so far: ${answered}.
 Each turn: if the Learner just answered a Step, first call giveFeedback with a verdict, the corrected version, a
 one-sentence explanation and the ids of any open Focus Items the answer used correctly. Then call exactly one Step tool for the next Step, adapting to how they did.
-fillGap answers are already graded on the server: use its verdict. Keep any text short.
+fillGap, fillGaps and reorder answers are already graded on the server: use its verdict.
+For every Step, include teaching: a short title, a clear explanation (2–4 sentences), and an optional example.
+Teach the idea without revealing the Step answer. Vary Step types naturally: fillGaps for related contrasts,
+reorder for sentence parts or conversation turns, rewrite, vocabulary and speaking where useful. Keep any text short.
 Once the objective has been practised enough, call endLesson.`;
 
 export const lessons = ({
@@ -93,12 +96,12 @@ export const lessons = ({
 
       // A Unit that ends with a Roleplay gets one once a practice Lesson reaches 80+ on the objective;
       // a Roleplay at 80+ after it then masters the Unit.
-      const lastDone = inUnit.findLast((l) => l.status === "completed");
-      if (active.endsWithRoleplay && lastDone?.kind === "practice" && (lastDone.objectiveProgress ?? 0) >= ROLEPLAY_AT) {
+      if (readyForRoleplay(active.endsWithRoleplay, inUnit)) {
         const kind = await roleplayKindFor({ db }, userId);
-        return c.json(await withSteps(await createRoleplay({ db, now }, userId, { kind, unitId: active.id, position: inUnit.length })), 201);
+        return c.json(await withSteps(await createRoleplay({ db, now }, userId, { kind, unitId: active.id, position: inUnit.length, plan: active.lessonOutline.find((l) => l.kind === "roleplay") })), 201);
       }
 
+      const planned = active.lessonOutline.find((l) => l.kind === "practice" && l.position === inUnit.filter((l) => l.kind === "practice").length);
       let plan: z.infer<typeof planOutput>;
       try {
         ({ output: plan } = await generate({ db, now }, userId, {
@@ -106,6 +109,7 @@ export const lessons = ({
           instructions: planInstructions,
           prompt: JSON.stringify({
             unit: { title: active.title, objective: active.objective, skills: active.skills },
+            plannedLesson: planned,
             skillProfile: await skillProfile(db, userId),
             focusItems: (await openFocus(userId)).map((f) => f.label),
             earlierLessons: inUnit.filter((l) => l.summary).map((l) => ({ title: l.title, summary: l.summary })),
@@ -118,7 +122,7 @@ export const lessons = ({
       }
       const [created] = await db
         .insert(lesson)
-        .values({ userId, unitId: active.id, position: inUnit.length, kind: "practice", ...plan, startedAt: now() })
+        .values({ userId, unitId: active.id, position: inUnit.length, kind: "practice", ...plan, ...(planned && { title: planned.title }), startedAt: now() })
         .returning();
       return c.json(await withSteps(created!), 201);
     })

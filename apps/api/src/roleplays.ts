@@ -37,7 +37,8 @@ export async function createRoleplay(
     unitId = null,
     position = 0,
     textMode = false,
-  }: { kind: RoleplayKind; tone?: Tone; unitId?: string | null; position?: number; textMode?: boolean },
+    plan,
+  }: { plan?: { title: string; objective: string }; kind: RoleplayKind; tone?: Tone; unitId?: string | null; position?: number; textMode?: boolean },
 ) {
   const [row] = await db
     .insert(lesson)
@@ -49,8 +50,8 @@ export async function createRoleplay(
       roleplayKind: kind,
       tone,
       textMode,
-      title: titles[kind],
-      objective: objectives[kind],
+      title: plan?.title ?? titles[kind],
+      objective: plan?.objective ?? objectives[kind],
       startedAt: now(),
     })
     .returning();

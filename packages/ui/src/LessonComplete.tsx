@@ -1,12 +1,11 @@
-import { Confetti } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 import { Heading } from "./Heading";
+import { Mascot } from "./Mascot";
 import { StreakCard } from "./StreakCard";
 
 // The celebration is a brand moment: a card with the soft shadow.
 const panel = cva("flex flex-col items-center gap-6 rounded-3xl border border-line bg-paper p-8 text-center text-ink shadow-card");
-const icon = cva("text-hero text-primary motion-safe:animate-celebrate");
 const xp = cva("text-hero tabular-nums");
 const actions = cva("flex flex-wrap justify-center gap-3");
 
@@ -23,9 +22,7 @@ export type LessonCompleteProps = {
 export function LessonComplete({ xpGained, streak, actions: next }: LessonCompleteProps) {
   return (
     <section className={panel()}>
-      <span className={icon()}>
-        <Confetti aria-hidden />
-      </span>
+      <Mascot name="pip" size="lg" />
       <Heading level={1}>Lesson complete</Heading>
       {xpGained !== undefined && <p className={xp()}>{`+${xpGained} XP`}</p>}
       <StreakCard days={streak} />

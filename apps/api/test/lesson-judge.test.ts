@@ -82,8 +82,8 @@ describe("roadmap lessons", () => {
 
     const [first, second] = await roadmapOf(app, cookie);
     expect(first.lessons).toEqual([
-      { id: done.id, position: 0, kind: "practice", title: "Lesson 1", status: "completed", objectiveProgress: 65 },
-      { id: open.id, position: 1, kind: "practice", title: "Lesson 2", status: "in_progress", objectiveProgress: null },
+      { id: done.id, position: 0, kind: "practice", title: first.lessonOutline[0].title, status: "completed", objectiveProgress: 65 },
+      { id: open.id, position: 1, kind: "practice", title: first.lessonOutline[1].title, status: "in_progress", objectiveProgress: null },
     ]);
     expect(second.lessons).toEqual([]);
   });

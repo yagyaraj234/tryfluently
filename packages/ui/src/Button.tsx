@@ -9,7 +9,7 @@ import type { ComponentProps, ReactElement } from "react";
 export const pressableClasses =
   "inline-flex items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap motion-safe:transition motion-safe:duration-press motion-safe:ease-press motion-safe:not-data-disabled:active:scale-97 data-disabled:bg-subtle data-disabled:text-muted";
 
-const button = cva(pressableClasses, {
+const button = cva(`${pressableClasses} min-w-0 max-w-full`, {
   variants: {
     variant: {
       primary: "bg-primary text-on-primary",
@@ -47,8 +47,8 @@ export function Button({ variant = "primary", size = "md", glow = false, fullWid
         className: button({ variant, size, glow, fullWidth }),
         children: (
           <>
-            {Icon && <Icon aria-hidden />}
-            {children}
+            {Icon && <Icon aria-hidden className="shrink-0" />}
+            <span className="min-w-0 truncate">{children}</span>
           </>
         ),
       },

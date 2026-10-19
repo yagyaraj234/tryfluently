@@ -7,7 +7,7 @@ export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
 export const skillNames: Record<Skill, string> = { fluency: "Fluency", grammar: "Grammar", vocabulary: "Vocabulary" };
 
-const indicator = cva("block h-full motion-safe:transition-all motion-safe:duration-ui motion-safe:ease-ui", {
+const indicator = cva("block h-full", {
   variants: {
     skill: { fluency: "bg-skill-fluency", grammar: "bg-skill-grammar", vocabulary: "bg-skill-vocabulary" },
   },

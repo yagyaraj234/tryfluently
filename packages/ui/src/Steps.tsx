@@ -1,12 +1,13 @@
 import { Meter } from "@base-ui/react/meter";
 import { Progress } from "@base-ui/react/progress";
-import { SpeakerHigh } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, DotsSixVertical, SpeakerHigh } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { ChoiceChips } from "./ChoiceChips";
 import { Heading } from "./Heading";
+import { IconButton } from "./IconButton";
 import { Notice } from "./Notice";
 import { labelledBarParts } from "./ProgressBar";
 import { RecordButton } from "./RecordButton";
@@ -83,11 +84,77 @@ function useAnswer({ onAnswer, pending }: Answerable) {
 
 function SendButton({ pending, answer }: { pending?: boolean; answer: string }) {
   return (
-    <div>
-      <Button type="submit" disabled={pending || !answer.trim()}>
+    <div className="mt-6 w-full">
+      <Button type="submit" fullWidth disabled={pending || !answer.trim()}>
         Send answer
       </Button>
     </div>
+  );
+}
+
+export type FillGapsStepProps = Answerable & { sentence: string; choices?: string[] };
+
+export function FillGapsStep({ sentence, choices, ...props }: FillGapsStepProps) {
+  const parts = sentence.split(/_{2,}/);
+  const [values, setValues] = useState<string[]>(() => props.answered ? JSON.parse(props.answered) : Array(parts.length - 1).fill(""));
+  const [active, setActive] = useState(0);
+  const locked = props.answered !== undefined || props.pending;
+  const complete = values.every((v) => v.trim());
+  function fill(index: number, value: string) {
+    if (locked) return;
+    setValues((previous) => previous.map((v, n) => n === index ? value : v));
+  }
+  return (
+    <form className={form()} onSubmit={(e) => { e.preventDefault(); if (!locked && complete) props.onAnswer(JSON.stringify(values.map((v) => v.trim()))); }}>
+      <p className="text-title leading-loose text-ink">{parts.map((part, i) => <span key={i}>{part}{i < parts.length - 1 && (
+        <button type="button" aria-label={`Blank ${i + 1}: ${values[i] || "empty"}`} aria-pressed={active === i} disabled={locked} onClick={() => setActive(i)}
+          className="mx-1 inline-block min-h-11 min-w-16 rounded-lg border border-dashed border-line-strong bg-subtle px-2 text-ink aria-pressed:border-primary aria-pressed:bg-primary-soft">{values[i] || <span aria-hidden>…</span>}</button>
+      )}</span>)}</p>
+      {props.answered === undefined && <div className="mt-auto flex flex-col gap-4 pt-10">
+        {choices?.length ? <><Text size="caption" tone="muted">Choose words for blank {active + 1}. Select a blank to change it.</Text><div className="flex flex-wrap gap-3">{choices.map((choice, i) => <Button key={i} type="button" variant="secondary" disabled={locked} onClick={() => { fill(active, choice); setActive((active + 1) % values.length); }}>{choice}</Button>)}</div></>
+          : values.map((value, i) => <TextField key={i} label={`Blank ${i + 1}`} value={value} onValueChange={(v) => fill(i, v)} disabled={locked} maxLength={200} />)}
+        <SendButton pending={props.pending} answer={complete ? JSON.stringify(values) : ""} />
+      </div>}
+    </form>
+  );
+}
+
+export type ReorderStepProps = Answerable & { items: string[] };
+
+export function ReorderStep({ items, ...props }: ReorderStepProps) {
+  const [order, setOrder] = useState<number[]>(() => props.answered ? JSON.parse(props.answered) : items.map((_, i) => i));
+  const [dragging, setDragging] = useState<number>();
+  const [announcement, setAnnouncement] = useState("");
+  const rows = useRef(new Map<number, HTMLLIElement>());
+  const moved = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (moved.current === undefined) return;
+    rows.current.get(moved.current)?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    moved.current = undefined;
+  }, [order]);
+  const locked = props.pending || props.answered !== undefined;
+  function move(from: number, to: number) {
+    if (locked || to < 0 || to >= order.length || from === to) return;
+    moved.current = order[from];
+    const next = [...order];
+    next.splice(to, 0, next.splice(from, 1)[0]!);
+    setOrder(next);
+    setAnnouncement(`${items[order[from]!]} moved to position ${to + 1}`);
+  }
+  return (
+    <form className={form()} onSubmit={(e) => { e.preventDefault(); if (!locked) props.onAnswer(JSON.stringify(order)); }}>
+      <Text size="caption" tone="muted">Drag to arrange, or use the up and down buttons.</Text>
+      <p role="status" className="sr-only">{announcement}</p>
+      <ol className="flex flex-col gap-3">{order.map((item, index) => (
+        <li key={item} ref={(node) => { if (node) rows.current.set(item, node); else rows.current.delete(item); }} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (dragging !== undefined) move(dragging, index); setDragging(undefined); }}
+          className="flex items-center gap-3 rounded-xl border border-line-strong bg-paper p-3 text-body text-ink">
+          <span draggable={!locked} onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(index)); setDragging(index); }} onDragEnd={() => setDragging(undefined)} className="cursor-grab text-muted"><DotsSixVertical aria-hidden /></span>
+          <span className="text-caption tabular-nums text-muted">{index + 1}</span><span className="min-w-0 flex-1">{items[item]}</span>
+          {props.answered === undefined && <div className="flex shrink-0 gap-1"><IconButton icon={ArrowUp} label={`Move ${items[item]} up`} disabled={locked || index === 0} onClick={() => move(index, index - 1)} /><IconButton icon={ArrowDown} label={`Move ${items[item]} down`} disabled={locked || index === order.length - 1} onClick={() => move(index, index + 1)} /></div>}
+        </li>
+      ))}</ol>
+      {props.answered === undefined && <SendButton pending={props.pending} answer={JSON.stringify(order)} />}
+    </form>
   );
 }
 
@@ -208,13 +275,13 @@ export function FillGapStep({ sentence, choices, ...props }: FillGapStepProps) {
   );
 }
 
-const panel = cva("flex flex-col items-start gap-3 rounded-xl border border-line p-5 text-ink", {
+const panel = cva("sticky bottom-0 z-sticky mt-auto flex flex-col items-stretch gap-5 rounded-2xl border border-line p-6 text-ink shadow-card", {
   variants: {
     verdict: { correct: "bg-correct-tint", almost: "bg-almost-tint", incorrect: "bg-incorrect-tint" },
   },
 });
 const corrected = cva("text-body font-bold");
-const actions = cva("flex flex-wrap gap-3");
+const actions = cva("flex flex-wrap gap-3 [&>button:last-child]:flex-1");
 
 export type StepFeedbackProps = {
   verdict: VerdictTagProps["verdict"];
@@ -393,9 +460,9 @@ export function SpeakPromptStep({ targetSeconds, ...props }: SpeakPromptStepProp
   return <VoiceAnswer {...props} targetSeconds={targetSeconds} hint={<Text tone="muted">{`Aim for about ${targetSeconds} seconds`}</Text>} />;
 }
 
-const turn = cva("max-w-prose text-body text-ink", {
+const turn = cva("max-w-prose whitespace-pre-wrap text-body text-ink", {
   variants: {
-    from: { coach: "self-start", learner: "self-end rounded-xl bg-subtle px-4 py-2" },
+    from: { coach: "self-start rounded-2xl rounded-tl-sm border border-line bg-paper px-5 py-4", learner: "self-end rounded-2xl rounded-tr-sm bg-primary-soft px-5 py-4" },
   },
 });
 

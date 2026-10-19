@@ -72,13 +72,15 @@ const goals = [
 ];
 
 let web;
+let suggestionsAvailable = true;
+let showSuggestions = true;
 
 before(async () => {
   web = await startWeb((req, res) => {
     const json = (status, body) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
-    if (req.url === "/api/goals") return json(200, goals);
+    if (req.url === "/api/goals") return suggestionsAvailable ? json(200, showSuggestions ? goals : []) : json(503, { error: "Unavailable" });
     const assessment = req.url.match(/^\/api\/assessments\/(\w+)$/);
     if (assessment) return assessments[assessment[1]] ? json(200, assessments[assessment[1]]) : json(404, { error: "Assessment not found" });
     json(404, { error: "Not found" });
@@ -102,11 +104,12 @@ const text = (html) =>
     .replace(/&#x27;|&#39;/g, "'")
     .replace(/\s+/g, " ");
 
-test("a new Written Assessment invites the Learner to say hello, with a box to answer and a way to finish", async () => {
+test("a new Written Assessment shows the coach identity, a conversation composer and a way to finish", async () => {
   const html = await page("/assessments/fresh");
   assert.match(text(html), /Written Assessment/);
-  assert.match(text(html), /Say hello/);
-  assert.match(html, /<label[^>]*>Your answer<\/label>/);
+  assert.match(text(html), /Your conversation with Impromptu/);
+  assert.doesNotMatch(text(html), /Say hello/);
+  assert.match(html, /<label[^>]*>Your message to your coach<\/label>/);
   assert.match(html, /<button[^>]*>Finish<\/button>/);
 });
 
@@ -140,12 +143,12 @@ test("a finished Assessment goes to its Report", async () => {
   assert.equal(new URL(response.headers.get("location"), web.url).pathname, "/assessments/done/report");
 });
 
-test("a Voice Assessment uses the same route and opens on the live bar, connecting, with mute and End", async () => {
+test("a Voice Assessment opens a call with coach, captions, mute and end controls", async () => {
   const html = await page("/assessments/voice");
   const shown = text(html);
-  assert.match(shown, /Connecting… Voice Assessment/);
-  assert.match(html, /<button[^>]*aria-label="Mute"[^>]*aria-pressed="false"/);
-  assert.match(html, /<button[^>]*>End<\/button>/);
+  assert.match(shown, /Connecting to your coach…/);
+  assert.match(html, /<button[^>]*aria-label="Mute microphone"[^>]*aria-pressed="false"/);
+  assert.match(text(html), /End conversation/);
   assert.doesNotMatch(shown, /coming soon/i);
 });
 
@@ -169,17 +172,37 @@ test("a Report from leaving early is labelled partial", async () => {
   assert.match(text(await page("/assessments/left/report")), /partial/i);
 });
 
-test("the Report continues onward", async () => {
-  assert.match(await page("/assessments/done/report"), /<a[^>]*href="\/home"[^>]*>Continue<\/a>/);
+test("the Report lets the Learner review suggested Goals and build a Roadmap in place", async () => {
+  const html = await page("/assessments/done/report");
+  assert.match(text(html), /Your path from here/);
+  assert.match(text(html), /Build my Roadmap/);
+  assert.equal([...html.matchAll(/<main\b/g)].length, 1);
 });
 
-test("confirming Goals lists only proposed Goals, each with its Target Levels and a confirm and remove action", async () => {
+test("confirming Goals lists only proposed Goals, with editable Target Levels and one build action", async () => {
   const html = await page("/goals/confirm");
   const shown = text(html);
   assert.match(shown, /Job Interview/);
   assert.match(shown, /General Fluency/);
   assert.doesNotMatch(shown, /Client Communication/);
-  assert.equal(html.match(/>Confirm<\/button>/g)?.length, 2);
+  assert.match(text(html), /Build my Roadmap/);
   assert.equal(html.match(/>Remove<\/button>/g)?.length, 2);
   for (const level of ["B2", "C1"]) assert.match(shown, new RegExp(level));
+});
+
+
+test("the Report stays readable when Goal suggestions fail to load", async () => {
+  suggestionsAvailable = false;
+  try {
+    const html = await page("/assessments/done/report");
+    assert.match(text(html), /Your English level/);
+    assert.match(text(html), /Goal suggestions couldn’t be loaded/);
+    assert.match(html, /href="\/goals\/confirm"/);
+  } finally { suggestionsAvailable = true; }
+});
+
+test("the Report opens the Roadmap directly when no proposed Goals remain", async () => {
+  showSuggestions = false;
+  try { assert.match(await page("/assessments/done/report"), /href="\/roadmap"[^>]*>See my Roadmap/); }
+  finally { showSuggestions = true; }
 });

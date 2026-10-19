@@ -10,6 +10,7 @@ type CommonProps = {
   label: string;
   options: readonly ChoiceOption[];
   name?: string;
+  layout?: "chips" | "cards";
   disabled?: boolean;
   ref?: Ref<HTMLDivElement>;
 };
@@ -37,7 +38,10 @@ const chip =
 /** Single choice is a radio group (arrow keys move and select); `multiple` is a group of checkboxes. */
 export function ChoiceChips(props: ChoiceChipsProps) {
   const labelId = useId();
-  const { label, options, name, disabled, ref } = props;
+  const { label, options, name, disabled, ref, layout = "chips" } = props;
+  const card = layout === "cards";
+  const optionClasses = card ? "flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-2xl border border-line-strong bg-paper p-5 text-left text-body text-ink shadow-card data-checked:border-ink data-checked:bg-primary-soft data-disabled:cursor-not-allowed" : chip;
+  const content = (option: ChoiceOption) => <span className="flex flex-col gap-1"><span className="font-semibold">{option.label}</span>{option.description && <span className="text-caption font-normal text-muted">{option.description}</span>}</span>;
   const groupProps = { ref, disabled, "aria-labelledby": labelId, className: "flex flex-col gap-2" };
   const heading = (
     <div id={labelId} className={fieldLabelClasses}>
@@ -54,12 +58,12 @@ export function ChoiceChips(props: ChoiceChipsProps) {
         onValueChange={(value) => props.onValueChange?.(value)}
       >
         {heading}
-        <div className="flex flex-wrap gap-2">
+        <div className={card ? "grid gap-4" : "flex flex-wrap gap-2"}>
           {options.map((option) => (
             // CheckboxGroup has no `name`; each checkbox submits its own value under it.
-            <Checkbox.Root key={option.value} name={name} value={option.value} className={chip}>
+            <Checkbox.Root key={option.value} name={name} value={option.value} className={optionClasses}>
               <Checkbox.Indicator render={<Check />} />
-              {option.label}
+              {content(option)}
             </Checkbox.Root>
           ))}
         </div>
@@ -76,11 +80,11 @@ export function ChoiceChips(props: ChoiceChipsProps) {
       onValueChange={(value) => props.onValueChange?.(value as string)}
     >
       {heading}
-      <div className="flex flex-wrap gap-2">
+      <div className={card ? "grid gap-4" : "flex flex-wrap gap-2"}>
         {options.map((option) => (
-          <Radio.Root key={option.value} value={option.value} className={chip}>
+          <Radio.Root key={option.value} value={option.value} className={optionClasses}>
             <Radio.Indicator render={<Check />} />
-            {option.label}
+            {content(option)}
           </Radio.Root>
         ))}
       </div>

@@ -37,6 +37,12 @@ export const unitsReply = (n = 8, name = "Unit") => ({
     objective: `${name} objective ${i + 1}`,
     skills: i % 2 ? ["grammar"] : ["vocabulary", "fluency"],
     endsWithRoleplay: i === n - 1,
+    lessonOutline: [
+      { title: i === 0 ? "Present simple for routines" : `${name} words ${i + 1}`, objective: "Use useful words in context", skill: "vocabulary", kind: "practice" },
+      { title: `${name} clearer sentences ${i + 1}`, objective: "Make your meaning clear", skill: "grammar", kind: "practice" },
+      { title: `${name} explain your ideas ${i + 1}`, objective: "Explain a real example confidently", skill: "fluency", kind: "practice" },
+      ...(i === n - 1 ? [{ title: `${name} conversation ${i + 1}`, objective: "Use this Unit in a conversation", skill: "fluency", kind: "roleplay" }] : []),
+    ],
   })),
 });
 

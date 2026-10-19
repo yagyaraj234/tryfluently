@@ -12,8 +12,10 @@ import {
   SkillBar,
   Stack,
   Text,
+  TextLink,
 } from "@impromptu/ui";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { GoalReview, proposedGoals } from "../../../components/assessment/GoalReview";
 import { api } from "../../../lib/api";
 import type { Report } from "../../../components/assessment/assessment";
 
@@ -25,7 +27,7 @@ export const Route = createFileRoute("/_signedIn/assessments/$assessmentId/repor
     if (!response.ok) throw new Error(`Couldn't load your Assessment Report (${response.status})`);
     const assessment = await response.json();
     if (assessment.status !== "completed") throw redirect({ to: "/assessments/$assessmentId", params });
-    return assessment.report as unknown as Report;
+    return { report: assessment.report as unknown as Report, goals: await proposedGoals().catch(() => null) };
   },
   component: AssessmentReport,
 });
@@ -33,7 +35,8 @@ export const Route = createFileRoute("/_signedIn/assessments/$assessmentId/repor
 const skills = ["grammar", "vocabulary", "fluency"] as const;
 
 function AssessmentReport() {
-  const report = Route.useLoaderData();
+  const data = Route.useLoaderData();
+  const report = data?.report;
   return (
     <Screen>
       <Container width="prose">
@@ -95,10 +98,8 @@ function AssessmentReport() {
                 <Text>{report.firstUnit.objective}</Text>
               </Stack>
             </Card>
-            {/* Home sends the Learner on to confirm proposed Goals first. */}
-            <Button fullWidth render={<Link to="/home" />}>
-              Continue
-            </Button>
+            {data!.goals === null ? <Notice tone="error">Your Assessment Report is ready, but your Goal suggestions couldn’t be loaded. <TextLink render={<Link to="/goals/confirm" />}>Review your Goals</TextLink></Notice>
+              : data!.goals.length ? <GoalReview initialGoals={data!.goals} /> : <Button fullWidth render={<Link to="/roadmap" />}>See my Roadmap</Button>}
           </Stack>
         ) : (
           <EmptyState title="We couldn't find that Assessment Report" description="It may belong to another account." />

@@ -12,6 +12,12 @@ const unit = (id, status, over = {}) => ({
   skills: ["grammar"],
   endsWithRoleplay: false,
   lessons: [],
+  roleplayReady: false,
+  lessonOutline: [
+    { position: 0, kind: "practice", title: `Useful words for Unit ${id}`, objective: "Use precise words", skill: "vocabulary" },
+    { position: 1, kind: "practice", title: `Clear sentences for Unit ${id}`, objective: "Express a clear thought", skill: "grammar" },
+    { position: 2, kind: "practice", title: `Explain an idea in Unit ${id}`, objective: "Speak with confidence", skill: "fluency" },
+  ],
   ...over,
 });
 
@@ -33,6 +39,11 @@ const roadmaps = {
     unit("4", "planned"),
   ],
   fresh: [unit("1", "active"), unit("2", "planned")],
+  ready: [unit("1", "active", {
+    endsWithRoleplay: true,
+    roleplayReady: true,
+    lessonOutline: [...unit("1", "active").lessonOutline, { position: 3, kind: "roleplay", title: "A project handover call", objective: "Explain next steps", skill: "fluency" }],
+  })],
   none: [],
 };
 
@@ -116,18 +127,31 @@ test("Home offers a Roleplay any time", async () => {
   assert.match(text(linkTo(await page("/home"), "/roleplays/new")), /Start a Roleplay/);
 });
 
-test("the Roadmap lists every Unit as a link, with its status as a word", async () => {
+test("the Roadmap renders Unit headers, known Lessons and locked future Units", async () => {
   const html = await page("/roadmap");
-  const statuses = ["Mastered", "Skipped", "Active", "Planned"];
-  for (const [i, status] of statuses.entries()) {
-    assert.match(text(linkTo(html, `/roadmap/${i + 1}`)), new RegExp(status), status);
-  }
+  for (const status of ["Mastered", "Skipped", "Active", "Planned"]) assert.match(text(html), new RegExp(status));
+  assert.match(text(html), /Present perfect with since/);
+  assert.match(text(html), /Talking about results/);
+  assert.match(text(html), /Useful words for Unit 4/);
+  assert.match(text(html), /Clear sentences for Unit 4/);
+  assert.match(text(html), /Explain an idea in Unit 4/);
+  assert.match(linkTo(html, "/lessons/l2"), /aria-label="Review Present perfect with since"/);
+  assert.match(linkTo(html, "/lessons/l3"), /aria-label="Open Talking about results"/);
+  assert.doesNotMatch(text(html), /Resume Lesson|Personalised Lessons|Put it into practice|Lessons completed/);
+  assert.doesNotMatch(text(html), /Step \d+ of \d+|\d+\/\d+ Lessons/);
 });
 
-test("the Roadmap numbers its Units in order, and only the active Unit shows how close it is to its objective", async () => {
-  const html = await page("/roadmap");
-  assert.match(text(html), /Unit 1 .*Unit 2 .*Tenses for projects Unit 3 .*64% to the objective.*Unit 4 /);
-  assert.equal(html.match(/role="meter"/g)?.length, 1);
+test("a fresh Roadmap opens practice from its first circle and keeps future Lessons locked", async () => {
+  const html = await page("/roadmap", "fresh");
+  assert.match(html, /<button[^>]*aria-label="Open Useful words for Unit 1"/);
+  assert.doesNotMatch(html, /aria-label="Open (?:Clear sentences for Unit 1|Useful words for Unit 2)"/);
+  assert.doesNotMatch(text(html), /Resume|Start your next Lesson/);
+});
+
+test("a ready Roleplay uses its outlined title and replaces unused future practice", async () => {
+  const html = await page("/roadmap", "ready");
+  assert.match(html, /<button[^>]*aria-label="Open A project handover call"/);
+  assert.doesNotMatch(text(html), /Useful words for Unit 1|Clear sentences for Unit 1|More practice/);
 });
 
 test("a Unit shows its objective, skills, past Lessons with their objective progress, and its Roleplay", async () => {
@@ -139,7 +163,7 @@ test("a Unit shows its objective, skills, past Lessons with their objective prog
   assert.match(t, /Ends with a Roleplay/);
   assert.match(html, /<div[^>]*aria-valuenow="64"[^>]*role="meter"/);
   assert.match(t, /Present perfect with since/);
-  assert.ok(buttons(html).some((b) => /Skip this Unit/.test(b)));
+  assert.doesNotMatch(text(html), /Skip this Unit/);
 });
 
 test("the active Unit resumes its Lesson in progress, or starts its next one; other Units offer neither", async () => {
