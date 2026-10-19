@@ -79,7 +79,9 @@ test("Focus Items list the open ones first, with their hits towards closing", as
 
 test("the Assessment can be retaken from Progress", async () => {
   const html = await page("/progress");
-  assert.match(html, /<a[^>]*href="\/assessments\/new"[^>]*>Retake the Assessment<\/a>/);
+  const link = html.match(/<a[^>]*href="\/assessments\/new"[^>]*>[\s\S]*?<\/a>/)?.[0];
+  assert.ok(link, "Assessment link");
+  assert.equal(text(link), "Retake the Assessment");
   assert.doesNotMatch(text(html), /next Assessment opens/);
 });
 
@@ -87,4 +89,14 @@ test("while the retake is locked, Progress shows when it opens", async () => {
   const body = text(await page("/progress", "learner=asha; assessed=recently"));
   const opens = new Date(Date.now() + 5 * day).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
   assert.match(body, new RegExp(`next Assessment opens on [A-Za-z]+,? ${opens}`));
+});
+
+
+test("overview summarises real changes and Focus Item status, with full history collapsed", async () => {
+  const html = await page("/progress");
+  assert.match(text(html), /\+8 points since first score/);
+  assert.match(text(html), /1 open · 1 closed/);
+  assert.match(html, /aria-label="Grammar scores, oldest to newest: 50, 58. Scale 0 to 100."/);
+  assert.match(html, /<details[^>]*><summary[^>]*>Score history<\/summary>/);
+  assert.doesNotMatch(html, /<details[^>]* open/);
 });

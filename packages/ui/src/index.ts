@@ -104,3 +104,5 @@ export { WeekStrip, type WeekStripProps } from "./WeekStrip";
 export { XpChip, type XpChipProps } from "./XpChip";
 
 export { CoachAvatar, CoachCall, LessonStage, RoadmapNode, RoadmapUnit, StarterShell, TeachingPage, type CoachState } from "./Learning";
+
+export { ProgressOverview, ProgressCheckIn, SkillProgressCard, type SkillProgressCardProps } from "./ProgressOverview";
