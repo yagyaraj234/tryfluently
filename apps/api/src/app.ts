@@ -21,6 +21,7 @@ import { roleplays } from "./roleplays";
 import { progressRoute } from "./progress";
 import { skillProfileRoutes } from "./scoring";
 import { metricsMiddleware, metricsRegistry } from "./metrics";
+import { requestLimits } from "./request-limits";
 
 export type { Mailer, Models, Realtime, Speech, Transcriber };
 
@@ -78,7 +79,7 @@ const setTimer: Schedule = (ms, fn) => {
 };
 
 export type User = typeof schema.user.$inferSelect;
-export type AppEnv = { Variables: { user: User } };
+export type AppEnv = { Variables: { user: User; requestStartedAt: Date } };
 
 export function createApp(deps: Deps) {
   const { db, env, mailer } = deps;
@@ -156,6 +157,7 @@ export function createApp(deps: Deps) {
     .get("/api/auth/providers", (c) => c.json({ google: Boolean(env.GOOGLE_CLIENT_ID) }))
     .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
     .use("/api/*", async (c, next) => {
+      c.set("requestStartedAt", deps.now());
       // CORS controls response access; reject foreign browser writes before they reach handlers.
       if (!["GET", "HEAD", "OPTIONS"].includes(c.req.method)) {
         const origin = c.req.header("origin");
@@ -172,6 +174,7 @@ export function createApp(deps: Deps) {
       c.set("user", session.user as User);
       await next();
     })
+    .use("/api/*", requestLimits(deps.now))
     .get("/api/me", (c) => c.json(c.var.user))
     .route("/api/reports", reports(deps))
     .route("/api/goals", goals(deps))

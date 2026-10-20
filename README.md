@@ -31,6 +31,11 @@ API reference: http://localhost:3000/docs. The OpenAPI document is served at
 http://localhost:3000/docs/openapi.json. Operations are listed from the Hono
 routes; request and response schemas are not yet included.
 
+AI endpoints allow 60 requests per minute and four requests in flight per Learner.
+Overlapping conversation turns return 409; rate limits return 429 with `Retry-After`.
+These guards, like live voice calls, run in one API instance. Shared claims are required before adding API replicas.
+Assessments have a server-enforced ten-minute deadline, including reconnects.
+
 For local API metrics, keep `METRICS_ENABLED=true` in the root `.env` and run
 `docker compose -f docker-compose.monitoring.yml up -d`. See
 [infra/monitoring/README.md](infra/monitoring/README.md) for Grafana access and
