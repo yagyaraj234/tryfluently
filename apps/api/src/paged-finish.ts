@@ -8,16 +8,18 @@ import { questionBlocks } from "./lesson-blocks";
 const { lesson, step, assessmentJob: job } = schema;
 type Ctx = Pick<Deps, "db" | "now"> & { settings: { alphaLesson: number } };
 
-// Which skill a graded Block gives evidence for. Vocab cards are never wrong, and nothing here measures fluency.
+// Which skill a graded Block gives evidence for. Vocab cards are never wrong. A spoken answer counts towards fluency once its analysis has saved a verdict.
 const blockSkill: Record<string, Skill | undefined> = {
   fillGap: "grammar",
   multipleChoice: "grammar",
   reorder: "grammar",
+  rewrite: "grammar",
+  speakPrompt: "fluency",
   matchPairs: "vocabulary",
 };
 const credit = { correct: 1, almost: 0.5, incorrect: 0 } as const;
 
-/** 0-100 per skill from the saved verdicts. Answers with no verdict yet (voice, rewrite) are left out. */
+/** 0-100 per skill from the saved verdicts. Answers with no verdict yet (a spoken answer still being analysed, or one that failed) are left out. */
 export function scoresFromVerdicts(steps: { type: string; feedback: { verdict: string } | null }[]) {
   const got: Partial<Record<Skill, number[]>> = {};
   for (const s of steps) {
