@@ -339,7 +339,11 @@ export const lessons = ({
         // A paged Lesson has one Step per question Page; all of them must be answered before it can finish.
         if (paged && rows.length < (row.material ?? []).filter((p: any) => p.question).length)
           return c.json({ error: "Answer every question first" }, 409);
-        if (paged) return c.json(await finishPagedLesson({ db, now, settings }, row.id, row.userId));
+        if (paged) {
+          const done = await finishPagedLesson({ db, now, settings }, row.id, row.userId);
+          if (done.status === "unfinished") return c.json({ error: "Answer every question first" }, 409);
+          return done.status === "completed" ? c.json(done) : c.json({ error: "This Lesson has ended", ...done }, 409);
+        }
         const result = await completeLesson({ db, now, models, settings }, row.id, row.userId);
         return result.status === "failed"
           ? c.json({ error: "Your report couldn't be prepared. Try again." }, 502)

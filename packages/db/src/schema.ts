@@ -12,6 +12,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 const bytea = customType<{ data: Uint8Array }>({ dataType: () => "bytea" });
 
@@ -111,18 +112,26 @@ export const aiUsage = pgTable("ai_usage", {
 export const assessmentMode = pgEnum("assessment_mode", ["voice", "written"]);
 export const assessmentStatus = pgEnum("assessment_status", ["in_progress", "completed", "discarded"]);
 
-export const assessment = pgTable("assessment", {
-  id: id(),
-  userId: learner(),
-  mode: assessmentMode().notNull(),
-  status: assessmentStatus().notNull().default("in_progress"),
-  startedAt: timestamp().notNull(),
-  endedAt: timestamp(),
-  // UI messages of the conversation; checked against zod in the API.
-  transcript: jsonb().$type<unknown[]>().notNull().default([]),
-  report: jsonb().$type<Record<string, unknown>>(),
-  emailedAt: timestamp(),
-});
+export const assessment = pgTable(
+  "assessment",
+  {
+    id: id(),
+    userId: learner(),
+    mode: assessmentMode().notNull(),
+    status: assessmentStatus().notNull().default("in_progress"),
+    startedAt: timestamp().notNull(),
+    endedAt: timestamp(),
+    // UI messages of the conversation; checked against zod in the API.
+    transcript: jsonb().$type<unknown[]>().notNull().default([]),
+    report: jsonb().$type<Record<string, unknown>>(),
+    emailedAt: timestamp(),
+  },
+  (t) => [
+    uniqueIndex("assessment_one_open_per_user_idx")
+      .on(t.userId)
+      .where(sql`${t.status} = 'in_progress'`),
+  ],
+);
 
 // Durable background work: follow-ups committed with an Assessment's Report, and Lesson generation.
 // Assessment jobs set assessmentId; `lesson` jobs set lessonId.

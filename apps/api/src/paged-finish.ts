@@ -1,6 +1,7 @@
 import { schema, type Skill } from "@fluently/db";
 import { and, eq } from "drizzle-orm";
 import type { Deps } from "./app";
+import { questionBlocks } from "./lesson-blocks";
 import { advanceUnit } from "./learning-memory";
 import { recordScores } from "./scoring";
 
@@ -43,8 +44,18 @@ export async function finishPagedLesson({ db, now, settings }: Ctx, id: string, 
       .for("update");
     if (!row) throw new Error("Lesson not found");
     const at = now();
+    if (row.status === "abandoned") return { status: "abandoned" as const };
     if (row.status === "in_progress") {
       const steps = await tx.select().from(step).where(eq(step.lessonId, id));
+      // Every interactive Page needs its written question and an answered Step before the Lesson can finish.
+      const unfinished = (row.material ?? []).some(
+        (p: any, i) =>
+          questionBlocks.includes(p.block) &&
+          (!p.question ||
+            row.pageStatus?.[i]?.question !== "ready" ||
+            !steps.some((s) => s.position === i && s.answeredAt)),
+      );
+      if (unfinished) return { status: "unfinished" as const };
       await recordScores(tx, userId, scoresFromVerdicts(steps), {
         alpha: settings.alphaLesson,
         source: "lesson",
