@@ -8,6 +8,8 @@ import {
   type LanguageModelUsage,
   type UIMessage,
 } from "ai";
+import { sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { Deps } from "./app";
 
 type Ctx = Pick<Deps, "db" | "now">;
@@ -49,6 +51,9 @@ export async function generate<O extends Parameters<typeof generateText>[0]>(ctx
   }
 }
 
+// WHERE-clause for saving chat history only if it still has the length it had when read.
+export const unchanged = (column: AnyPgColumn, length: number) => sql`jsonb_array_length(${column}) = ${length}`;
+
 // One chat turn: streams the reply as a UI message stream and saves the updated history when it finishes.
 export async function streamChat(
   ctx: Ctx,
@@ -59,7 +64,8 @@ export async function streamChat(
     ...options
   }: Omit<Parameters<typeof streamText>[0], "messages" | "prompt"> & {
     messages: UIMessage[];
-    save: (messages: UIMessage[]) => Promise<unknown>;
+    // Must resolve to the rows it wrote: none means the history changed meanwhile (see `unchanged`).
+    save: (messages: UIMessage[]) => Promise<unknown[]>;
   },
 ) {
   const call = { startedAt: ctx.now(), t0: performance.now() };
@@ -75,7 +81,8 @@ export async function streamChat(
         for (const s of await result.steps)
           for (const part of s.content)
             if (part.type === "tool-error") console.error(`tool ${part.toolName} failed`, part.error);
-        await save(messages);
+        // A newer turn already saved: drop this stale reply rather than overwrite it.
+        if (!(await save(messages)).length) throw new Error("chat history changed while replying; reply not saved");
         await logTextUsage(ctx, userId, { ...call, id: (await result.response).id, usage: await result.totalUsage });
       },
     }),

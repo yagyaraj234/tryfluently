@@ -51,6 +51,9 @@ const startRoleplay = async (app: TestApp, cookie: string, body: Record<string, 
   return (await (await app.request("/api/roleplays", json({ goalId: goal.id, ...body }, cookie))).json()) as any;
 };
 
+const lessonOf = async (app: TestApp, cookie: string, id: string) =>
+  (await (await app.request(`/api/lessons/${id}`, get(cookie))).json()) as any;
+
 async function chat(app: TestApp, cookie: string, id: string, text: string) {
   const res = await app.request(`/api/roleplays/${id}/chat`, json({ message: userMessage(text) }, cookie));
   return { res, body: res.ok ? await res.text() : await res.json() };
@@ -163,6 +166,48 @@ describe("text-mode Roleplay", () => {
       .emit({ type: "response.output_audio_transcript.done", item_id: "c1", transcript: "Tell me about yourself." });
 
     expect((await chat(app, cookie, roleplay.id, "Hi")).res.status).toBe(409);
+  });
+
+  test("two overlapping chat messages don't overwrite each other: the stale reply is dropped", async () => {
+    const app = makeApp({ models: { step: mockChat("First reply.", "Second reply.") } });
+    const { cookie } = await learnerWithRoadmap();
+    const roleplay = await startRoleplay(app, cookie, { textMode: true });
+
+    // The stale reply's stream fails (the read throws or carries an error chunk); the other one completes.
+    const outcomes = await Promise.all(
+      ["Answer A", "Answer B"].map((text) =>
+        chat(app, cookie, roleplay.id, text).then(
+          (r) => String(r.body),
+          () => "failed",
+        ),
+      ),
+    );
+    expect(outcomes.filter((b) => b === "failed" || b.includes('"type":"error"'))).toHaveLength(1);
+    const stored = (await lessonOf(app, cookie, roleplay.id)).messages as any[];
+    expect(stored).toHaveLength(2);
+    expect(JSON.stringify(stored[0])).toMatch(/Answer [AB]/);
+  });
+
+  test("reconnecting a spoken Roleplay keeps what was said on the earlier call", async () => {
+    const realtime = fakeRealtime();
+    const app = makeApp({ realtime });
+    const { cookie } = await learnerWithRoadmap();
+    const roleplay = await startRoleplay(app, cookie);
+    await app.request(`/api/roleplays/${roleplay.id}/call`, sdp(cookie));
+    await realtime
+      .sideband(1)
+      .emit({ type: "response.output_audio_transcript.done", item_id: "c1", transcript: "First." });
+    await realtime.sideband(1).close();
+    expect((await app.request(`/api/roleplays/${roleplay.id}/call`, sdp(cookie))).status).toBe(201);
+    await realtime
+      .sideband(2)
+      .emit({ type: "response.output_audio_transcript.done", item_id: "c2", transcript: "Second." });
+    await realtime
+      .sideband(2)
+      .emit({ type: "response.output_audio_transcript.done", item_id: "c1", transcript: "First." });
+
+    const stored = (await lessonOf(app, cookie, roleplay.id)).messages as any[];
+    expect(stored.map((m) => m.id)).toEqual(["c1", "c2"]);
   });
 
   test("a malformed message is rejected, and someone else's Roleplay is out of reach", async () => {

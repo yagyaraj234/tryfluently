@@ -4,7 +4,7 @@ import { NoObjectGeneratedError, Output, safeValidateUIMessages, type UIMessage 
 import { and, asc, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { generate, streamChat } from "./ai";
+import { generate, streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { cefrLevel } from "./goals";
@@ -194,17 +194,15 @@ export const assessments = ({
       );
       const hasGoals = (await tx.select({ id: goal.id }).from(goal).where(eq(goal.userId, userId)).limit(1)).length > 0;
       if (!hasGoals && out.proposedGoals.length)
-        await tx
-          .insert(goal)
-          .values(
-            out.proposedGoals.map((g) => ({
-              userId,
-              kind: "general_fluency" as const,
-              statement: g.statement,
-              targetLevels: g.targetLevels,
-              createdAt: at,
-            })),
-          );
+        await tx.insert(goal).values(
+          out.proposedGoals.map((g) => ({
+            userId,
+            kind: "general_fluency" as const,
+            statement: g.statement,
+            targetLevels: g.targetLevels,
+            createdAt: at,
+          })),
+        );
       await remember(
         tx,
         userId,
@@ -294,7 +292,14 @@ export const assessments = ({
           messages: valid.data,
           tools: itemTools,
           activeTools: items < MAX_ITEMS ? ["fillGap", "rewrite"] : [],
-          save: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
+          save: (transcript) =>
+            db
+              .update(assessment)
+              .set({ transcript })
+              .where(
+                and(eq(assessment.id, row.id), unchanged(assessment.transcript, (row.transcript as unknown[]).length)),
+              )
+              .returning({ id: assessment.id }),
         });
       })
       // The browser posts its SDP offer and gets back only the SDP answer; the OpenAI key never leaves the server.
@@ -312,6 +317,7 @@ export const assessments = ({
           sdp: offer,
           instructions: instructions(await goalTextsOf(userId), 0),
           purpose: "assessment",
+          prior: row.transcript,
           onTranscript: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
         });
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
