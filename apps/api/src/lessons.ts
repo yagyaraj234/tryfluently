@@ -7,6 +7,7 @@ import { z } from "zod";
 import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
+import { publicPages, retryLesson, startLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
 import { completeLesson } from "./completion";
 import { findRecording, recordedSecondsToday, recordingForm, timingOf, type Timing } from "./recordings";
@@ -76,8 +77,16 @@ export const lessons = ({
       return { ...s, input, feedback: l.status === "completed" ? s.feedback : null };
     });
     const { preparationToken, ...view } = l;
+    if (l.contentVersion === 2) return { ...view, material: publicPages(l), questions: [], steps: [] };
     return { ...view, questions: safe, steps: safe };
   };
+
+  const pagesView = (l: typeof lesson.$inferSelect) => ({
+    id: l.id,
+    preparation: l.preparation,
+    currentPage: l.currentPage,
+    pages: publicPages(l),
+  });
 
   const openFocus = (userId: string) =>
     db
@@ -175,6 +184,21 @@ export const lessons = ({
           })
           .returning();
         return c.json(await withSteps(created!), 201);
+      })
+      // Starts a Lesson from the outline. Starting twice returns the same Lesson.
+      .post("/:position{[0-9]+}/start", async (c) => {
+        const r = await startLesson({ db, now }, c.var.user.id, Number(c.req.param("position")));
+        if ("error" in r) return c.json({ error: r.error }, 409);
+        return c.json(pagesView(r.lesson), r.created ? 201 : 200);
+      })
+      .post("/:id/retry", async (c) => {
+        const r = await retryLesson({ db, now }, c.var.user.id, c.req.param("id"));
+        return r ? c.json(pagesView(r), 202) : c.json({ error: "Only a failed Lesson can be retried" }, 409);
+      })
+      // Polled while Pages are written: which are ready, with their content so far (never answer keys).
+      .get("/:id/pages", async (c) => {
+        const row = await find(c.req.param("id"), c.var.user.id);
+        return row?.contentVersion === 2 ? c.json(pagesView(row)) : c.json({ error: "Lesson not found" }, 404);
       })
       .get("/:id", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
@@ -295,16 +319,14 @@ export const lessons = ({
         }
         const recordingId = crypto.randomUUID();
         const timing = timingOf(text, seconds);
-        await db
-          .insert(schema.aiUsage)
-          .values({
-            userId: user.id,
-            kind: "recording",
-            callId: recordingId,
-            startedAt: now(),
-            seconds,
-            usage: { lessonId: row.id, text, timing },
-          });
+        await db.insert(schema.aiUsage).values({
+          userId: user.id,
+          kind: "recording",
+          callId: recordingId,
+          startedAt: now(),
+          seconds,
+          usage: { lessonId: row.id, text, timing },
+        });
         return c.json({ recordingId, text, timing }, 201);
       })
       // One turn. The body carries the newest message: a user message, or the last assistant message with the Step answered.
