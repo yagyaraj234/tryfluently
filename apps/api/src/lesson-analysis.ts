@@ -4,24 +4,30 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import { addFocusItems, remember } from "./learning-memory";
+import { addFocusItems, countFocusHits, remember } from "./learning-memory";
 
 const { lesson, step, assessmentJob: job } = schema;
 type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal };
 
 export const analysisOutput = z.object({
-  summary: z.string(),
+  summary: z.string().trim().min(1),
   focusItems: z.array(z.object({ label: z.string(), kind: z.enum(["grammar", "vocabulary", "phrase"]) })).nullable(),
+  usedFocusItemIds: z.array(z.string()).nullable(),
 });
 
 const instructions = `You are an examiner for English as a second language. Read what a Learner answered in one finished Lesson
 and the feedback they got. Write a short two-sentence summary the next Lesson can build on, written to the Learner ("You ...").
-If the Learner made the same mistake more than once, add it as a Focus Item with a short label and its kind. Otherwise return none.`;
+If the Learner made the same mistake more than once, add it as a Focus Item with a short label and its kind. Otherwise return none.
+Return usedFocusItemIds only for supplied open Focus Items that their answers demonstrate using correctly. Never infer a hit from the teaching or expected answer.`;
 
 /** Runs one `lesson_analysis` job. Generation stays outside the transaction; the Learner lock covers the writes. */
 export async function analyseLesson({ db, now, models, signal }: Ctx, lessonId: string) {
   const [row] = await db.select().from(lesson).where(eq(lesson.id, lessonId));
-  if (!row || row.contentVersion !== 2 || row.summary) return;
+  if (!row || row.contentVersion !== 2 || row.status !== "completed" || row.summary) return;
+  const open = await db
+    .select({ id: schema.focusItem.id, label: schema.focusItem.label })
+    .from(schema.focusItem)
+    .where(and(eq(schema.focusItem.userId, row.userId), eq(schema.focusItem.status, "open")));
   const steps = await db
     .select({
       position: step.position,
@@ -37,15 +43,21 @@ export async function analyseLesson({ db, now, models, signal }: Ctx, lessonId: 
     model: models.judge,
     abortSignal: signal,
     instructions,
-    prompt: JSON.stringify({ lesson: { title: row.title, objective: row.objective }, steps }),
+    prompt: JSON.stringify({ lesson: { title: row.title, objective: row.objective }, steps, openFocusItems: open }),
     output: Output.object({ schema: analysisOutput }),
   });
-  const { summary, focusItems } = analysisOutput.parse(output);
+  const { summary, focusItems, usedFocusItemIds } = analysisOutput.parse(output);
   const at = now();
   await db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, row.userId)).for("update");
     const [cur] = await tx.select().from(lesson).where(eq(lesson.id, lessonId)).for("update");
-    if (!cur || cur.summary) return;
+    if (!cur || cur.status !== "completed" || cur.summary) return;
+    await countFocusHits(
+      tx,
+      row.userId,
+      (usedFocusItemIds ?? []).filter((id) => open.some((f) => f.id === id)),
+      at,
+    );
     await tx.update(lesson).set({ summary }).where(eq(lesson.id, lessonId));
     if (focusItems?.length)
       await addFocusItems(

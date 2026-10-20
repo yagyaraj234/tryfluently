@@ -14,7 +14,10 @@ export type Speech = {
 export const kenpathSpeech = (baseUrl: string, apiKey: string, model: string): Speech => ({
   async speak({ text, voice }) {
     const client = new OpenAI({ apiKey, baseURL: baseUrl });
-    const audio = await client.audio.speech.create({ model, input: text, voice, response_format: "mp3" });
+    const audio = await client.audio.speech.create(
+      { model, input: text, voice, response_format: "mp3" },
+      { timeout: 30_000, maxRetries: 0 },
+    );
     return { audio: new Uint8Array(await audio.arrayBuffer()), contentType: "audio/mpeg" };
   },
 });

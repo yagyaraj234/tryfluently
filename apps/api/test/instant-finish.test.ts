@@ -42,7 +42,7 @@ const analysisModel = (focus: { label: string; kind: string }[] = []) => {
   const model = new MockLanguageModelV4({
     doGenerate: async () => {
       calls++;
-      return reply({ summary: "You used goes well.", focusItems: focus });
+      return reply({ summary: "You used goes well.", focusItems: focus, usedFocusItemIds: [] });
     },
   });
   return { model, calls: () => calls };

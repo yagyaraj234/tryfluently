@@ -33,6 +33,36 @@ const utterance = (id: string) => ({
 });
 
 describe("Realtime close failures", () => {
+  test.each([120, 900, undefined])(
+    "slow setup preserves the earlier attempt or monthly deadline (%s)",
+    async (budgetSeconds) => {
+      const { userId } = await setup();
+      const clock = makeClock();
+      const realtime = fakeRealtime();
+      const timers = fakeTimers();
+      const broker = realtimeBroker({
+        limitMinutes: 10,
+        db: testDb,
+        now: clock,
+        schedule: timers.schedule,
+        realtime: {
+          ...realtime,
+          createCall: async (...args) => {
+            clock.advance({ seconds: 30 });
+            return realtime.createCall(...args);
+          },
+        },
+      });
+      await broker.start(userId, { ...opts(async () => {}), budgetSeconds });
+      const remaining = Math.min(600, (budgetSeconds ?? Infinity) - 30);
+      expect(timers.waiting()).toEqual([(remaining - 60) * 1000, remaining * 1000]);
+      expect((await broker.voiceMinutes(userId)).callEndsAt).toBe(
+        new Date(clock().getTime() + remaining * 1000).toISOString(),
+      );
+      await timers.fire(remaining * 1000);
+      expect(realtime.sideband().hungUp).toBe(true);
+    },
+  );
   test("hangup requested during the SDP handshake waits for the call, then closes it", async () => {
     const { userId } = await setup();
     const realtime = fakeRealtime();

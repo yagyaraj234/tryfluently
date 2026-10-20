@@ -1,4 +1,5 @@
 import { contentOutput } from "../src/preparation";
+import { analysisOutput } from "../src/lesson-analysis";
 import { expect, test } from "bun:test";
 import { reportOutput } from "../src/assessments";
 import { debriefOutput, judgeOutput } from "../src/completion";
@@ -14,6 +15,7 @@ const outputSchemas = [
   roadmapOutput,
   outlineOutput,
   contentOutput,
+  analysisOutput,
 ];
 
 function everyObjectRequiresItsProperties(schema: any): boolean {

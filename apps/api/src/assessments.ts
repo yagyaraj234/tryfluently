@@ -139,7 +139,10 @@ export const assessments = ({
     }
     const at = now();
     if (at.getTime() - row.startedAt.getTime() < MIN_MINUTES * 60_000) {
-      await db.update(assessment).set({ status: "discarded", endedAt: at }).where(eq(assessment.id, row.id));
+      await db
+        .update(assessment)
+        .set({ status: "discarded", endedAt: at })
+        .where(and(eq(assessment.id, row.id), eq(assessment.status, "in_progress")));
       return { status: "discarded" as const };
     }
 
@@ -249,6 +252,8 @@ export const assessments = ({
           .from(assessment)
           .where(and(eq(assessment.userId, user.id), eq(assessment.status, "in_progress")));
         for (const row of open) {
+          // A start created during this request belongs to the same overlapping attempt.
+          if (row.startedAt >= c.var.requestStartedAt) return c.json(row, 200);
           if ((await finish(row, user, { partial: true })).status === "failed")
             return c.json({ error: "Your previous Assessment couldn't be finished. Try again." }, 502);
         }

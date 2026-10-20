@@ -28,7 +28,12 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
       const body = new FormData();
       body.set("sdp", sdp);
       body.set("session", JSON.stringify({ ...session, model }));
-      const res = await fetch(`${API}/calls`, { method: "POST", headers: { authorization }, body });
+      const res = await fetch(`${API}/calls`, {
+        method: "POST",
+        headers: { authorization },
+        body,
+        signal: AbortSignal.timeout(30_000),
+      });
       if (!res.ok) throw new Error(`OpenAI Realtime ${res.status}: ${await res.text()}`);
       const callId = res.headers.get("location")?.split("/").pop();
       if (!callId) throw new Error("OpenAI Realtime returned no call id");
@@ -53,7 +58,11 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
       return {
         send,
         async hangup() {
-          const res = await fetch(`${API}/calls/${callId}/hangup`, { method: "POST", headers: { authorization } });
+          const res = await fetch(`${API}/calls/${callId}/hangup`, {
+            method: "POST",
+            headers: { authorization },
+            signal: AbortSignal.timeout(30_000),
+          });
           if (!res.ok) throw new Error(`OpenAI Realtime hangup ${res.status}: ${await res.text()}`);
           ws.close();
         },
@@ -158,6 +167,7 @@ export function realtimeBroker({
       targetId: opts.targetId,
     };
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
+    const deadline = opts.budgetSeconds === undefined ? undefined : now().getTime() + opts.budgetSeconds * 1000;
 
     let call: { answer: string; callId: string };
     let budgetSeconds: number;
@@ -180,7 +190,7 @@ export function realtimeBroker({
 
     const startedAt = now();
     entry.startedAt = startedAt;
-    entry.endsAt = new Date(startedAt.getTime() + budgetSeconds * 1000);
+    entry.endsAt = new Date(Math.min(startedAt.getTime() + budgetSeconds * 1000, deadline ?? Infinity));
     const timers: (() => void)[] = [];
     const transcript: UIMessage[] = [];
     const prior = (opts.prior ?? []) as UIMessage[];
@@ -274,16 +284,17 @@ export function realtimeBroker({
     });
     ready();
     entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions } });
-    if (budgetSeconds > 0) {
+    {
+      const remainingSeconds = Math.max(0, (entry.endsAt.getTime() - now().getTime()) / 1000);
       const sideband = entry.sideband;
       timers.push(
-        schedule(Math.max(0, budgetSeconds - WRAP_UP_SECONDS) * 1000, () =>
+        schedule(Math.max(0, remainingSeconds - WRAP_UP_SECONDS) * 1000, () =>
           sideband.send({
             type: "session.update",
             session: { type: "realtime", instructions: opts.instructions + wrapUp },
           }),
         ),
-        schedule(budgetSeconds * 1000, () =>
+        schedule(remainingSeconds * 1000, () =>
           hangup(userId, opts.targetId).catch((error) => console.error("realtime timed hangup failed", error)),
         ),
       );
