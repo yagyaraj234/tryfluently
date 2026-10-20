@@ -100,15 +100,19 @@ export const goal = pgTable("goal", {
 
 export const usageKind = pgEnum("usage_kind", ["realtime", "recording", "text"]);
 
-export const aiUsage = pgTable("ai_usage", {
-  id: id(),
-  userId: learner(),
-  kind: usageKind().notNull(),
-  callId: text(),
-  startedAt: timestamp().notNull(),
-  seconds: real().notNull().default(0),
-  usage: jsonb().$type<Record<string, unknown>>(),
-});
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    id: id(),
+    userId: learner(),
+    kind: usageKind().notNull(),
+    callId: text(),
+    startedAt: timestamp().notNull(),
+    seconds: real().notNull().default(0),
+    usage: jsonb().$type<Record<string, unknown>>(),
+  },
+  (t) => [index("ai_usage_user_kind_started_idx").on(t.userId, t.kind, t.startedAt)],
+);
 
 export const assessmentMode = pgEnum("assessment_mode", ["voice", "written"]);
 export const assessmentStatus = pgEnum("assessment_status", ["in_progress", "completed", "discarded"]);
@@ -163,17 +167,21 @@ export const skill = pgEnum("skill", ["fluency", "grammar", "vocabulary"]);
 export const scoreSource = pgEnum("score_source", ["assessment", "lesson"]);
 
 // Append-only. The Skill Profile is the latest row per skill.
-export const skillScore = pgTable("skill_score", {
-  id: id(),
-  userId: learner(),
-  skill: skill().notNull(),
-  score: real().notNull(),
-  source: scoreSource().notNull(),
-  sourceId: text().notNull(),
-  createdAt: timestamp().notNull(),
-  // Write order, assigned at insert under the Learner lock; createdAt can predate it after slow judging.
-  seq: bigserial({ mode: "number" }).notNull(),
-});
+export const skillScore = pgTable(
+  "skill_score",
+  {
+    id: id(),
+    userId: learner(),
+    skill: skill().notNull(),
+    score: real().notNull(),
+    source: scoreSource().notNull(),
+    sourceId: text().notNull(),
+    createdAt: timestamp().notNull(),
+    // Write order, assigned at insert under the Learner lock; createdAt can predate it after slow judging.
+    seq: bigserial({ mode: "number" }).notNull(),
+  },
+  (t) => [index("skill_score_user_skill_created_idx").on(t.userId, t.skill, t.createdAt)],
+);
 
 export const focusKind = pgEnum("focus_kind", ["grammar", "vocabulary", "phrase"]);
 export const focusSource = pgEnum("focus_source", ["assessment", "debrief", "lesson"]);
@@ -195,31 +203,35 @@ export const focusItem = pgTable("focus_item", {
 export const unitStatus = pgEnum("unit_status", ["planned", "active", "mastered", "skipped"]);
 
 // The Roadmap is a Learner's Units ordered by position; there's no roadmap table.
-export const unit = pgTable("unit", {
-  id: id(),
-  userId: learner(),
-  position: integer().notNull(),
-  title: text().notNull(),
-  objective: text().notNull(),
-  skills: jsonb().$type<Skill[]>().notNull(),
-  lessonOutline: jsonb()
-    .$type<
-      {
-        title: string;
-        objective: string;
-        skill: Skill;
-        kind: "practice" | "roleplay";
-        position: number;
-        estimatedMinutes?: number;
-        pageCount?: number;
-      }[]
-    >()
-    .notNull()
-    .default([]),
-  endsWithRoleplay: boolean().notNull().default(false),
-  status: unitStatus().notNull().default("planned"),
-  createdAt: timestamp().notNull(),
-});
+export const unit = pgTable(
+  "unit",
+  {
+    id: id(),
+    userId: learner(),
+    position: integer().notNull(),
+    title: text().notNull(),
+    objective: text().notNull(),
+    skills: jsonb().$type<Skill[]>().notNull(),
+    lessonOutline: jsonb()
+      .$type<
+        {
+          title: string;
+          objective: string;
+          skill: Skill;
+          kind: "practice" | "roleplay";
+          position: number;
+          estimatedMinutes?: number;
+          pageCount?: number;
+        }[]
+      >()
+      .notNull()
+      .default([]),
+    endsWithRoleplay: boolean().notNull().default(false),
+    status: unitStatus().notNull().default("planned"),
+    createdAt: timestamp().notNull(),
+  },
+  (t) => [index("unit_user_position_idx").on(t.userId, t.position)],
+);
 
 export const lessonKind = pgEnum("lesson_kind", ["practice", "roleplay"]);
 export const lessonStatus = pgEnum("lesson_status", ["in_progress", "completed", "abandoned"]);
@@ -234,39 +246,43 @@ export const roleplayKind = pgEnum("roleplay_kind", [
 ]);
 export const tone = pgEnum("tone", ["friendly", "standard", "tough"]);
 
-export const lesson = pgTable("lesson", {
-  id: id(),
-  userId: learner(),
-  unitId: text().references(() => unit.id, { onDelete: "cascade" }),
-  position: integer().notNull(),
-  kind: lessonKind().notNull(),
-  title: text().notNull(),
-  objective: text().notNull(),
-  roleplayKind: roleplayKind(),
-  // The Learner's own situation for a custom Roleplay.
-  roleplayScenario: text(),
-  tone: tone(),
-  status: lessonStatus().notNull().default("in_progress"),
-  objectiveProgress: integer(),
-  summary: text(),
-  textMode: boolean().notNull().default(false),
-  // UI messages of the Lesson chat, so it can resume; checked against the tool schemas in the API.
-  messages: jsonb().$type<unknown[]>().notNull().default([]),
-  debrief: jsonb().$type<Record<string, unknown>>(),
-  preparation: text().$type<"preparing" | "ready" | "failed">(),
-  preparationToken: text(),
-  preparationAt: timestamp(),
-  material: jsonb().$type<{ title: string; body: string; example: string | null }[]>(),
-  phase: text().$type<"learning" | "assessment">(),
-  report: jsonb().$type<Record<string, unknown>>(),
-  // 1 = Lessons prepared before paged Lessons (material + Steps). 2 = Pages generated when the Learner presses Start.
-  contentVersion: integer().notNull().default(1),
-  currentPage: integer().notNull().default(0),
-  // Paged Lessons only: status of each Page and of its question slot, in Page order.
-  pageStatus: jsonb().$type<{ page: "pending" | "ready" | "failed"; question: "pending" | "ready" | "failed" }[]>(),
-  startedAt: timestamp(),
-  completedAt: timestamp(),
-});
+export const lesson = pgTable(
+  "lesson",
+  {
+    id: id(),
+    userId: learner(),
+    unitId: text().references(() => unit.id, { onDelete: "cascade" }),
+    position: integer().notNull(),
+    kind: lessonKind().notNull(),
+    title: text().notNull(),
+    objective: text().notNull(),
+    roleplayKind: roleplayKind(),
+    // The Learner's own situation for a custom Roleplay.
+    roleplayScenario: text(),
+    tone: tone(),
+    status: lessonStatus().notNull().default("in_progress"),
+    objectiveProgress: integer(),
+    summary: text(),
+    textMode: boolean().notNull().default(false),
+    // UI messages of the Lesson chat, so it can resume; checked against the tool schemas in the API.
+    messages: jsonb().$type<unknown[]>().notNull().default([]),
+    debrief: jsonb().$type<Record<string, unknown>>(),
+    preparation: text().$type<"preparing" | "ready" | "failed">(),
+    preparationToken: text(),
+    preparationAt: timestamp(),
+    material: jsonb().$type<{ title: string; body: string; example: string | null }[]>(),
+    phase: text().$type<"learning" | "assessment">(),
+    report: jsonb().$type<Record<string, unknown>>(),
+    // 1 = Lessons prepared before paged Lessons (material + Steps). 2 = Pages generated when the Learner presses Start.
+    contentVersion: integer().notNull().default(1),
+    currentPage: integer().notNull().default(0),
+    // Paged Lessons only: status of each Page and of its question slot, in Page order.
+    pageStatus: jsonb().$type<{ page: "pending" | "ready" | "failed"; question: "pending" | "ready" | "failed" }[]>(),
+    startedAt: timestamp(),
+    completedAt: timestamp(),
+  },
+  (t) => [index("lesson_user_idx").on(t.userId), index("lesson_unit_position_idx").on(t.unitId, t.position)],
+);
 
 export const stepType = pgEnum("step_type", [
   "vocabCard",
@@ -281,21 +297,25 @@ export const stepType = pgEnum("step_type", [
 ]);
 export const stepMode = pgEnum("step_mode", ["voice", "text"]);
 
-export const step = pgTable("step", {
-  id: id(),
-  userId: learner(),
-  lessonId: text()
-    .notNull()
-    .references(() => lesson.id, { onDelete: "cascade" }),
-  position: integer().notNull(),
-  type: stepType().notNull(),
-  mode: stepMode().notNull().default("text"),
-  input: jsonb().$type<Record<string, unknown>>().notNull(),
-  output: jsonb().$type<Record<string, unknown>>(),
-  feedback: jsonb().$type<{ verdict: "correct" | "almost" | "incorrect"; corrected: string; explanation: string }>(),
-  timing: jsonb().$type<Record<string, unknown>>(),
-  answeredAt: timestamp(),
-});
+export const step = pgTable(
+  "step",
+  {
+    id: id(),
+    userId: learner(),
+    lessonId: text()
+      .notNull()
+      .references(() => lesson.id, { onDelete: "cascade" }),
+    position: integer().notNull(),
+    type: stepType().notNull(),
+    mode: stepMode().notNull().default("text"),
+    input: jsonb().$type<Record<string, unknown>>().notNull(),
+    output: jsonb().$type<Record<string, unknown>>(),
+    feedback: jsonb().$type<{ verdict: "correct" | "almost" | "incorrect"; corrected: string; explanation: string }>(),
+    timing: jsonb().$type<Record<string, unknown>>(),
+    answeredAt: timestamp(),
+  },
+  (t) => [index("step_lesson_position_idx").on(t.lessonId, t.position)],
+);
 
 // Reference Pronunciation clips, shared by all Learners and cached by text and voice,
 // since Kenpath's free tier allows only 2 concurrent streams.
