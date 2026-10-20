@@ -116,6 +116,24 @@ describe("goals", () => {
     expect(usage[0]!.usage).toMatchObject({ inputTokens: 120, outputTokens: 80 });
   });
 
+  test("reconfirming an unchanged Goal reuses its Brief, but a changed one writes a new Brief", async () => {
+    const brief = mockModel("A short Brief.");
+    const app = makeApp({ models: { brief } });
+    const { cookie } = await signUp(app);
+    const goal = (await (
+      await app.request("/api/goals", json({ statement: "Lead standups.", context: cv }, cookie))
+    ).json()) as any;
+    const confirm = (body: object) => app.request(`/api/goals/${goal.id}/confirm`, json(body, cookie));
+
+    await confirm({});
+    await confirm({});
+    await confirm({ statement: "Lead standups.", context: cv });
+    expect(brief.doGenerateCalls).toHaveLength(1);
+
+    await confirm({ statement: "Lead retros." });
+    expect(brief.doGenerateCalls).toHaveLength(2);
+  });
+
   test("confirming a Goal without Goal Context needs no Brief and makes no AI call", async () => {
     const app = makeApp();
     const { cookie } = await signUp(app);
