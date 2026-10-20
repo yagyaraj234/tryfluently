@@ -35,23 +35,41 @@ const WORD_CAP = 150;
 const MAX_RETRIES = 2;
 
 const text = z.string().trim().min(1).max(2000);
+// focus is the one thing the Learner can do by the end; keyExample is one shared scenario so Pages do not clash.
 export const planOutput = z.object({
+  focus: text,
+  keyExample: text.nullish(),
   pages: z.array(z.object({ idea: text, block: z.enum(blockTypes) })).min(1),
 });
 // answerKey is what the later question for this Page is graded on; it is never sent to the Learner.
 export const pageOutput = z.object({ title: text, body: text, example: text.nullable(), answerKey: text.nullable() });
 type PageOutput = z.infer<typeof pageOutput>;
 
+const norm = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
 
-/** Cheap rules on top of the schema. Returns a reason, or undefined when the Page is fine. */
-export function pageProblem(page: PageOutput, block: string) {
+/** Cheap rules on top of the schema. Returns a reason, or undefined when the Page is fine.
+ * `others` are the other Pages' planned ideas and whichever of them are already written. */
+export function pageProblem(
+  page: PageOutput,
+  block: string,
+  others: { ideas: string[]; written: PageOutput[] } = { ideas: [], written: [] },
+) {
   if (words(`${page.body} ${page.example ?? ""}`) > WORD_CAP) return `over ${WORD_CAP} words`;
   const key = page.answerKey?.trim();
   if (needsKey.has(block) && !key) return "missing answerKey";
   if (key) {
     if (hasPhrase(`${page.title} ${page.body} ${page.example ?? ""}`, key)) return "answerKey appears in the reading";
   }
+  const title = norm(page.title);
+  if (others.ideas.some((x) => norm(x) === title) || others.written.some((x) => norm(x.title) === title))
+    return "title repeats another Page";
+  const same = (x?: string | null) => !!key && !!x && norm(x) === norm(key);
+  if (others.ideas.some(same) || others.written.some((x) => same(x.answerKey))) return "answerKey repeats another Page";
 }
 
 type Stored = PageOutput & { block: string; question?: Question };
@@ -265,7 +283,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
     const base = { model: models.step, reasoning: "low" as const, abortSignal: ctx.signal };
     const { output: plan } = await generate(ctx, row.userId, {
       ...base,
-      instructions: `Plan one short English Lesson of exactly ${total} Pages. Each Page teaches one idea and uses one Block type (${blockTypes.join(", ")}). Build up from simple to practised, and adapt to the Learner's evidence, Focus Items and memory.`,
+      instructions: `Plan one short English Lesson of exactly ${total} Pages. Each Page teaches one idea and uses one Block type (${blockTypes.join(", ")}). Give the Lesson one through-line and a "focus": one sentence on the single thing the Learner can do by the end. Pick a "keyExample", one short scenario every Page reuses. One distinct idea per Page, no filler Pages, nothing repeated. Build up from simple to practised, never drifting off the Lesson title and objective, and adapt to the Learner's evidence, Focus Items and memory.`,
       prompt: JSON.stringify({
         unit: { title: active?.title, objective: active?.objective },
         lesson: { title: row.title, objective: row.objective },
@@ -276,27 +294,42 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
       }),
       output: Output.object({ schema: planOutput }),
     });
-    const pages = planOutput.parse(plan).pages;
+    const { pages, focus: lessonFocus, keyExample } = planOutput.parse(plan);
     if (pages.length !== total) throw new Error(`Planner returned ${pages.length} Pages, wanted ${total}`);
+    if (new Set(pages.map((p) => norm(p.idea))).size !== total) throw new Error("Planner repeated a Page idea");
+    const ideas = pages.map((p) => p.idea);
+    const written: PageOutput[] = [];
     const hint = levelHint(profile);
 
-    // Each writer sees only its own slice. A Page that fails its checks retries alone.
+    // Each writer sees the whole plan and the focus, but writes only its own idea. A Page that fails its checks retries alone.
     const write = async (i: number) => {
       const slice = pages[i]!;
       for (let tries = 0; tries <= MAX_RETRIES; tries++) {
         try {
           const { output } = await generate(ctx, row.userId, {
             ...base,
-            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} Teach only this idea, for this Block type: ${slice.block}. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).`,
-            prompt: JSON.stringify({ lesson: row.title, page: i + 1, of: total, ...slice }),
+            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} You write Page ${i + 1} of ${total}. Cover only your idea, for this Block type: ${slice.block}. The other Pages cover the rest, so do not repeat them. Stay on the Lesson focus and reuse the keyExample. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).`,
+            prompt: JSON.stringify({
+              lesson: row.title,
+              focus: lessonFocus,
+              keyExample,
+              allIdeas: ideas,
+              page: i + 1,
+              of: total,
+              ...slice,
+            }),
             output: Output.object({ schema: pageOutput }),
           });
           const page = pageOutput.parse(output);
-          const problem = pageProblem(page, slice.block);
+          const problem = pageProblem(page, slice.block, {
+            ideas: ideas.filter((_, j) => j !== i),
+            written: written.filter((_, j) => j !== i),
+          });
           if (problem) {
             console.error(`Lesson ${lessonId} page ${i + 1} attempt ${tries + 1} rejected: ${problem}`);
             continue;
           }
+          written[i] = page;
           await db.transaction(async (tx) => {
             const [cur] = await tx.select().from(lesson).where(mine).for("update");
             if (!cur) return;
