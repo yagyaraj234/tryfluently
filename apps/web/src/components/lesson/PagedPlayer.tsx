@@ -17,7 +17,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { lessonPagesQuery } from "../../lib/lessons";
-import { Complete } from "./Complete";
+import { PagedComplete } from "./PagedComplete";
 import { lessonXp, type Lesson } from "./lesson";
 
 type PageData = {
@@ -111,12 +111,15 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   });
 
   const answered = pages.filter((p) => p.result).length;
-  if (lesson.status === "completed") return <Complete xpGained={lessonXp(answered)} />;
+  const graded = pages.filter((p) => p.result?.verdict);
+  const correct = graded.filter((p) => p.result?.verdict === "correct").length;
+  if (lesson.status === "completed")
+    return (
+      <PagedComplete lessonId={lesson.id} xpGained={lessonXp(answered)} correct={correct} graded={graded.length} />
+    );
 
   const broken = !page ? false : page.status === "failed" || (hasQuestion(page) && page.question === "failed");
   const ready = Boolean(page && page.status === "ready" && (!hasQuestion(page) || page.result));
-  const graded = pages.filter((p) => p.result?.verdict);
-  const correct = graded.filter((p) => p.result?.verdict === "correct").length;
 
   let body;
   if (index === recap)

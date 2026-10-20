@@ -45,6 +45,7 @@ const lessons = {
   waiting: lesson("waiting", 1, [ready(0), fillGap(1, { question: "pending", questionData: undefined }), ready(2)]),
   broken: lesson("broken", 1, [ready(0), { page: 1, status: "failed", question: "pending" }, ready(2)]),
   recap: lesson("recap", 3, [ready(0), fillGap(1, { result: answered }), ready(2)]),
+  done: lesson("done", 3, [ready(0), fillGap(1, { result: answered }), ready(2)], { status: "completed" }),
   oldPlayer: lesson("oldPlayer", 0, [], { contentVersion: 1, phase: "learning" }),
 };
 
@@ -115,4 +116,12 @@ test("after the last Page the recap ends the Lesson with a Finish button", async
 test("a Lesson prepared in the old format keeps the old player", async () => {
   const t = text(await page("/lessons/oldPlayer"));
   assert.match(t, /Start assessment/);
+});
+
+test("a finished paged Lesson shows its score and XP, with no Lesson Report", async () => {
+  const t = text(await page("/lessons/done"));
+  assert.match(t, /Lesson complete/);
+  assert.match(t, /\+30 XP/);
+  assert.match(t, /0 of 1 checked questions right/);
+  assert.doesNotMatch(t, /Report/);
 });

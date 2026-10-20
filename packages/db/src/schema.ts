@@ -135,7 +135,7 @@ export const assessmentJob = pgTable(
     assessmentId: text().references(() => assessment.id, { onDelete: "cascade" }),
     lessonId: text().references(() => lesson.id, { onDelete: "cascade" }),
     userId: learner(),
-    kind: text().$type<"report_email" | "practice" | "lesson">().notNull(),
+    kind: text().$type<"report_email" | "practice" | "lesson" | "lesson_analysis">().notNull(),
     status: text().$type<"pending" | "running" | "done" | "failed">().notNull().default("pending"),
     attempts: integer().notNull().default(0),
     availableAt: timestamp().notNull().defaultNow(),
