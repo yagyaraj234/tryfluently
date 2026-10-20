@@ -186,7 +186,17 @@ export const unit = pgTable("unit", {
   objective: text().notNull(),
   skills: jsonb().$type<Skill[]>().notNull(),
   lessonOutline: jsonb()
-    .$type<{ title: string; objective: string; skill: Skill; kind: "practice" | "roleplay"; position: number }[]>()
+    .$type<
+      {
+        title: string;
+        objective: string;
+        skill: Skill;
+        kind: "practice" | "roleplay";
+        position: number;
+        estimatedMinutes?: number;
+        pageCount?: number;
+      }[]
+    >()
     .notNull()
     .default([]),
   endsWithRoleplay: boolean().notNull().default(false),
