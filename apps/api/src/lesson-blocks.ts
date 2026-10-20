@@ -75,7 +75,10 @@ export function hasPhrase(text: string, phrase: string) {
 export function questionProblem(q: Question) {
   if (q.block === "multipleChoice" && q.answerIndex >= q.options.length) return "answerIndex out of range";
   if (q.block === "multipleChoice" && new Set(q.options).size !== q.options.length) return "duplicate options";
-  if (q.block === "fillGap" && !q.prompt.includes("___")) return "fillGap prompt has no gap";
+  // One gap, one answer box: with two gaps the Learner could never match the key.
+  if (q.block === "fillGap" && q.prompt.split("___").length !== 2) return "fillGap prompt must have exactly one gap";
+  if (q.block === "vocabCard" && q.answer.trim().toLowerCase() === q.term.trim().toLowerCase())
+    return "vocabCard answer repeats the term";
   if (q.block === "fillGap" && hasPhrase(q.prompt, q.answer)) return "answer is in the prompt";
 }
 
