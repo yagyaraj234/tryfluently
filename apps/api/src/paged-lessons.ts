@@ -4,6 +4,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
+import { publicQuestion, questionBlocks, questionProblem, questionsOutput, type Question } from "./lesson-blocks";
 import { skillProfile } from "./scoring";
 
 const { lesson, unit, goal, focusItem, learnerMemory, assessmentJob: job } = schema;
@@ -46,7 +47,7 @@ export function pageProblem(page: PageOutput, block: string) {
   }
 }
 
-type Stored = PageOutput & { block: string };
+type Stored = PageOutput & { block: string; question?: Question };
 const blank = { title: "", body: "", example: null };
 
 /** What a Learner may see: no answer keys. Pending Pages are listed without content. */
@@ -56,6 +57,8 @@ export function publicPages(l: typeof lesson.$inferSelect) {
     return {
       page: i,
       status: s.page,
+      question: s.question,
+      ...(s.question === "ready" && page?.question && { questionData: publicQuestion(page.question) }),
       ...(s.page === "ready" &&
         page && { title: page.title, body: page.body, example: page.example, block: page.block }),
     };
@@ -113,6 +116,67 @@ export async function startLesson({ db, now }: Pick<Deps, "db" | "now">, userId:
   });
 }
 
+/** Writes the question for every interactive Page in one call, after all Pages are ready. Retries alone, twice at most. */
+async function writeQuestions(ctx: Ctx, lessonId: string, token: string) {
+  const { db, models } = ctx;
+  const mine = and(eq(lesson.id, lessonId), eq(lesson.preparationToken, token));
+  const [row] = await db.select().from(lesson).where(mine);
+  if (!row) return;
+  const plan = (row.material as Stored[]).map((p, i) => ({
+    page: i,
+    block: p.block,
+    title: p.title,
+    body: p.body,
+    example: p.example,
+    answerKey: p.answerKey,
+  }));
+  const wanted = plan.filter((p) => questionBlocks.includes(p.block)).map((p) => p.page);
+  for (let tries = 0; tries <= MAX_RETRIES; tries++) {
+    try {
+      const { output } = await generate(ctx, row.userId, {
+        model: models.step,
+        reasoning: "low",
+        abortSignal: ctx.signal,
+        instructions: `Write the questions for an English Lesson, one per Page whose block is not "reading" (pages ${wanted.join(", ")}, 0-based). Each question's "block" must match the Page's block and test only that Page's idea, using its answerKey when given. Give the exact answer and a one or two sentence explanation so answers can be graded with no AI later. For rewrite and speakPrompt give the prompt, an expectedAnswer and a short rubric instead.`,
+        prompt: JSON.stringify({ lesson: row.title, pages: plan }),
+        output: Output.object({ schema: questionsOutput }),
+      });
+      const byPage = new Map(questionsOutput.parse(output).questions.map((q) => [q.page, q.question]));
+      for (const i of wanted) {
+        const q = byPage.get(i);
+        if (!q || q.block !== plan[i]!.block) throw new Error(`Page ${i + 1} question missing or wrong Block`);
+        const problem = questionProblem(q);
+        if (problem) throw new Error(`Page ${i + 1} question rejected: ${problem}`);
+      }
+      await db.transaction(async (tx) => {
+        const [cur] = await tx.select().from(lesson).where(mine).for("update");
+        if (!cur) return;
+        const material = (cur.material as Stored[]).map((p, i) =>
+          wanted.includes(i) ? { ...p, question: byPage.get(i)! } : p,
+        );
+        const pageStatus = cur.pageStatus!.map((s) => ({ ...s, question: "ready" as const }));
+        await tx.update(lesson).set({ material, pageStatus, preparationToken: null }).where(eq(lesson.id, lessonId));
+      });
+      return;
+    } catch (error) {
+      if (ctx.signal?.aborted) throw error;
+      console.error(`Lesson ${lessonId} questions attempt ${tries + 1} failed`, error);
+    }
+  }
+  await db.transaction(async (tx) => {
+    const [cur] = await tx.select().from(lesson).where(mine).for("update");
+    if (!cur) return;
+    const pageStatus = cur.pageStatus!.map((s, i) => ({
+      ...s,
+      question: wanted.includes(i) ? ("failed" as const) : ("ready" as const),
+    }));
+    await tx
+      .update(lesson)
+      .set({ preparation: "failed", preparationToken: null, pageStatus })
+      .where(eq(lesson.id, lessonId));
+  });
+}
+
 /** A failed Lesson goes back to pending and runs again from the planner. */
 export async function retryLesson({ db, now }: Pick<Deps, "db" | "now">, userId: string, lessonId: string) {
   return db.transaction(async (tx) => {
@@ -153,8 +217,11 @@ const levelHint = (profile: Awaited<ReturnType<typeof skillProfile>>) => {
 export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number) {
   const { db, models } = ctx;
   const [row] = await db.select().from(lesson).where(eq(lesson.id, lessonId));
-  if (!row || row.contentVersion !== 2 || row.preparation !== "preparing") return;
-  const token = row.preparationToken!;
+  if (!row || row.contentVersion !== 2 || !row.preparationToken) return;
+  // "ready" with a token means every Page is written but the questions are not: a resumed job goes straight to them.
+  if (row.preparation === "ready") return void (await writeQuestions(ctx, lessonId, row.preparationToken));
+  if (row.preparation !== "preparing") return;
+  const token = row.preparationToken;
   const total = row.pageStatus!.length;
   const mine = and(eq(lesson.id, lessonId), eq(lesson.preparationToken, token));
   const fail = (failedPages: boolean[] = []) =>
@@ -228,7 +295,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
             const done = pageStatus.every((s) => s.page === "ready");
             await tx
               .update(lesson)
-              .set({ material, pageStatus, ...(done && { preparation: "ready", preparationToken: null }) })
+              .set({ material, pageStatus, ...(done && { preparation: "ready" }) })
               .where(eq(lesson.id, lessonId));
           });
           return true;
@@ -241,6 +308,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
     };
     const ok = await Promise.all(pages.map((_, i) => write(i)));
     if (ok.includes(false)) await fail(ok.map((v) => !v));
+    else await writeQuestions(ctx, lessonId, token);
   } catch (error) {
     // Planner or database trouble: the job retries, and its last attempt fails the Lesson.
     if (attempt >= 3) await fail();
