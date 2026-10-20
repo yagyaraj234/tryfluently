@@ -1,12 +1,12 @@
 import { SignOut, Trash } from "@phosphor-icons/react";
-import { Button, Card, Heading, Notice, Stack, Text } from "@impromptu/ui";
+import { Button, Card, Heading, Notice, Stack, Text } from "@fluently/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { authClient } from "../../lib/auth";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 
-const unreachable = "We couldn't reach Impromptu. Check your connection and try again.";
+const unreachable = "We couldn't reach Fluently. Check your connection and try again.";
 
 function deleteError(code: string | undefined) {
   if (code === "INVALID_PASSWORD") return "That password isn't right.";

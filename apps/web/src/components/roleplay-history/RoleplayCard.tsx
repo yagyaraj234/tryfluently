@@ -1,4 +1,4 @@
-import { Button, Card, Heading, Stack, Text } from "@impromptu/ui";
+import { Button, Card, Heading, Stack, Text } from "@fluently/ui";
 import { Link } from "@tanstack/react-router";
 import { roleplayKinds, type RoleplayKind } from "../roleplay/roleplay";
 

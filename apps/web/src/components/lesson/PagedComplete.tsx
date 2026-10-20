@@ -1,4 +1,4 @@
-import { Card, Heading, Stack, Text } from "@impromptu/ui";
+import { Card, Heading, Stack, Text } from "@fluently/ui";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { Complete } from "./Complete";

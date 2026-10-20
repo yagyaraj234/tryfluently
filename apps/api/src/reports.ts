@@ -1,4 +1,4 @@
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AppEnv, Deps } from "./app";

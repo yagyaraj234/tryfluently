@@ -1,4 +1,4 @@
-import { Button, LoadingState, Stack, Text } from "@impromptu/ui";
+import { Button, LoadingState, Stack, Text } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { lessonRoute } from "../../lib/lessons";

@@ -1,4 +1,4 @@
-import { schema, type Db } from "@impromptu/db";
+import { schema, type Db } from "@fluently/db";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, getOAuthState, getSessionFromCtx } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -41,7 +41,7 @@ export type Env = {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   KENPATH_VOICE?: string;
-  // Parent domain shared by web and API in production, e.g. impromptu.app
+  // Parent domain shared by web and API in production, e.g. tryfluently.site
   COOKIE_DOMAIN?: string;
   METRICS_ENABLED?: string;
 };
@@ -168,7 +168,7 @@ export function createApp(deps: Deps) {
     .use("/api/*", async (c, next) => {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session) return c.json({ error: "Unauthorized" }, 401);
-      if (!session.user.emailVerified) return c.json({ error: "Verify your email before using Impromptu." }, 403);
+      if (!session.user.emailVerified) return c.json({ error: "Verify your email before using Fluently." }, 403);
       c.set("user", session.user as User);
       await next();
     })
@@ -224,7 +224,7 @@ export function createApp(deps: Deps) {
       document: {
         openapi: "3.1.0",
         info: {
-          title: "Impromptu API",
+          title: "Fluently API",
           version: "1.0.0",
           description:
             "Interactive route reference generated from registered Hono routes. Request and response schemas are not yet declared in OpenAPI.",

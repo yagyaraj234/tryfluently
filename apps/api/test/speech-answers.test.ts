@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { eq } from "drizzle-orm";
 import { MockLanguageModelV4 } from "ai/test";
 import { settleAnalyses } from "../src/speech-answers";

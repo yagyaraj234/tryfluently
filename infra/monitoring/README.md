@@ -4,7 +4,7 @@ Enable metrics in the root `.env` (copy `.env.example` if needed), then run the
 API and monitoring stack:
 
 ```sh
-bun run --filter @impromptu/api dev
+bun run --filter @fluently/api dev
 docker compose -f docker-compose.monitoring.yml up -d
 ```
 
@@ -12,7 +12,7 @@ docker compose -f docker-compose.monitoring.yml up -d
 - Prometheus: http://localhost:9090
 - API metrics: http://localhost:3000/metrics
 
-Grafana provisions Prometheus and the Impromptu API dashboard automatically.
+Grafana provisions Prometheus and the Fluently API dashboard automatically.
 The monitoring ports bind to localhost. Set `GRAFANA_ADMIN_PASSWORD` before
 starting Grafana to change its local password. Prometheus scrapes the API at
 `host.docker.internal:3000`; change `infra/monitoring/prometheus.yml` if the API

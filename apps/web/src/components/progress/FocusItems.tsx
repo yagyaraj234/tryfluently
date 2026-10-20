@@ -1,5 +1,5 @@
 import { Target } from "@phosphor-icons/react";
-import { Card, Cluster, EmptyState, FocusItemCard, Grid, Heading, Stack, Text } from "@impromptu/ui";
+import { Card, Cluster, EmptyState, FocusItemCard, Grid, Heading, Stack, Text } from "@fluently/ui";
 import { focusItemsQuery } from "../../lib/queries";
 import { HITS_TO_CLOSE } from "./constants";
 

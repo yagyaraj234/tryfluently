@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MapTrifold } from "@phosphor-icons/react";
-import { Button, EmptyState, ErrorState, LoadingState, OfflineBanner } from "@impromptu/ui";
+import { Button, EmptyState, ErrorState, LoadingState, OfflineBanner } from "@fluently/ui";
 
 describe("EmptyState", () => {
   test("shows a heading, the explanation and the action", () => {

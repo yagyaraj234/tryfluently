@@ -1,4 +1,4 @@
-import type { RecordingState } from "@impromptu/ui";
+import type { RecordingState } from "@fluently/ui";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 /** A recorded answer, transcribed by the API. Answer the Step with `{ recordingId }`. */

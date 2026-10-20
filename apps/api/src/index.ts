@@ -1,4 +1,4 @@
-import { createDb } from "@impromptu/db";
+import { createDb } from "@fluently/db";
 import { createApp, type Deps, type Env } from "./app";
 import { resendMailer } from "./mailer";
 import { startAssessmentJobs } from "./assessment-jobs";

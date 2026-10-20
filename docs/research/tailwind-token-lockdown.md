@@ -97,7 +97,7 @@ For us, `apps/web/src/styles.css`:
 
 ```css
 @import "tailwindcss" source(none);
-@import "@impromptu/ui/tokens.css";
+@import "@fluently/ui/tokens.css";
 @source "../../../packages/ui/src";
 ```
 
@@ -160,7 +160,7 @@ export default [
         "error",
         {
           selector: "JSXAttribute[name.name=/^(className|class|style)$/]",
-          message: "Screens assemble @impromptu/ui components; no className or style in apps/web.",
+          message: "Screens assemble @fluently/ui components; no className or style in apps/web.",
         },
       ],
     },
@@ -171,7 +171,7 @@ export default [
 Notes:
 
 - The `[\[\]()]` ban also blocks value-matching variants like `data-[size=large]:`. That's fine with Base UI, because bare attribute variants such as `data-active:` work without brackets ([states docs: Data attributes](https://tailwindcss.com/docs/hover-focus-and-other-states#data-attributes)). Recurring ones can be registered with `@custom-variant` ([same section](https://tailwindcss.com/docs/hover-focus-and-other-states#data-attributes)).
-- Banning `className` on every JSX element in `apps/web` also bans passing it to `@impromptu/ui` components. That matches "screens never style anything". Layout comes from layout components (`Stack`, `Page`, ...) in `packages/ui`.
+- Banning `className` on every JSX element in `apps/web` also bans passing it to `@fluently/ui` components. That matches "screens never style anything". Layout comes from layout components (`Stack`, `Page`, ...) in `packages/ui`.
 - `entryPoint` must be a stylesheet that imports `tailwindcss` plus our tokens, so the plugin sees the wiped theme ([no-unknown-classes options](https://github.com/schoero/eslint-plugin-better-tailwindcss/blob/main/docs/rules/no-unknown-classes.md#entrypoint)). Use `packages/ui/src/lint-entry.css` (`@import "tailwindcss" source(none); @import "./tokens.css";`) so linting the package depends on no particular app.
 - `apps/api` has no JSX, so the `apps/*` rule never fires there.
 - The repo has no linter today (root `package.json` has only `turbo`, `typescript` and `@types/bun`). This adds ESLint 9, `eslint-plugin-better-tailwindcss` and a TS parser such as `@typescript-eslint/parser`.

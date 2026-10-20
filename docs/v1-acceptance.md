@@ -1,4 +1,4 @@
-# Impromptu v1 acceptance audit
+# Fluently v1 acceptance audit
 
 Reviewed 18 October 2026 against GitHub specs [#13](https://github.com/yagyaraj234/impromptu-monorepo/issues/13), [#65](https://github.com/yagyaraj234/impromptu-monorepo/issues/65), [#86](https://github.com/yagyaraj234/impromptu-monorepo/issues/86), design tickets #56–#64, `GLOSSARY.md` and both ADRs. Results below are a snapshot of that review.
 

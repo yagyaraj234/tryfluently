@@ -1,5 +1,5 @@
 {
-  "name": "@impromptu/api",
+  "name": "@fluently/api",
   "private": true,
   "type": "module",
   "exports": {
@@ -15,7 +15,7 @@
     "@ai-sdk/google": "4.0.96",
     "@ai-sdk/openai": "4.0.94",
     "@hono/zod-validator": "^0.9.1",
-    "@impromptu/db": "workspace:*",
+    "@fluently/db": "workspace:*",
     "@scalar/hono-api-reference": "^0.12.13",
     "ai": "7.0.141",
     "better-auth": "^1.7.10",
@@ -26,7 +26,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@impromptu/ui": "workspace:*",
+    "@fluently/ui": "workspace:*",
     "@types/bun": "^1.4.3",
     "eslint": "^10.12.0"
   }

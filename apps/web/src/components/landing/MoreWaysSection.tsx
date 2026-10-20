@@ -1,4 +1,4 @@
-import { FeatureTrio } from "@impromptu/ui";
+import { FeatureTrio } from "@fluently/ui";
 import { FileText, Flame, Microphone } from "@phosphor-icons/react";
 
 export function MoreWaysSection() {
@@ -10,7 +10,7 @@ export function MoreWaysSection() {
         {
           icon: FileText,
           title: "Bring your own context",
-          body: "Tell Impromptu about your work or situation. It turns that into a short brief and uses it in every Lesson.",
+          body: "Tell Fluently about your work or situation. It turns that into a short brief and uses it in every Lesson.",
         },
         {
           icon: Microphone,

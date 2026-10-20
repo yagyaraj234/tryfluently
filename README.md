@@ -1,4 +1,4 @@
-# Impromptu
+# Fluently
 
 AI English coach for job interviews, client communication and everyday fluency. Learners set Goals, complete an Assessment, then practise through an adaptive Roadmap of Lessons and Roleplays.
 
@@ -6,7 +6,7 @@ This Bun workspace contains the Hono API (`apps/api`), TanStack Start web app (`
 
 ## Web app
 
-`apps/web` is a TanStack Start React app with TanStack Query and SSR, built from `@impromptu/ui`.
+`apps/web` is a TanStack Start React app with TanStack Query and SSR, built from `@fluently/ui`.
 Requires Bun 1.3.6 and Node.js 22.12+ (Node.js 24 recommended).
 
 ### Running web and API together
@@ -38,9 +38,9 @@ dashboard details.
 
 ```sh
 bun run build
-bun run --filter @impromptu/web preview
+bun run --filter @fluently/web preview
 bun run typecheck
-bun run --filter @impromptu/web test
+bun run --filter @fluently/web test
 ```
 
 ### Deploy on a Linux VM
@@ -105,13 +105,13 @@ space; it does not reduce server RAM. Docker also retains build cache for faster
 The image pins Bun 1.4.3. To check the built production web server inside the runtime image:
 
 ```sh
-docker run --rm -v "$PWD/scripts/check-deploy.ts:/app/scripts/check-deploy.ts:ro" impromptu-runtime bun /app/scripts/check-deploy.ts
+docker run --rm -v "$PWD/scripts/check-deploy.ts:/app/scripts/check-deploy.ts:ro" fluently-runtime bun /app/scripts/check-deploy.ts
 ```
 
 ### How the app is wired
 
 - `apps/web/src/routes/api/$.ts` is the `/api/*` pass-through.
-- `apps/web/src/lib/api.ts` exports `api()`, the typed Hono client for `@impromptu/api`. During server rendering it
+- `apps/web/src/lib/api.ts` exports `api()`, the typed Hono client for `@fluently/api`. During server rendering it
   calls the API directly with the Learner's `cookie` header.
 - `apps/web/src/lib/auth.ts` exports `authClient`, Better Auth on the web origin, plus `signUp` (sends the browser's
   timezone) and `signInWithGoogle`. `GET /api/auth/providers` says whether Google is configured.
@@ -121,7 +121,7 @@ docker run --rm -v "$PWD/scripts/check-deploy.ts:/app/scripts/check-deploy.ts:ro
   `/sign-in`. Home sends Learners who haven't finished onboarding on to set or confirm their Goals.
 - `apps/web/src/lib/theme.ts` reads the Light/Dark/System `theme` cookie, rendered as `data-theme` on `<html>`.
 - `apps/web/src/router.tsx` creates a QueryClient per server request, keeping Learners' cached data separate.
-- Apps never style anything: no `className`, `style` or CSS. Missing pieces go into `@impromptu/ui`.
+- Apps never style anything: no `className`, `style` or CSS. Missing pieces go into `@fluently/ui`.
 
 File routes live in `apps/web/src/routes`; Start generates `src/routeTree.gen.ts` during development
 and builds. Commit the generated route tree so typechecking works immediately after checkout.

@@ -2,12 +2,12 @@
 // sitemap are built from the same objects, so what crawlers and AI assistants read can't drift from the page.
 
 export const site = {
-  name: "Impromptu",
-  title: "Impromptu | AI English Coach for Speaking and Writing",
+  name: "Fluently",
+  title: "Fluently | AI English Coach for Speaking and Writing",
   description:
     "Practise English speaking and writing with an AI coach. Take a 10-minute assessment, then follow a Roadmap of short Lessons and conversation practice.",
   summary:
-    "Impromptu is an AI coach that helps people speak and write English. It assesses how a learner speaks and writes, then builds a Roadmap of Lessons and Roleplays that changes with their answers. English today, with more languages planned.",
+    "Fluently is an AI coach that helps people speak and write English. It assesses how a learner speaks and writes, then builds a Roadmap of Lessons and Roleplays that changes with their answers. English today, with more languages planned.",
 };
 
 export const faqs = [
@@ -26,9 +26,9 @@ export const faqs = [
       "A Goal is the situation you want English for, such as work conversations or everyday fluency. Your Goal sets your target level and the Roleplays you get.",
   },
   {
-    question: "Who is Impromptu for?",
+    question: "Who is Fluently for?",
     answer:
-      "Anyone who wants to communicate better in English, whether for work, study or everyday life. You choose a Goal and Impromptu builds Lessons around it.",
+      "Anyone who wants to communicate better in English, whether for work, study or everyday life. You choose a Goal and Fluently builds Lessons around it.",
   },
   {
     question: "What happens after the assessment?",

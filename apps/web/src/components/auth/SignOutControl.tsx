@@ -1,4 +1,4 @@
-import { Button, Cluster, Dialog, IconButton } from "@impromptu/ui";
+import { Button, Cluster, Dialog, IconButton } from "@fluently/ui";
 import { SignOut } from "@phosphor-icons/react";
 import { useState } from "react";
 

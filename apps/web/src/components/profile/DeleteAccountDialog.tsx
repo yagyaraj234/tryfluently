@@ -1,8 +1,8 @@
-import { Button, Cluster, Dialog, Notice, Stack, TextField } from "@impromptu/ui";
+import { Button, Cluster, Dialog, Notice, Stack, TextField } from "@fluently/ui";
 import { Link } from "@tanstack/react-router";
 import type { FormEvent } from "react";
 
-const description = "Everything you've done in Impromptu is deleted, and it can't be undone.";
+const description = "Everything you've done in Fluently is deleted, and it can't be undone.";
 
 type Props = {
   open: boolean;

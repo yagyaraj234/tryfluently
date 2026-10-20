@@ -1,4 +1,4 @@
-import { AuthLayout, Stack, Text, TextLink } from "@impromptu/ui";
+import { AuthLayout, Stack, Text, TextLink } from "@fluently/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/verify-email")({ component: VerifyEmail });

@@ -1,4 +1,4 @@
-import { schema, type Tx } from "@impromptu/db";
+import { schema, type Tx } from "@fluently/db";
 import { and, eq } from "drizzle-orm";
 
 // Caller holds the Learner lock, so concurrent completions share the same open practice target.

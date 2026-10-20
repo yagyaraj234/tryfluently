@@ -1,4 +1,4 @@
-import { Card, ChoiceChips, Heading, Stack } from "@impromptu/ui";
+import { Card, ChoiceChips, Heading, Stack } from "@fluently/ui";
 import { useRouter } from "@tanstack/react-router";
 import { saveTheme, type Theme } from "../../lib/theme";
 import { TimezoneSelect } from "./TimezoneSelect";

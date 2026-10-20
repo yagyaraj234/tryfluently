@@ -1,4 +1,4 @@
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { Output } from "ai";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";

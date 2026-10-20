@@ -13,7 +13,7 @@ import {
   UnitCard,
   WeekStrip,
   XpChip,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { Books, CheckCircle } from "@phosphor-icons/react";
 import { Example, sample } from "./shared";
 

@@ -136,7 +136,7 @@ const text = (html) =>
 test("a new Written Assessment shows the coach identity, a conversation composer and a way to finish", async () => {
   const html = await page("/assessments/fresh");
   assert.match(text(html), /Written Assessment/);
-  assert.match(text(html), /Your conversation with Impromptu/);
+  assert.match(text(html), /Your conversation with Fluently/);
   assert.doesNotMatch(text(html), /Say hello/);
   assert.match(html, /<label[^>]*>Your message to your coach<\/label>/);
   assert.ok(buttons(html).includes("Finish"));

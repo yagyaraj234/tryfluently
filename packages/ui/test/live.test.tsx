@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { LiveBar } from "@impromptu/ui";
+import { LiveBar } from "@fluently/ui";
 
 describe("LiveBar", () => {
   test("a live call shows LIVE, what it is, the time so far and the time left", () => {

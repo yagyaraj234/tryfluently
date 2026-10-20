@@ -11,7 +11,7 @@ import {
   type RewriteStepProps,
   type VocabCardStepProps,
   type VoiceProps,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import type { ToolUIPart, UIMessage } from "ai";
 import type { ReactNode } from "react";
 import { hearIt } from "../../hooks/voice";

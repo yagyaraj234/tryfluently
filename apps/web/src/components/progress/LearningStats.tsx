@@ -1,4 +1,4 @@
-import { Grid, StatTile } from "@impromptu/ui";
+import { Grid, StatTile } from "@fluently/ui";
 import { BookOpenText, CalendarCheck, CheckCircle } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { progressQuery } from "../../lib/queries";

@@ -523,7 +523,7 @@ export type VoiceProps = {
 const unavailable: Record<Extract<RecordingState, { status: "unavailable" }>["reason"], string> = {
   capped: "You've used today's recorded minutes. Answer in text for now; recording opens again tomorrow.",
   denied:
-    "Impromptu isn't allowed to use your microphone. Allow it in your browser's site settings to record, or answer in text.",
+    "Fluently isn't allowed to use your microphone. Allow it in your browser's site settings to record, or answer in text.",
   "no-microphone": "We couldn't find a microphone to record with. Connect one to record, or answer in text.",
   unsupported: "This browser can't record audio. Answer in text, or try another browser.",
 };

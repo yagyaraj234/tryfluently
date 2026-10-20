@@ -1,4 +1,4 @@
-import { schema, type Db } from "@impromptu/db";
+import { schema, type Db } from "@fluently/db";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { localDay } from "./progress";

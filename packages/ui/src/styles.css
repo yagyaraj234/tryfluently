@@ -1,5 +1,5 @@
 /*
- * The one stylesheet: Tailwind plus the Impromptu theme. The landing page and the app share every token here.
+ * The one stylesheet: Tailwind plus the Fluently theme. The landing page and the app share every token here.
  * Components style themselves with utilities; this file only holds tokens, dark values, keyframes and base rules.
  */
 @import "tailwindcss" source(none);

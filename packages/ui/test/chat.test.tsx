@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ChatComposer, ChatSkeleton, ChatThread, ChatTurn, ChatWriting } from "@impromptu/ui";
+import { ChatComposer, ChatSkeleton, ChatThread, ChatTurn, ChatWriting } from "@fluently/ui";
 
 describe("ChatTurn", () => {
   test("marks a reply that is still streaming", () => {

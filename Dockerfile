@@ -9,7 +9,7 @@ COPY packages/ui/package.json packages/ui/package.json
 FROM dependencies AS build
 RUN bun install --frozen-lockfile
 COPY . .
-RUN bun --bun run --filter @impromptu/web build
+RUN bun --bun run --filter @fluently/web build
 
 FROM dependencies AS runtime
 RUN bun install --frozen-lockfile --production

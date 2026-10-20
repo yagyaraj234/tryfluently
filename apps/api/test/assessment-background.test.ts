@@ -44,7 +44,7 @@ test("Assessment /end returns its saved Report without waiting for email deliver
   }
 });
 
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import type { Mailer } from "../src/app";
 import { and, eq } from "drizzle-orm";
 import { legacyOutlines, preparedContent, unitsReply } from "./fixtures";

@@ -1,8 +1,8 @@
-name: impromptu-production
+name: fluently-production
 
 services:
   migrate:
-    image: impromptu-runtime
+    image: fluently-runtime
     build: .
     env_file: .env
     environment:
@@ -10,7 +10,7 @@ services:
     command: ["bun", "/app/scripts/migrate.ts"]
 
   api:
-    image: impromptu-runtime
+    image: fluently-runtime
     build: .
     restart: unless-stopped
     env_file: .env
@@ -28,7 +28,7 @@ services:
       retries: 12
 
   web:
-    image: impromptu-runtime
+    image: fluently-runtime
     build: .
     restart: unless-stopped
     env_file: .env

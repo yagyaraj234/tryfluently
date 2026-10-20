@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ChatTurn, FillGapStep, RewriteStep, StepFeedback, StepHeader, VocabCardStep } from "@impromptu/ui";
+import { ChatTurn, FillGapStep, RewriteStep, StepFeedback, StepHeader, VocabCardStep } from "@fluently/ui";
 
 const type = (name: string, value: string) =>
   fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } });

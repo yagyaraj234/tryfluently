@@ -1,4 +1,4 @@
-import { Button, Cluster, ErrorState, LoadingState, Text, toastManager, type DebriefProps } from "@impromptu/ui";
+import { Button, Cluster, ErrorState, LoadingState, Text, toastManager, type DebriefProps } from "@fluently/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import type { InferResponseType } from "hono/client";

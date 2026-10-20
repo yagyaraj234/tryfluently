@@ -1,4 +1,4 @@
-import { ErrorState, Grid, LoadingState, ProfileCard, Stack, StatTile, WeekStrip } from "@impromptu/ui";
+import { ErrorState, Grid, LoadingState, ProfileCard, Stack, StatTile, WeekStrip } from "@fluently/ui";
 import { Books, CheckCircle } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";

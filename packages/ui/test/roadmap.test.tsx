@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { StreakCard, UnitCard, UnitStatusTag } from "@impromptu/ui";
+import { StreakCard, UnitCard, UnitStatusTag } from "@fluently/ui";
 
 describe("StreakCard", () => {
   test("reads as the Streak in days", () => {

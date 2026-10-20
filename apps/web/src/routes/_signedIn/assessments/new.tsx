@@ -1,4 +1,4 @@
-import { Button, Card, CoachAvatar, Container, Grid, Heading, Notice, Screen, Stack, Text } from "@impromptu/ui";
+import { Button, Card, CoachAvatar, Container, Grid, Heading, Notice, Screen, Stack, Text } from "@fluently/ui";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "../../../lib/api";
@@ -76,7 +76,7 @@ function ChooseAssessment() {
         });
       setMessage({ tone: "error", text: body.error ?? "We couldn't start your Assessment. Try again." });
     } catch {
-      setMessage({ tone: "error", text: "We couldn't reach Impromptu. Check your connection and try again." });
+      setMessage({ tone: "error", text: "We couldn't reach Fluently. Check your connection and try again." });
     } finally {
       setStarting(undefined);
     }

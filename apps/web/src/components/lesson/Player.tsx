@@ -7,7 +7,7 @@ import {
   TeachingPage,
   TextLink,
   type VoiceProps,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ToolUIPart } from "ai";
 import { Fragment, useEffect, useRef, useState } from "react";

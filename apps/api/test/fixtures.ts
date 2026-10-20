@@ -1,4 +1,4 @@
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { eq } from "drizzle-orm";
 import { testDb } from "./setup";
 import { get, json, makeApp, makeClock, mockChat, mockModel, signUp, userMessage, type TestApp } from "./helpers";

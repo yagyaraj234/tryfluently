@@ -1,4 +1,4 @@
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { NoObjectGeneratedError, Output } from "ai";
 import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import { Hono } from "hono";

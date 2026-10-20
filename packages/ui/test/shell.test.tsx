@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { House, MapTrifold } from "@phosphor-icons/react";
-import { AppShell, PracticeShell, StreakChip, XpChip } from "@impromptu/ui";
+import { AppShell, PracticeShell, StreakChip, XpChip } from "@fluently/ui";
 
 describe("StreakChip", () => {
   test("reads as the Streak in days", () => {

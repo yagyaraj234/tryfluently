@@ -10,7 +10,7 @@ import {
   Stack,
   Text,
   VoiceOrb,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { useRealtimeCall } from "../../lib/call";
@@ -106,7 +106,7 @@ function CallProblem({
     return (
       <ErrorState
         title="Allow your microphone"
-        description="A voice Roleplay needs your microphone. Allow it for Impromptu in your browser's site settings, or connect one, then try again."
+        description="A voice Roleplay needs your microphone. Allow it for Fluently in your browser's site settings, or connect one, then try again."
         onRetry={retry}
         action={typeInstead}
       />

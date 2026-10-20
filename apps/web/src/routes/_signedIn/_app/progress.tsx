@@ -1,4 +1,4 @@
-import { Stack } from "@impromptu/ui";
+import { Stack } from "@fluently/ui";
 import { createFileRoute } from "@tanstack/react-router";
 import { ProgressContent } from "../../../components/progress/ProgressContent";
 import {

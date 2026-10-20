@@ -56,8 +56,8 @@ export default [
             {
               group: [
                 "@tanstack/*",
-                "@impromptu/api",
-                "@impromptu/db",
+                "@fluently/api",
+                "@fluently/db",
                 "react-router",
                 "react-router-dom",
                 "swr",

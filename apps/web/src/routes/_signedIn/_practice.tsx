@@ -1,4 +1,4 @@
-import { PracticeShell } from "@impromptu/ui";
+import { PracticeShell } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, useCanGoBack, useMatch, useRouter } from "@tanstack/react-router";
 import type { MouseEvent } from "react";

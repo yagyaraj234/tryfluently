@@ -1,4 +1,4 @@
-import { Feature, MarketingPanel, UnitRow } from "@impromptu/ui";
+import { Feature, MarketingPanel, UnitRow } from "@fluently/ui";
 import { ChatCircle, Path, Sparkle } from "@phosphor-icons/react";
 
 export function RoadmapSection() {

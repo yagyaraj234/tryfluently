@@ -26,7 +26,7 @@ function SignIn() {
       ]}
       submitLabel="Sign in"
       onSubmit={({ email, password }) => authClient.signIn.email({ email: email!, password: password! })}
-      footer={<AuthFooter prompt="New to Impromptu?" to="/sign-up" label="Create an account" />}
+      footer={<AuthFooter prompt="New to Fluently?" to="/sign-up" label="Create an account" />}
     />
   );
 }

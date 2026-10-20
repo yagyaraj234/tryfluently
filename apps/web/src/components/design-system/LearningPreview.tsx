@@ -12,7 +12,7 @@ import {
   StepFeedback,
   StepHeader,
   TeachingPage,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ThemeChips } from "./ThemeChips";

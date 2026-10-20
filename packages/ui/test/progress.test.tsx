@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { CefrScale, FocusItemCard, ScoreHistory, SkillBar, SkillProgressCard } from "@impromptu/ui";
+import { CefrScale, FocusItemCard, ScoreHistory, SkillBar, SkillProgressCard } from "@fluently/ui";
 
 describe("SkillBar", () => {
   test("is a meter named by the skill, out of 100, that reads as the score and CEFR Level", () => {

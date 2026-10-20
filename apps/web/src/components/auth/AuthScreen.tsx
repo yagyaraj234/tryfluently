@@ -1,4 +1,4 @@
-import { AuthLayout, Button, Cluster, Notice, Stack, Text, TextField, TextLink, type AuthPoint } from "@impromptu/ui";
+import { AuthLayout, Button, Cluster, Notice, Stack, Text, TextField, TextLink, type AuthPoint } from "@fluently/ui";
 import { Microphone, Path, Sparkle } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
@@ -22,7 +22,7 @@ const waiting: AuthPoint = {
 };
 
 const signUpStory = {
-  storyLabel: "Getting started with Impromptu",
+  storyLabel: "Getting started with Fluently",
   badge: "Free assessment",
   storyTitle: "Start with a Goal.",
   storyText: "Practise the conversations you need, one at a time.",
@@ -30,7 +30,7 @@ const signUpStory = {
   note: undefined,
 };
 const signInStory = {
-  storyLabel: "Welcome back to Impromptu",
+  storyLabel: "Welcome back to Fluently",
   badge: "Your progress is saved",
   storyTitle: "Pick up where you left off.",
   storyText: "Your Roadmap and next conversation are ready when you are.",
@@ -86,7 +86,7 @@ export function AuthScreen(props: {
       queryClient.clear();
       await router.navigate({ to: props.successTo ?? "/home" });
     } catch {
-      setError("We couldn't reach Impromptu. Check your connection and try again.");
+      setError("We couldn't reach Fluently. Check your connection and try again.");
     } finally {
       setPending(false);
     }

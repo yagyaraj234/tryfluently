@@ -1,4 +1,4 @@
-import { Dashboard, Stack } from "@impromptu/ui";
+import { Dashboard, Stack } from "@fluently/ui";
 import { createFileRoute } from "@tanstack/react-router";
 import { AccountCard } from "../../../components/profile/AccountCard";
 import { PreferencesCard } from "../../../components/profile/PreferencesCard";

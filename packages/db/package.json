@@ -1,5 +1,5 @@
 {
-  "name": "@impromptu/db",
+  "name": "@fluently/db",
   "private": true,
   "type": "module",
   "exports": {

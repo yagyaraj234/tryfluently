@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { eq, sql } from "drizzle-orm";
 import { completeLesson } from "../src/completion";
 import { recordScores, skillProfile } from "../src/scoring";

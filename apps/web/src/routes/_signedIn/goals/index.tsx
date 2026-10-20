@@ -1,4 +1,4 @@
-import { Button, Notice, Screen, Stack, StarterShell } from "@impromptu/ui";
+import { Button, Notice, Screen, Stack, StarterShell } from "@fluently/ui";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useRef, useState, type FormEvent } from "react";
 import {
@@ -82,7 +82,7 @@ function Goals() {
       if (error) return setError("We couldn't sign you out. Try again.");
       await router.navigate({ to: "/sign-in" });
     } catch {
-      setError("We couldn't reach Impromptu. Check your connection and try again.");
+      setError("We couldn't reach Fluently. Check your connection and try again.");
     } finally {
       setPending(false);
     }

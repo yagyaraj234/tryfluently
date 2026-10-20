@@ -8,7 +8,7 @@ import {
   VoiceAnswer,
   VoiceOrb,
   type RecordingState,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { useState } from "react";
 import { answered, Example, sample } from "./shared";
 

@@ -11,7 +11,7 @@ import {
   ReportMock,
   RoadmapPeekMock,
   RoleplayMock,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { createFileRoute, isRedirect, Link, redirect } from "@tanstack/react-router";
 import { AssessmentSection } from "../components/landing/AssessmentSection";
 import { MoreWaysSection } from "../components/landing/MoreWaysSection";
@@ -127,7 +127,7 @@ function Landing() {
         note="Voice or written. No card needed."
       >
         <ProductFrame
-          label="Impromptu preview: a Roleplay, an Assessment Report and a Roadmap"
+          label="Fluently preview: a Roleplay, an Assessment Report and a Roadmap"
           chips={[floatChips.streak, floatChips.xp]}
         >
           <RoleplayMock />

@@ -1,4 +1,4 @@
-import { schema, type Tx } from "@impromptu/db";
+import { schema, type Tx } from "@fluently/db";
 import { zValidator } from "@hono/zod-validator";
 import { safeValidateUIMessages, type UIMessage } from "ai";
 import { and, desc, eq } from "drizzle-orm";

@@ -1,5 +1,5 @@
 import { ArrowCounterClockwise } from "@phosphor-icons/react";
-import { Button, Cluster, Dialog, EmptyState, ErrorState, LoadingState, Text } from "@impromptu/ui";
+import { Button, Cluster, Dialog, EmptyState, ErrorState, LoadingState, Text } from "@fluently/ui";
 import { Link, useBlocker, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";

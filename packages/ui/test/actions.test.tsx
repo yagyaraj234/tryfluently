@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import { createRef } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ArrowRight, X } from "@phosphor-icons/react";
-import { Button, IconButton, TextLink } from "@impromptu/ui";
+import { Button, IconButton, TextLink } from "@fluently/ui";
 
 describe("Button", () => {
   test("renders a button named by its text, and the icon adds nothing to the name", () => {

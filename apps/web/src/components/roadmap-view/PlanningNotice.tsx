@@ -1,4 +1,4 @@
-import { Button, LoadingState, Notice } from "@impromptu/ui";
+import { Button, LoadingState, Notice } from "@fluently/ui";
 
 export function PlanningNotice({ failed, onRetry }: { failed: boolean; onRetry: () => void }) {
   if (!failed)

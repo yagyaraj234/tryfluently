@@ -1,5 +1,5 @@
 import { MagnifyingGlass } from "@phosphor-icons/react";
-import { Container, EmptyState, Screen, Stack } from "@impromptu/ui";
+import { Container, EmptyState, Screen, Stack } from "@fluently/ui";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { Report } from "../../../components/assessment/assessment";
 import { proposedGoals } from "../../../components/assessment/GoalReview";

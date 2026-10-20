@@ -38,7 +38,7 @@ test("a signed-out visitor gets the full landing page as server-rendered HTML", 
 
 test("the head carries title, description, canonical, share tags and structured data", async () => {
   const html = await (await visit("/")).text();
-  assert.match(html, /<title>Impromptu \| AI English Coach for Speaking and Writing<\/title>/);
+  assert.match(html, /<title>Fluently \| AI English Coach for Speaking and Writing<\/title>/);
   assert.match(html, /<meta name="description" content="Practise English speaking and writing/);
   assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3001\/"/);
   assert.match(html, /property="og:title"/);
@@ -73,6 +73,6 @@ test("sitemap.xml lists the public pages and llms.txt summarises the product", a
   assert.match(sitemap.headers.get("content-type"), /xml/);
   assert.match(await sitemap.text(), /<loc>http:\/\/localhost:3001\/<\/loc>/);
   const llms = await (await visit("/llms.txt")).text();
-  assert.match(llms, /^# Impromptu/);
+  assert.match(llms, /^# Fluently/);
   assert.match(llms, /### How long is the assessment\?/);
 });

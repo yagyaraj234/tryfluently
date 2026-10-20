@@ -1,4 +1,4 @@
-import { Feature, LevelCard, MarketingPanel } from "@impromptu/ui";
+import { Feature, LevelCard, MarketingPanel } from "@fluently/ui";
 import { ChartBar, Check, Microphone, Sparkle } from "@phosphor-icons/react";
 
 export function AssessmentSection() {
@@ -7,7 +7,7 @@ export function AssessmentSection() {
       id="assessment"
       pill="Assessment"
       title="See where you stand in 10 minutes"
-      description="Have a short conversation by voice or text. Impromptu scores your fluency, grammar and vocabulary on the A1 to C2 scale."
+      description="Have a short conversation by voice or text. Fluently scores your fluency, grammar and vocabulary on the A1 to C2 scale."
       points={[
         {
           icon: ChartBar,

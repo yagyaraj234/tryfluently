@@ -1,4 +1,4 @@
-import { Container, Heading, Screen, Stack } from "@impromptu/ui";
+import { Container, Heading, Screen, Stack } from "@fluently/ui";
 import { createFileRoute } from "@tanstack/react-router";
 import { GoalReview, proposedGoals } from "../../../components/assessment/GoalReview";
 

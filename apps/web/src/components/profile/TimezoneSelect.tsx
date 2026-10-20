@@ -1,4 +1,4 @@
-import { Notice, Select, Stack, toastManager } from "@impromptu/ui";
+import { Notice, Select, Stack, toastManager } from "@fluently/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";

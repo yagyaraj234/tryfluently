@@ -12,7 +12,7 @@ import {
   type PageQuestion,
   type SpeechControl,
   type PageResult,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
