@@ -38,7 +38,7 @@ const text = z.string().trim().min(1).max(2000);
 // focus is the one thing the Learner can do by the end; keyExample is one shared scenario so Pages do not clash.
 export const planOutput = z.object({
   focus: text,
-  keyExample: text.nullish(),
+  keyExample: text.nullable(),
   pages: z.array(z.object({ idea: text, block: z.enum(blockTypes) })).min(1),
 });
 // answerKey is what the later question for this Page is graded on; it is never sent to the Learner.
