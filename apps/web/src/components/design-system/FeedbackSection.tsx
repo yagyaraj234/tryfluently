@@ -6,6 +6,7 @@ import {
   Meter,
   Notice,
   OfflineBanner,
+  PollyWalking,
   ProgressBar,
   Skeleton,
   Spinner,
@@ -17,6 +18,7 @@ export function FeedbackSection() {
     <Example title="Feedback and system states">
       <ProgressBar label="Lesson progress" value={3} max={7} />
       <Meter label="Unit objective" value={65} max={100} />
+      <PollyWalking label="Polly walking" />
       <Spinner label="Loading preview" />
       <Skeleton shape="text" />
       <Skeleton shape="block" size={14} />
