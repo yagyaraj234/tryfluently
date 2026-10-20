@@ -205,6 +205,8 @@ test("outlined Roleplay waits for all practice Lessons and its saved Debrief app
     objective: "Discuss routines",
     skill: "fluency",
     kind: "roleplay",
+    estimatedMinutes: 6,
+    pageCount: 5,
   });
   const step = Object.assign(mockChat("Tell me about your work."), {
     doGenerate: mockModel(content, content, content, content).doGenerate,
@@ -263,6 +265,8 @@ test("retrying the final practice Lesson cannot unlock its Roleplay early", asyn
     objective: "Discuss routines",
     skill: "fluency",
     kind: "roleplay",
+    estimatedMinutes: 6,
+    pageCount: 5,
   });
   const app = makeApp({
     now: clock,
