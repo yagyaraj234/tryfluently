@@ -18,7 +18,7 @@ import {
 import type { UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { answerStep, chatOptions } from "../../lib/chat";
-import { AssessmentEnding, LeaveDialog, TimeLeft, useAssessmentSession, type Assessment } from "./assessment";
+import { AssessmentEnding, LeaveDialog, MAX_ANSWERS, useAssessmentSession, type Assessment } from "./assessment";
 
 type Part = UIMessage["parts"][number];
 type ItemPart = {
@@ -51,17 +51,14 @@ function Item({ part, busy, onAnswer }: { part: ItemPart & Part; busy: boolean; 
   );
 }
 
-function Header({ left, onFinish }: { left?: number; onFinish: () => void }) {
+function Header({ onFinish }: { onFinish: () => void }) {
   return (
     <>
       <Cluster justify="between">
         <Text size="label">Written Assessment</Text>
-        <Cluster gap={4}>
-          <TimeLeft left={left} />
-          <Button variant="secondary" onClick={onFinish}>
-            Finish
-          </Button>
-        </Cluster>
+        <Button variant="secondary" onClick={onFinish}>
+          Finish
+        </Button>
       </Cluster>
       <Cluster wrap={false} gap={3}>
         <CoachAvatar small />
@@ -79,7 +76,7 @@ function Header({ left, onFinish }: { left?: number; onFinish: () => void }) {
 }
 
 export function WrittenAssessment({ assessment }: { assessment: Assessment }) {
-  const session = useAssessmentSession(assessment);
+  const session = useAssessmentSession(assessment, false);
   const chat = useChat({
     id: assessment.id,
     ...chatOptions(`/api/assessments/${assessment.id}/chat`, assessment.transcript as unknown as UIMessage[]),
@@ -99,6 +96,15 @@ export function WrittenAssessment({ assessment }: { assessment: Assessment }) {
   const waiting = status === "submitted" || (status === "streaming" && !latestText && !waitingItem);
   const streamingId = status === "streaming" && last?.role === "assistant" && latestText ? last.id : undefined;
   const lastTextIndex = last ? last.parts.reduce((at, part, i) => (part.type === "text" ? i : at), -1) : -1;
+
+  // Once the last question is answered and the coach has closed, write the Report.
+  const answers =
+    shown.filter((message) => message.role === "user").length +
+    shown.flatMap((message) => message.parts).filter((p) => isItem(p) && p.state === "output-available").length;
+  const { ending, finish } = session;
+  useEffect(() => {
+    if (answers >= MAX_ANSWERS && status === "ready" && ending === "running") void finish();
+  }, [answers, status, ending, finish]);
 
   useEffect(() => {
     if (messages.length || started.current || session.ending !== "running") return;
@@ -174,7 +180,7 @@ export function WrittenAssessment({ assessment }: { assessment: Assessment }) {
 
   return (
     <Stack gap={6}>
-      <Header left={session.left} onFinish={() => void session.finish()} />
+      <Header onFinish={() => void session.finish()} />
       {thread}
       {errorNotice}
       {composer}

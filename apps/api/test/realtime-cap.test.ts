@@ -162,7 +162,7 @@ describe("monthly Realtime voice cap", () => {
     expect(realtime.calls).toHaveLength(0);
   });
 
-  test("a Written Assessment refuses chat once its ten minutes are up", async () => {
+  test("a Written Assessment has no clock: chat still works after ten minutes", async () => {
     const { app, clock } = setup();
     const { cookie } = await signUp(app);
     const { id } = (await (await app.request("/api/assessments", json({ mode: "written" }, cookie))).json()) as any;
@@ -171,7 +171,7 @@ describe("monthly Realtime voice cap", () => {
       `/api/assessments/${id}/chat`,
       json({ message: { id: "m1", role: "user", parts: [{ type: "text", text: "Hi" }] } }, cookie),
     );
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(200);
   });
 
   test("usage persists across UTC days and local midnight; renewal is UTC month start", async () => {

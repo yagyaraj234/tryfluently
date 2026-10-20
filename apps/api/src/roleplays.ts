@@ -9,7 +9,7 @@ import { streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
 import { goalText } from "./goal-text";
-import { voiceLimitMessage, type RealtimeBroker } from "./realtime";
+import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 
 const { lesson, goal } = schema;
 
@@ -136,13 +136,6 @@ information, raise a small problem or delay, and agree next steps.`,
   small_talk: `You are meeting the Learner casually for Small Talk. Chat about the day, work, travel, food or interests,
 and keep the conversation light and natural.`,
   custom: `You are the other person in a situation the Learner described. Play that person and keep the conversation realistic.`,
-};
-
-const endCallTool = {
-  type: "function",
-  name: "end_call",
-  description: "End the Roleplay after you have spoken a short closing sentence.",
-  parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
 };
 
 // Instructions for a Roleplay, spoken or in text. Reused by text-mode Roleplays.
