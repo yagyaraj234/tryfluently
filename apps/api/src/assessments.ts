@@ -194,17 +194,15 @@ export const assessments = ({
       );
       const hasGoals = (await tx.select({ id: goal.id }).from(goal).where(eq(goal.userId, userId)).limit(1)).length > 0;
       if (!hasGoals && out.proposedGoals.length)
-        await tx
-          .insert(goal)
-          .values(
-            out.proposedGoals.map((g) => ({
-              userId,
-              kind: "general_fluency" as const,
-              statement: g.statement,
-              targetLevels: g.targetLevels,
-              createdAt: at,
-            })),
-          );
+        await tx.insert(goal).values(
+          out.proposedGoals.map((g) => ({
+            userId,
+            kind: "general_fluency" as const,
+            statement: g.statement,
+            targetLevels: g.targetLevels,
+            createdAt: at,
+          })),
+        );
       await remember(
         tx,
         userId,
@@ -252,21 +250,35 @@ export const assessments = ({
             return c.json({ error: "Your previous Assessment couldn't be finished. Try again." }, 502);
         }
 
-        const [last] = await db
-          .select({ endedAt: assessment.endedAt })
-          .from(assessment)
-          .where(and(eq(assessment.userId, user.id), eq(assessment.status, "completed")))
-          .orderBy(desc(assessment.endedAt))
-          .limit(1);
-        const nextAllowedAt = last?.endedAt && new Date(last.endedAt.getTime() + RETAKE_DAYS * 86_400_000);
-        if (nextAllowedAt && now() < nextAllowedAt)
-          return c.json({ error: "You can retake the Assessment once a week.", nextAllowedAt }, 429);
-
-        const [row] = await db
-          .insert(assessment)
-          .values({ userId: user.id, mode: c.req.valid("json").mode, startedAt: now() })
-          .returning();
-        return c.json(row!, 201);
+        // Under the Learner lock so concurrent starts can't each pass the checks.
+        const started = await db.transaction(async (tx) => {
+          await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, user.id)).for("update");
+          const [stillOpen] = await tx
+            .select({ id: assessment.id })
+            .from(assessment)
+            .where(and(eq(assessment.userId, user.id), eq(assessment.status, "in_progress")));
+          if (stillOpen) return { open: true as const };
+          const [last] = await tx
+            .select({ endedAt: assessment.endedAt })
+            .from(assessment)
+            .where(and(eq(assessment.userId, user.id), eq(assessment.status, "completed")))
+            .orderBy(desc(assessment.endedAt))
+            .limit(1);
+          const nextAllowedAt = last?.endedAt && new Date(last.endedAt.getTime() + RETAKE_DAYS * 86_400_000);
+          if (nextAllowedAt && now() < nextAllowedAt) return { nextAllowedAt };
+          const [row] = await tx
+            .insert(assessment)
+            .values({ userId: user.id, mode: c.req.valid("json").mode, startedAt: now() })
+            .returning();
+          return { row: row! };
+        });
+        if ("open" in started) return c.json({ error: "An Assessment is already in progress." }, 409);
+        if ("nextAllowedAt" in started)
+          return c.json(
+            { error: "You can retake the Assessment once a week.", nextAllowedAt: started.nextAllowedAt },
+            429,
+          );
+        return c.json(started.row, 201);
       })
       .get("/:id", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);

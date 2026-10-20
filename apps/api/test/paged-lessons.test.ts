@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { MockLanguageModelV4 } from "ai/test";
 import { learnerWithRoadmap } from "./fixtures";
 import { get, json, makeApp } from "./helpers";
+import { generateLesson } from "../src/paged-lessons";
 import { testDb } from "./setup";
 
 const usage = {
@@ -346,6 +347,29 @@ test("a question step that keeps failing fails the Lesson, and Retry runs it aga
   expect((await app.request(`/api/lessons/${id}/retry`, json({}, cookie))).status).toBe(202);
   await app.runJobs(userId);
   expect((await pages(app, cookie, id)).pages.map((p: any) => p.question)).toEqual(Array(5).fill("ready"));
+});
+
+test("a resumed worker whose question step is aborted on the last attempt leaves a retryable failed Lesson", async () => {
+  const { cookie } = await learner();
+  const fake = fakeLessonModel();
+  const app = makeApp({ models: { step: fake.model } });
+  const { id } = (await (await start(app, cookie)).json()) as any;
+  const inner = fake.model.doGenerate as any;
+  const abort = new AbortController();
+  fake.model.doGenerate = async (o: any) => {
+    if (JSON.stringify(o.prompt).includes("Write the questions")) {
+      abort.abort();
+      throw new Error("aborted");
+    }
+    return inner(o);
+  };
+  const ctx = { db: testDb, now: () => new Date(), models: { step: fake.model } as any, signal: abort.signal };
+  // The first run writes the Pages and dies in the question step; the second resumes straight to the questions.
+  await expect(generateLesson(ctx, id, 1)).rejects.toThrow();
+  expect((await pages(app, cookie, id)).preparation).toBe("ready");
+  await expect(generateLesson(ctx, id, 3)).rejects.toThrow();
+  expect((await pages(app, cookie, id)).preparation).toBe("failed");
+  expect((await app.request(`/api/lessons/${id}/retry`, json({}, cookie))).status).toBe(202);
 });
 
 test("the one-call next route makes no Lesson and no model call on a paged outline, and leaves a paged Lesson alone", async () => {

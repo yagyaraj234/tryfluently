@@ -39,6 +39,14 @@ const reportEmails = (mailer: ReturnType<typeof fakeMailer>) =>
   mailer.sent.filter((email) => typeof email.subject === "string" && email.subject.includes("Assessment Report"));
 
 describe("assessment lifecycle", () => {
+  test("concurrent starts leave only one open Assessment", async () => {
+    const { app } = setup();
+    const { cookie } = await signUp(app);
+    const results = await Promise.all(Array.from({ length: 6 }, () => start(app, cookie)));
+    expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+    const all = (await (await app.request("/api/assessments", get(cookie))).json()) as { status: string }[];
+    expect(all.filter((a) => a.status === "in_progress")).toHaveLength(1);
+  });
   test("two requests ending the same Assessment persist one Report and one set of learning results", async () => {
     const { app, clock, mailer } = setup([reportReply(), reportReply()]);
     const { cookie, id: userId } = await signUp(app);
