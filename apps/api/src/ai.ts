@@ -40,7 +40,7 @@ async function logTextUsage(
 export async function generate<O extends Parameters<typeof generateText>[0]>(ctx: Ctx, userId: string, options: O) {
   const call = { startedAt: ctx.now(), t0: performance.now() };
   try {
-    const result = await generateText(options);
+    const result = await generateText({ ...options, abortSignal: options.abortSignal ?? AbortSignal.timeout(90_000) });
     await logTextUsage(ctx, userId, { ...call, id: result.response.id, usage: result.totalUsage });
     return result;
   } catch (e) {
@@ -69,9 +69,11 @@ export async function streamChat(
   },
 ) {
   const call = { startedAt: ctx.now(), t0: performance.now() };
-  const result = streamText({ ...options, messages: await convertToModelMessages(messages) } as Parameters<
-    typeof streamText
-  >[0]);
+  const result = streamText({
+    ...options,
+    abortSignal: options.abortSignal ?? AbortSignal.timeout(90_000),
+    messages: await convertToModelMessages(messages),
+  } as Parameters<typeof streamText>[0]);
   return createUIMessageStreamResponse({
     stream: result.toUIMessageStream({
       originalMessages: messages,
