@@ -180,7 +180,7 @@ export const skillScore = pgTable(
     // Write order, assigned at insert under the Learner lock; createdAt can predate it after slow judging.
     seq: bigserial({ mode: "number" }).notNull(),
   },
-  (t) => [index("skill_score_user_skill_created_idx").on(t.userId, t.skill, t.createdAt)],
+  (t) => [index("skill_score_user_skill_seq_idx").on(t.userId, t.skill, t.seq)],
 );
 
 export const focusKind = pgEnum("focus_kind", ["grammar", "vocabulary", "phrase"]);
