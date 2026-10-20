@@ -1,28 +1,17 @@
-import { Button, ErrorState, LoadingState, Stack, Text } from "@impromptu/ui";
+import { Button, LoadingState, Stack, Text } from "@impromptu/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { lessonRoute, useNextLesson } from "../../lib/lessons";
+import { lessonRoute } from "../../lib/lessons";
 import { practicePreparationQuery } from "../../lib/practice-preparation";
 import type { Unit } from "../../lib/queries";
 
 export function LessonAction({ unit }: { unit: Unit }) {
-  const next = useNextLesson();
   const preparation = useQuery(practicePreparationQuery);
   const current = unit.lessons.find((l) => l.status === "in_progress");
 
   if (current?.preparation === "preparing" && preparation.data?.status !== "failed")
     return <LoadingState title="Preparing your Lesson" description="Your coach is getting your practice ready." />;
 
-  if (next.isPending || next.isSuccess)
-    return <LoadingState title="Preparing your Lesson" description="It uses how your last Lessons went." />;
-  if (next.isError)
-    return (
-      <ErrorState
-        title="Your Lesson couldn't be prepared"
-        description="Try again in a moment."
-        onRetry={() => next.mutate()}
-      />
-    );
   if (current && current.preparation !== "failed" && current.preparation !== "preparing")
     return (
       <Stack gap={2} align="start">
@@ -34,8 +23,9 @@ export function LessonAction({ unit }: { unit: Unit }) {
         </Button>
       </Stack>
     );
+  // The next Lesson is written only after the Learner opens it on the Roadmap.
   return (
-    <Button size="sm" onClick={() => next.mutate()}>
+    <Button size="sm" render={<Link to="/roadmap" />}>
       Start your next Lesson
     </Button>
   );

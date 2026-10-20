@@ -5,9 +5,10 @@ import { useState } from "react";
 import { BuildRoadmap } from "../../../../components/roadmap/BuildRoadmap";
 import { PlanningNotice } from "../../../../components/roadmap-view/PlanningNotice";
 import { StartLessonDialog, type Selected } from "../../../../components/roadmap-view/StartLessonDialog";
+import { StartingLesson, type Starting } from "../../../../components/roadmap-view/StartingLesson";
 import { UnitSection } from "../../../../components/roadmap-view/UnitSection";
 import { useOutlinePlanning } from "../../../../components/roadmap-view/useOutlinePlanning";
-import { useNextLesson } from "../../../../lib/lessons";
+import { useNextLesson, useStartLesson } from "../../../../lib/lessons";
 import { practicePreparationQuery } from "../../../../lib/practice-preparation";
 import { roadmapQuery } from "../../../../lib/queries";
 
@@ -24,9 +25,25 @@ export const Route = createFileRoute("/_signedIn/_app/roadmap/")({
 function Roadmap() {
   const roadmap = useQuery(roadmapQuery);
   const next = useNextLesson();
+  const start = useStartLesson();
   const [selected, setSelected] = useState<Selected>();
+  const [starting, setStarting] = useState<Starting>();
   const { planning, missing } = useOutlinePlanning(roadmap.data);
   const startNext = () => next.mutate();
+  // A practice Lesson is written in the background after Start learning; a Roleplay opens straight away.
+  const confirm = () => {
+    if (!selected) return;
+    if (selected.kind === "roleplay") return next.mutate();
+    start.mutate(selected.position, {
+      onSuccess: (lesson) => {
+        setStarting({ id: lesson.id, title: selected.title, objective: selected.objective });
+        setSelected(undefined);
+      },
+    });
+  };
+  const dialogMutation = selected?.kind === "roleplay" ? next : start;
+
+  if (starting) return <StartingLesson {...starting} />;
 
   let units;
   if (roadmap.isPending) units = <LoadingState title="Loading your Roadmap" />;
@@ -37,7 +54,7 @@ function Roadmap() {
     units = (
       <Stack gap={10}>
         {roadmap.data.map((unit) => (
-          <UnitSection key={unit.id} unit={unit} onSelect={setSelected} onRetry={startNext} />
+          <UnitSection key={unit.id} unit={unit} onSelect={setSelected} onRetry={startNext} onResume={setStarting} />
         ))}
       </Stack>
     );
@@ -57,10 +74,10 @@ function Roadmap() {
       {next.isPending && <LoadingState title="Preparing your Lesson" />}
       <StartLessonDialog
         selected={selected}
-        pending={next.isPending}
-        success={next.isSuccess}
-        failed={next.isError}
-        onStart={startNext}
+        pending={dialogMutation.isPending}
+        success={dialogMutation.isSuccess}
+        failed={dialogMutation.isError}
+        onStart={confirm}
         onClose={() => setSelected(undefined)}
       />
     </Stack>

@@ -27,15 +27,21 @@ async function preparedLearner() {
   return { ...learner, clock, goal };
 }
 
-test("confirming Goals prepares only the first Lesson with fixed material and private question keys", async () => {
+test("confirming Goals prepares no Lesson; the first one has fixed material and private question keys", async () => {
   const { cookie, clock, goal } = await preparedLearner();
-  const app = makeApp({ now: clock, models: { roadmap: mockModel(unitsReply()), step: mockModel(content) } });
+  const step = mockModel(content);
+  const app = makeApp({ now: clock, models: { roadmap: mockModel(unitsReply()), step } });
   expect((await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie))).status).toBe(200);
+  expect(((await (await app.request("/api/roadmap", get(cookie))).json()) as any[]).flatMap((u) => u.lessons)).toEqual(
+    [],
+  );
+  expect(step.doGenerateCalls).toHaveLength(0);
+  await app.request("/api/lessons/next", json({}, cookie));
   const units = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
   expect(units[0].lessons).toHaveLength(1);
   expect(units.slice(1).every((u) => !u.lessons.length)).toBe(true);
   const first = (await (await app.request(`/api/lessons/${units[0].lessons[0].id}`, get(cookie))).json()) as any;
-  expect(first).toMatchObject({ preparation: "ready", phase: "learning", material: content.material, startedAt: null });
+  expect(first).toMatchObject({ preparation: "ready", phase: "learning", material: content.material });
   expect(JSON.stringify(first)).not.toContain('"answer":"walks"');
   expect(first.questions).toHaveLength(3);
 });
@@ -64,6 +70,7 @@ test("a completed low-score assessment saves its report and prepares the next Le
     models: { roadmap: mockModel(unitsReply()), step: mockModel(content, content), judge: mockModel(judgment) },
   });
   await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await app.request("/api/lessons/next", json({}, cookie));
   const before = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
   const id = before[0].lessons[0].id;
   expect((await app.request(`/api/lessons/${id}/assessment`, json({}, cookie))).status).toBe(200);
@@ -80,8 +87,8 @@ test("a completed low-score assessment saves its report and prepares the next Le
   expect(body.report.skills.fluency).toBeNull();
   const after = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
   expect(after.map((u) => u.lessonOutline)).toEqual(before.map((u) => u.lessonOutline));
-  expect(after[0].lessons).toHaveLength(2);
-  expect(after[0].lessons[1]).toMatchObject({ preparation: "ready", status: "in_progress", startedAt: null });
+  // Finishing a Lesson no longer prepares the next one.
+  expect(after[0].lessons).toHaveLength(1);
   const history = (await (await app.request("/api/reports", get(cookie))).json()) as any[];
   expect(history.some((r) => r.id === id && r.kind === "lesson")).toBe(true);
   const progress = await (await app.request("/api/progress", get(cookie))).json();
@@ -97,6 +104,7 @@ test("failed preparation can be retried concurrently without duplicate Lessons o
     models: { roadmap: mockModel(unitsReply()), step: mockModel({ invalid: true }) },
   });
   await failed.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await failed.request("/api/lessons/next", json({}, cookie));
   const units = (await (await failed.request("/api/roadmap", get(cookie))).json()) as any[];
   expect(units[0].lessons[0].preparation).toBe("failed");
   const retry = makeApp({ now: clock, models: { step: mockModel(content) } });
@@ -138,13 +146,16 @@ test("every outlined Lesson completes before the next Unit opens, carrying perfo
     expect(units[0].status).toBe(n === 2 ? "mastered" : "active");
     expect(units[1].status).toBe(n === 2 ? "active" : "planned");
   }
-  const units = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
-  expect(units[1].lessons[0].preparation).toBe("ready");
+  expect(
+    ((await (await app.request("/api/roadmap", get(cookie))).json()) as any[]).flatMap((u) => u.lessons),
+  ).toHaveLength(3);
+  const opened = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
+  expect(opened.preparation).toBe("ready");
   // External generation boundary: the next Unit must receive the latest learning evidence.
   expect(JSON.stringify(model.doGenerateCalls[3]!.prompt)).toContain(judgment.summary);
 });
 
-test("failed judging preserves answers, retry completes once, and a failed next preparation preserves the report", async () => {
+test("failed judging preserves answers, retry completes once, and finishing does not prepare another Lesson", async () => {
   const { cookie, clock, goal } = await preparedLearner();
   const app = makeApp({
     now: clock,
@@ -162,7 +173,7 @@ test("failed judging preserves answers, retry completes once, and a failed next 
   expect((await app.request(`/api/lessons/${l.id}/finish`, json({}, cookie))).status).toBe(200);
   expect((await app.request(`/api/lessons/${l.id}/finish`, json({}, cookie))).status).toBe(200);
   const units = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
-  expect(units[0].lessons[1].preparation).toBe("failed");
+  expect(units[0].lessons).toHaveLength(1);
   expect(((await (await app.request(`/api/lessons/${l.id}`, get(cookie))).json()) as any).report.summary).toBe(
     judgment.summary,
   );
@@ -170,7 +181,7 @@ test("failed judging preserves answers, retry completes once, and a failed next 
   expect(history.filter((r) => r.sourceId === l.id)).toHaveLength(1);
 });
 
-test("concurrent Goal confirmations build one Roadmap and one first Lesson", async () => {
+test("concurrent Goal confirmations build one Roadmap and no Lesson", async () => {
   const { cookie, clock, goal } = await preparedLearner();
   const app = makeApp({
     now: clock,
@@ -182,7 +193,7 @@ test("concurrent Goal confirmations build one Roadmap and one first Lesson", asy
   ]);
   const units = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
   expect(units).toHaveLength(8);
-  expect(units.flatMap((u) => u.lessons)).toHaveLength(1);
+  expect(units.flatMap((u) => u.lessons)).toHaveLength(0);
 });
 
 test("outlined Roleplay waits for all practice Lessons and its saved Debrief appears in both histories", async () => {
@@ -282,6 +293,7 @@ test("malformed question choices fail preparation instead of publishing an unans
   };
   const app = makeApp({ now: clock, models: { roadmap: mockModel(unitsReply()), step: mockModel(invalid) } });
   await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await app.request("/api/lessons/next", json({}, cookie));
   const units = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
   expect(units[0].lessons[0].preparation).toBe("failed");
 });

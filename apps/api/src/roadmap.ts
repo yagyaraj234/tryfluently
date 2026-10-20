@@ -4,7 +4,6 @@ import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate } from "./ai";
-import { prepareNext } from "./preparation";
 import type { AppEnv, Deps } from "./app";
 import { skillProfile, skills } from "./scoring";
 
@@ -142,7 +141,6 @@ export async function buildRoadmap(ctx: Ctx, userId: string) {
       })),
     );
   });
-  await prepareNext(ctx, userId);
   return "built" as const;
 }
 
@@ -169,7 +167,6 @@ export async function finishUnit(ctx: Ctx, id: string, status: "mastered" | "ski
     if (next) await tx.update(unit).set({ status: "active" }).where(eq(unit.id, next.id));
     return true;
   });
-  if (changed) await prepareNext(ctx, owner.userId);
 }
 
 export const roadmap = (deps: Deps) =>
@@ -237,7 +234,6 @@ export const roadmap = (deps: Deps) =>
             .where(and(eq(unit.id, plan.id), eq(unit.userId, userId), sql`${unit.lessonOutline} = '[]'::jsonb`));
         }
       });
-      await prepareNext(deps, userId);
       return c.json({ status: "ready" });
     })
     // Every Unit in order, each with its Lessons (without their chat), so Home, the Roadmap and a Unit share one call.
@@ -254,6 +250,7 @@ export const roadmap = (deps: Deps) =>
             title: lesson.title,
             status: lesson.status,
             preparation: lesson.preparation,
+            contentVersion: lesson.contentVersion,
             startedAt: lesson.startedAt,
             objectiveProgress: lesson.objectiveProgress,
           })
