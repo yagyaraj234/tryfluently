@@ -288,9 +288,78 @@ test("scores come only from graded answers", () => {
       { type: "fillGap", feedback: f("correct") },
       { type: "multipleChoice", feedback: f("incorrect") },
       { type: "rewrite", feedback: f() },
-      { type: "speakPrompt", feedback: f("correct") },
+      { type: "speakPrompt", feedback: f() },
       { type: "matchPairs", feedback: f("almost") },
     ]),
   ).toEqual({ grammar: 50, vocabulary: 50 });
   expect(scoresFromVerdicts([{ type: "rewrite", feedback: null }])).toEqual({});
+});
+
+// Adds a Rewrite page and a Speaking page to a ready Lesson, already answered.
+async function withRewriteAndSpeaking(
+  t: Awaited<ReturnType<typeof ready>>,
+  rewrite: "correct" | "almost" | "incorrect",
+  speaking: "correct" | "incorrect" | null,
+) {
+  const base = { prompt: "Say it.", expectedAnswer: "She goes.", rubric: "Right verb." };
+  const [row] = await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, t.lessonId));
+  const pages = [
+    { block: "rewrite", question: { block: "rewrite", ...base } },
+    { block: "speakPrompt", question: { block: "speakPrompt", ...base } },
+  ];
+  const at = row!.material!.length;
+  await testDb
+    .update(schema.lesson)
+    .set({
+      material: [...row!.material!, ...pages.map((p) => ({ title: "P", body: "B", example: null, ...p }))] as any,
+      pageStatus: [...row!.pageStatus!, ...pages.map(() => ({ page: "ready" as const, question: "ready" as const }))],
+    })
+    .where(eq(schema.lesson.id, t.lessonId));
+  const feedback = (verdict: string | null) =>
+    verdict ? ({ verdict, corrected: "", explanation: "ok" } as any) : null;
+  await testDb.insert(schema.step).values(
+    [rewrite, speaking].map((v, i) => ({
+      userId: t.id,
+      lessonId: t.lessonId,
+      position: at + i,
+      type: pages[i]!.block as any,
+      input: {},
+      feedback: feedback(v),
+      answeredAt: new Date(),
+    })),
+  );
+}
+
+test("a Rewrite answer counts as grammar evidence: correct beats almost beats incorrect", async () => {
+  // Scores are blended with the Learner's earlier level, so compare the three outcomes with each other.
+  const grammar = async (verdict: "correct" | "almost" | "incorrect") => {
+    const t = await ready();
+    await withRewriteAndSpeaking(t, verdict, null);
+    await finish(t);
+    return (await lessonScores(t.id)).find((s) => s.skill === "grammar")!.score;
+  };
+  const [right, almost, wrong] = [await grammar("correct"), await grammar("almost"), await grammar("incorrect")];
+  expect(right).toBeGreaterThan(almost);
+  expect(almost).toBeGreaterThan(wrong);
+});
+
+test("an analysed spoken answer moves fluency; an unanalysed one leaves it alone", async () => {
+  const done = await ready();
+  await withRewriteAndSpeaking(done, "correct", "correct");
+  await finish(done);
+  expect((await lessonScores(done.id)).map((s) => s.skill)).toContain("fluency");
+
+  const pending = await ready();
+  await withRewriteAndSpeaking(pending, "correct", null);
+  await finish(pending);
+  expect((await lessonScores(pending.id)).map((s) => s.skill)).not.toContain("fluency");
+});
+
+test("finishing twice with Rewrite and Speaking answers records scores once", async () => {
+  const t = await ready();
+  await withRewriteAndSpeaking(t, "correct", "incorrect");
+  await finish(t);
+  const before = await lessonScores(t.id);
+  await finish(t);
+  expect(await lessonScores(t.id)).toEqual(before);
 });

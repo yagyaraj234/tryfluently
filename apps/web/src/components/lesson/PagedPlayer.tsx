@@ -144,7 +144,10 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   const finish = useMutation({
     mutationFn: async () => {
       const response = await api().api.lessons[":id"].finish.$post({ param: { id: lesson.id } });
-      if (!response.ok) throw new Error("Your Lesson couldn't be finished. Try again.");
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Your Lesson couldn't be finished. Try again.");
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries();
