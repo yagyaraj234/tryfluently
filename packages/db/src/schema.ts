@@ -264,6 +264,8 @@ export const stepType = pgEnum("step_type", [
   "roleplayTurn",
   "fillGaps",
   "reorder",
+  "multipleChoice",
+  "matchPairs",
 ]);
 export const stepMode = pgEnum("step_mode", ["voice", "text"]);
 
