@@ -1,5 +1,7 @@
 # Voice cost and enforcing the 15-minute daily cap
 
+**Current allowance (2026-10-20):** All accounts are Free during beta. Voice Assessments and Roleplays share 10 minutes per UTC calendar month. See [ADR 0001](../adr/0001-openai-realtime-voice.md#free-beta-allowance). The daily cap and Assessment exemption below are historical.
+
 **Historical cost research (2026-10-15).** Prices, quotas and model availability can change. The implemented cap and call ownership live in `apps/api/src/realtime.ts`; use that code and the current provider terms for operational decisions. Azure pronunciation scoring discussed below is outside v1 per [ADR 0001](../adr/0001-openai-realtime-voice.md).
 
 Research for issue #6. Sources checked 2026-10-15. Prices are list prices in USD unless noted.

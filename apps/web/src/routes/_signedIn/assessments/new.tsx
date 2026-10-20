@@ -1,10 +1,16 @@
 import { Button, Card, CoachAvatar, Container, Grid, Heading, Notice, Screen, Stack, Text } from "@fluently/ui";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { VoiceAllowance } from "../../../components/voice/VoiceCredits";
+import { voiceMinutesQuery } from "../../../lib/queries";
 import { useState } from "react";
 import { api } from "../../../lib/api";
 
 /** Choosing a Voice or Written Assessment. Settings links here to retake it. */
-export const Route = createFileRoute("/_signedIn/assessments/new")({ component: ChooseAssessment });
+export const Route = createFileRoute("/_signedIn/assessments/new")({
+  loader: ({ context }) => context.queryClient.prefetchQuery(voiceMinutesQuery),
+  component: ChooseAssessment,
+});
 
 type Mode = "voice" | "written";
 
@@ -55,6 +61,7 @@ function ModeCard({
 
 function ChooseAssessment() {
   const router = useRouter();
+  const minutes = useQuery(voiceMinutesQuery);
   const [ready, setReady] = useState(false);
   const [starting, setStarting] = useState<Mode>();
   const [message, setMessage] = useState<{ tone: "error" | "info"; text: string }>();
@@ -103,6 +110,13 @@ function ChooseAssessment() {
               minutes for the Assessment to count.
             </Text>
           </Stack>
+          <VoiceAllowance />
+          {minutes.data && minutes.data.remainingSeconds > 0 && minutes.data.remainingSeconds < 240 && (
+            <Notice tone="info">
+              You have fewer than 4 voice minutes left. This Voice Assessment may not count. Choose Written Assessment
+              to continue without voice credits.
+            </Notice>
+          )}
           {message && <Notice tone={message.tone}>{message.text}</Notice>}
           {ready && (
             <Notice tone="info">
@@ -117,7 +131,9 @@ function ChooseAssessment() {
                 title={title}
                 about={about}
                 label={labelFor(mode)}
-                disabled={starting !== undefined}
+                disabled={
+                  starting !== undefined || (mode === "voice" && (!minutes.data || minutes.data.remainingSeconds <= 0))
+                }
                 onClick={() => (mode === "voice" && !ready ? setReady(true) : start(mode))}
               />
             ))}

@@ -1,6 +1,8 @@
 import { Flag } from "@phosphor-icons/react";
 import { Button, ChoiceChips, EmptyState, Heading, Notice, Stack, Text, TextArea } from "@fluently/ui";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { VoiceAllowance } from "../../../../components/voice/VoiceCredits";
+import { voiceMinutesQuery } from "../../../../lib/queries";
 import { useState } from "react";
 import { api } from "../../../../lib/api";
 import {
@@ -13,7 +15,10 @@ import {
 
 /** Roleplay setup: the Goal, the situation, the tone, and speaking or typing. */
 export const Route = createFileRoute("/_signedIn/_practice/roleplays/new")({
-  loader: () => confirmedGoals(),
+  loader: async ({ context }) => {
+    await context.queryClient.prefetchQuery(voiceMinutesQuery);
+    return confirmedGoals();
+  },
   component: RoleplaySetup,
 });
 
@@ -148,6 +153,7 @@ function RoleplaySetup() {
         onValueChange={(v) => setTone(v as Tone)}
       />
       <ChoiceChips layout="segmented" label="Speak or type" options={modes} value={mode} onValueChange={setMode} />
+      {mode === "voice" && <VoiceAllowance />}
       {error && <Notice tone="error">{error}</Notice>}
       <Button fullWidth onClick={() => void start()} disabled={!kind || starting || !!scenarioError}>
         {startLabel}

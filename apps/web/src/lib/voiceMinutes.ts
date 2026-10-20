@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
 
-// Today's Roleplay voice minutes: the API caps them per day and resets them at the Learner's local midnight.
+/** The API owns the renewal boundary; display it consistently during SSR and hydration. */
+export function resetsOn(iso: string) {
+  return (
+    new Intl.DateTimeFormat("en", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(iso)) + " at 00:00 UTC"
+  );
+}
 
-/** When today's voice minutes come back: "in 5 hours", or under an hour "in 50 minutes". */
-export function resetsIn(now: Date) {
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const ms = midnight.getTime() - now.getTime();
-  const format = new Intl.RelativeTimeFormat("en");
-  return ms >= 3_600_000
-    ? format.format(Math.floor(ms / 3_600_000), "hour")
-    : format.format(Math.ceil(ms / 60_000), "minute");
+export function voiceTime(seconds: number) {
+  const remaining = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`;
 }
 
 /**
@@ -17,12 +22,13 @@ export function resetsIn(now: Date) {
  * already includes a live call up to the poll, so only the time after both the poll and the call going live counts.
  */
 export function minutesLeft(
-  poll: { remainingSeconds: number; fetchedAt: number },
+  poll: { remainingSeconds: number; fetchedAt: number; callEndsAt?: string | null },
   liveSince: number | undefined,
   now: number,
 ) {
   if (liveSince === undefined) return poll.remainingSeconds * 1000;
-  return poll.remainingSeconds * 1000 - Math.max(0, now - Math.max(poll.fetchedAt, liveSince));
+  const remaining = poll.remainingSeconds * 1000 - Math.max(0, now - Math.max(poll.fetchedAt, liveSince));
+  return poll.callEndsAt ? Math.min(remaining, new Date(poll.callEndsAt).getTime() - now) : remaining;
 }
 
 /** When the call went live, and the time now, ticking each second while it's live. */
