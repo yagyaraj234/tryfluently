@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "deploy": "docker compose --env-file .env -f docker-compose.production.yml up -d --build --wait",
     "test": "turbo run test",
     "db:up": "docker compose up -d --wait",
     "dev": "turbo run dev",
