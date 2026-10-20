@@ -7,7 +7,7 @@ import { Text } from "./Text";
 import { TextArea } from "./TextArea";
 
 const thread = cva(
-  "flex max-h-[45dvh] flex-col gap-3 overflow-y-auto overscroll-contain rounded-2xl py-1 pr-1 sm:max-h-[55dvh] [&[data-ready]>*]:transition [&[data-ready]>*]:duration-press [&[data-ready]>*]:ease-ui [&[data-ready]>*]:starting:opacity-0 motion-safe:[&[data-ready]>*]:starting:translate-y-1.5",
+  "flex max-h-[45dvh] flex-col gap-3 overflow-y-auto overscroll-contain rounded-2xl py-1 pr-3 sm:max-h-[55dvh] [&[data-ready]>*]:transition [&[data-ready]>*]:duration-press [&[data-ready]>*]:ease-ui [&[data-ready]>*]:starting:opacity-0 motion-safe:[&[data-ready]>*]:starting:translate-y-1.5",
 );
 
 export type ChatThreadProps = {
