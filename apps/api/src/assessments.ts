@@ -11,7 +11,7 @@ import { cefrLevel } from "./goals";
 import { enqueueAssessmentJobs, practicePreparation, retryPracticePreparation } from "./assessment-jobs";
 import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 import { remember, addFocusItems } from "./learning-memory";
-import { fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
+import { cefr, fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
 
 const { assessment, goal } = schema;
@@ -174,8 +174,11 @@ export const assessments = ({
     const { grammar, vocabulary } = out.skills;
     const spoken = row.mode === "voice" ? out.skills.fluency : undefined;
     const fluency = spoken ? fluencyScore(speechSegments(row.transcript as UIMessage[]), spoken.score) : null;
+    // The overall level follows the skill scores the Learner sees, so the two can't disagree (the model's own guess did).
+    const measured = [grammar.score, vocabulary.score, ...(fluency === null ? [] : [fluency])];
     const report = {
       ...out,
+      overallLevel: cefr(measured.reduce((a, b) => a + b, 0) / measured.length),
       partial,
       skills: {
         fluency: fluency === null ? null : { ...scoreView(fluency), evidence: spoken!.evidence },
