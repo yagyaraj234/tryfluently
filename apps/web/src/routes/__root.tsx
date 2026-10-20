@@ -1,3 +1,4 @@
+import { MagnifyingGlass } from "@phosphor-icons/react";
 import { Button, EmptyState, ErrorState, OfflineBanner, Screen, UIProvider } from "@impromptu/ui";
 import appCss from "@impromptu/ui/styles.css?url";
 import type { QueryClient } from "@tanstack/react-query";
@@ -41,6 +42,7 @@ function NotFound() {
   return (
     <Screen>
       <EmptyState
+        icon={MagnifyingGlass}
         title="We couldn't find that page"
         action={<Button render={<Link to="/home" />}>Go to Home</Button>}
       />

@@ -119,3 +119,20 @@ test("Unit headers show a compact objective without synthetic completion or dura
   );
   expect(document.body.textContent).not.toMatch(/minutes|Lessons completed/);
 });
+
+test("Roadmap curves stay decorative and distinguish completed from upcoming connections", () => {
+  const { container } = render(
+    <RoadmapUnit number={1} title="Small talk" description="Practise conversation" detail="Active">
+      <RoadmapNode state="complete" title="Start a conversation" render={<a href="/lessons/one" />} />
+      <RoadmapNode state="active" title="Keep it going" onClick={() => {}} />
+      <RoadmapNode state="locked" title="Wrap up" />
+    </RoadmapUnit>,
+  );
+  const curves = [...container.querySelectorAll("li > svg")];
+  expect(curves).toHaveLength(3);
+  expect(curves.every((curve) => curve.getAttribute("aria-hidden") === "true")).toBe(true);
+  expect(curves[0]!.querySelector("path")!.getAttribute("stroke-dasharray")).toBeNull();
+  expect(curves[1]!.querySelector("path")!.getAttribute("stroke-dasharray")).toBe("4 5");
+  expect(screen.getByRole("link", { name: "Review Start a conversation" }).getAttribute("href")).toBe("/lessons/one");
+  expect(screen.queryByRole("button", { name: "Open Wrap up" })).toBeNull();
+});

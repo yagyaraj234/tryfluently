@@ -51,13 +51,13 @@ test("only the current destination is marked", async () => {
 
 test("the top bar names the current destination as the page's one heading", async () => {
   for (const [path, title] of [
-    ["/home", "Home"],
+    ["/home", "Welcome back, Asha"],
     ["/roadmap", "Roadmap"],
     ["/progress", "Progress"],
     ["/profile", "Profile"],
   ]) {
     const html = await page(path);
-    assert.match(html.match(/<header[\s\S]*?<\/header>/)[0], new RegExp(`<h1[^>]*>${title}</h1>`), path);
+    assert.equal(text(html.match(/<h1[\s\S]*?<\/h1>/)[0]), title, path);
     assert.equal(html.match(/<h1\b/g).length, 1, path);
   }
 });

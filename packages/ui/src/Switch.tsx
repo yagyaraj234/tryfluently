@@ -12,7 +12,6 @@ export type SwitchProps = {
   ref?: Ref<HTMLElement>;
 };
 
-/** A settings row: the label on the left (it toggles too), the switch on the right. */
 export function Switch({ label, disabled, onCheckedChange, ...props }: SwitchProps) {
   return (
     <Field.Root disabled={disabled} className="flex items-center gap-4">
@@ -21,11 +20,12 @@ export function Switch({ label, disabled, onCheckedChange, ...props }: SwitchPro
       </Field.Label>
       <BaseSwitch.Root
         {...props}
-        // Drops Base UI's event details so the public callback is just the new state.
         onCheckedChange={(checked) => onCheckedChange?.(checked)}
-        className="flex min-h-11 w-14 shrink-0 cursor-pointer items-center rounded-full border border-line-strong bg-subtle p-1 data-checked:border-primary data-checked:bg-primary"
+        className="group flex min-h-11 w-12 shrink-0 cursor-pointer items-center rounded-full data-disabled:cursor-not-allowed data-disabled:opacity-50"
       >
-        <BaseSwitch.Thumb className="size-5 rounded-full bg-paper shadow-card data-checked:translate-x-5 motion-safe:transition-transform motion-safe:duration-ui motion-safe:ease-ui" />
+        <span className="flex h-7 w-12 items-center rounded-full border border-line-strong bg-subtle p-0.5 group-data-checked:border-primary group-data-checked:bg-primary motion-safe:transition-colors motion-safe:duration-ui">
+          <BaseSwitch.Thumb className="size-5 rounded-full bg-muted shadow-card data-checked:translate-x-5.5 data-checked:bg-on-primary motion-safe:transition-transform motion-safe:duration-ui motion-safe:ease-ui" />
+        </span>
       </BaseSwitch.Root>
     </Field.Root>
   );

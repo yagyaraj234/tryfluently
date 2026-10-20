@@ -5,5 +5,5 @@ export type ScreenProps = {
 };
 
 export function Screen({ children }: ScreenProps) {
-  return <main className="min-h-dvh bg-canvas px-4 py-10 text-ink">{children}</main>;
+  return <main className="type-app min-h-dvh bg-canvas px-4 py-10 text-ink">{children}</main>;
 }

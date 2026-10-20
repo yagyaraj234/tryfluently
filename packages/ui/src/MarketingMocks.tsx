@@ -4,10 +4,6 @@ import { cardClasses } from "./Card";
 import { FloatChip, liftCardClasses } from "./Marketing";
 import { VerdictTag } from "./VerdictTag";
 
-// Product illustrations for the landing page. They show the real shapes of the app (Assessment Report, Roadmap,
-// Roleplay, Debrief) with example content, so each one is an image to assistive tech and carries a description.
-
-/** The floating pill content used on frames and panels. */
 export const floatChips = {
   streak: (
     <>
@@ -23,31 +19,33 @@ export const floatChips = {
   ),
 };
 
-// The frame's cards sit still; only the cards in feature panels lift.
 const cardClassesStatic = `min-w-0 ${cardClasses}`;
 const eyebrow = "text-xs font-semibold tracking-wider text-muted uppercase";
 const cardTitle = "mt-1 mb-4 text-lg font-bold tracking-tight";
 
 type PanelProps = { label: string; top?: ReactNode; bottom?: ReactNode; road?: boolean; children?: ReactNode };
 
-/** The soft grey box beside a feature's copy. Chips poke out of its top and bottom edges. */
 export function MarketingPanel({ label, top, bottom, road, children }: PanelProps) {
+  const roadClasses = road
+    ? "gap-3.5 before:absolute before:top-12 before:bottom-12 before:left-13 before:border-l-2 before:border-dashed before:border-line sm:before:left-16"
+    : "";
+  const topChip = top && <FloatChip place="tr">{top}</FloatChip>;
+  const bottomChip = bottom && <FloatChip place="bl">{bottom}</FloatChip>;
   return (
     <div
-      className={`relative isolate grid min-w-0 gap-3 rounded-4xl border border-line bg-subtle px-4 py-5.5 sm:p-7 ${road ? "gap-3.5 before:absolute before:top-12 before:bottom-12 before:left-13 before:border-l-2 before:border-dashed before:border-line sm:before:left-16" : ""}`}
+      className={`relative isolate grid min-w-0 gap-3 rounded-4xl border border-line bg-subtle px-4 py-5.5 sm:p-7 ${roadClasses}`}
       role="img"
       aria-label={label}
     >
-      {top && <FloatChip place="tr">{top}</FloatChip>}
+      {topChip}
       {children}
-      {bottom && <FloatChip place="bl">{bottom}</FloatChip>}
+      {bottomChip}
     </div>
   );
 }
 
 const glass =
   "rounded-2xl border border-on-brand/28 bg-on-brand/18 backdrop-blur-md reduce-transparency:bg-on-brand/30 reduce-transparency:backdrop-blur-none";
-// The waveform bars move out of step with each other.
 const waveBars = [
   "motion-safe:[animation-delay:-0.13s]",
   "motion-safe:[animation-delay:-0.26s]",
@@ -199,7 +197,25 @@ export function RoadmapPeekMock() {
 
 const scale = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
-/** One skill on the A1 to C2 scale, with the Learner's level and their target. */
+function levelCellClasses(l: string, current: string, target: string) {
+  const tone = l === current ? "bg-brand text-on-brand" : "bg-line text-muted";
+  const ring = l === target ? "inset-ring-2 inset-ring-ink" : "";
+  const targetInk = l === target && l !== current ? "text-ink" : "";
+  return `relative rounded-lg py-1.5 text-center text-xs font-semibold not-italic ${tone} ${ring} ${targetInk}`;
+}
+
+function LevelCell({ l, current, target }: { l: string; current: string; target: string }) {
+  const you = l === current && (
+    <span className="absolute -top-4.5 left-1/2 -translate-x-1/2 text-xs font-semibold text-primary">You</span>
+  );
+  return (
+    <i className={levelCellClasses(l, current, target)}>
+      {you}
+      {l}
+    </i>
+  );
+}
+
 export function LevelCard({ skill, current, target }: { skill: string; current: string; target: string }) {
   return (
     <div className={liftCardClasses}>
@@ -208,17 +224,7 @@ export function LevelCard({ skill, current, target }: { skill: string; current: 
       </h3>
       <div className="mt-6 grid grid-cols-6 gap-1">
         {scale.map((l) => (
-          <i
-            key={l}
-            className={`relative rounded-lg py-1.5 text-center text-xs font-semibold not-italic ${l === current ? "bg-brand text-on-brand" : "bg-line text-muted"} ${l === target ? "inset-ring-2 inset-ring-ink" : ""} ${l === target && l !== current ? "text-ink" : ""}`}
-          >
-            {l === current && (
-              <span className="absolute -top-4.5 left-1/2 -translate-x-1/2 text-xs font-semibold text-primary">
-                You
-              </span>
-            )}
-            {l}
-          </i>
+          <LevelCell key={l} l={l} current={current} target={target} />
         ))}
       </div>
     </div>
@@ -241,19 +247,21 @@ const unitTone = {
 };
 
 export function UnitRow({ state, index, title, detail, status, progress }: UnitRowProps) {
+  const marker = state === "done" ? <Check aria-hidden /> : index;
+  const bar = progress && (
+    <div className="mt-2 h-1.5 overflow-hidden rounded-md bg-line">
+      <span className="block h-full w-3/5 rounded-md bg-primary" />
+    </div>
+  );
   return (
     <div className={`${liftCardClasses} relative flex items-center gap-3.5`}>
       <span className={`grid size-8.5 shrink-0 place-items-center rounded-full text-sm font-bold ${unitTone[state]}`}>
-        {state === "done" ? <Check aria-hidden /> : index}
+        {marker}
       </span>
       <div className="min-w-0 flex-1">
         <strong className="block text-base font-semibold tracking-tight">{title}</strong>
         <small className="text-sm text-muted">{detail}</small>
-        {progress && (
-          <div className="mt-2 h-1.5 overflow-hidden rounded-md bg-line">
-            <span className="block h-full w-3/5 rounded-md bg-primary" />
-          </div>
-        )}
+        {bar}
       </div>
       <span
         className={`shrink-0 rounded-full px-2.5 py-0.75 text-xs font-semibold whitespace-nowrap ${unitTone[state]}`}

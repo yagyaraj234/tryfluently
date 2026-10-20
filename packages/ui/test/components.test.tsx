@@ -13,15 +13,15 @@ describe("UIProvider", () => {
     expect(screen.getByRole("main").textContent).toBe("Home");
   });
 
-  test("makes icons Bold at 1em unless told otherwise", () => {
+  test("makes icons regular at 20px unless told otherwise", () => {
     const inside = render(
       <UIProvider>
         <Star />
       </UIProvider>,
     ).container.querySelector("svg")!.outerHTML;
-    const boldAt1em = render(<Star weight="bold" size="1em" />).container.querySelector("svg")!.outerHTML;
+    const regularAt20 = render(<Star weight="regular" size={20} />).container.querySelector("svg")!.outerHTML;
     const plain = render(<Star />).container.querySelector("svg")!.outerHTML;
-    expect(inside).toBe(boldAt1em);
+    expect(inside).toBe(regularAt20);
     expect(inside).not.toBe(plain);
   });
 });

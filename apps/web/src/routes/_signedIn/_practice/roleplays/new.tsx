@@ -1,3 +1,4 @@
+import { Flag } from "@phosphor-icons/react";
 import { Button, ChoiceChips, EmptyState, Heading, Notice, Stack, Text, TextArea } from "@impromptu/ui";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
@@ -27,7 +28,6 @@ const goalNames = {
   client_communication: "Client Communication",
   general_fluency: "General Fluency",
 };
-// Goals that suggest a situation, but the Learner can choose any.
 const kindFor: Partial<Record<keyof typeof goalNames, RoleplayKind>> = {
   job_interview: "mock_interview",
   client_communication: "client_call",
@@ -56,6 +56,7 @@ function RoleplaySetup() {
   if (!selected)
     return (
       <EmptyState
+        icon={Flag}
         title="Confirm a Goal first"
         description="Roleplays practise situations from your Goals."
         action={<Button render={<Link to="/goals" />}>Set your Goals</Button>}
@@ -63,7 +64,8 @@ function RoleplaySetup() {
     );
 
   const scenarioText = scenario.trim();
-  const scenarioError = scenario.length > 0 && scenarioText.length < 3 ? "Describe the situation in at least 3 characters." : undefined;
+  const scenarioError =
+    scenario.length > 0 && scenarioText.length < 3 ? "Describe the situation in at least 3 characters." : undefined;
   const defaultKind = kindFor[selected.kind];
   const pickedKind = chosenKind ?? defaultKind ?? null;
   const kind: RoleplayKind | null = scenarioText ? "custom" : pickedKind;
@@ -89,25 +91,36 @@ function RoleplaySetup() {
     }
   }
 
+  const goalPicker =
+    goals.length > 1 ? (
+      <ChoiceChips
+        label="Goal"
+        options={goals.map((g) => ({ value: g.id, label: goalLabel(g) }))}
+        value={goalId}
+        onValueChange={(value) => {
+          setGoalId(value);
+          setChosenKind(null);
+        }}
+      />
+    ) : (
+      <Text size="label" tone="muted">{`Your Goal: ${goalLabel(selected)}`}</Text>
+    );
+
+  let startLabel = "Start the Roleplay";
+  if (starting) startLabel = "Starting…";
+  else if (kind === "custom") startLabel = "Start a Custom Roleplay";
+  else if (kind) startLabel = `Start the ${roleplayKinds[kind]}`;
+
   return (
     <Stack gap={8}>
       <Stack gap={3}>
         <Heading level={1}>Start a Roleplay</Heading>
-        <Text>Your coach plays the other person and stays in character. Choose a situation or describe your own. Your Debrief comes at the end.</Text>
+        <Text>
+          Your coach plays the other person and stays in character. Choose a situation or describe your own. Your
+          Debrief comes at the end.
+        </Text>
       </Stack>
-      {goals.length > 1 ? (
-        <ChoiceChips
-          label="Goal"
-          options={goals.map((g) => ({ value: g.id, label: goalLabel(g) }))}
-          value={goalId}
-          onValueChange={(value) => {
-            setGoalId(value);
-            setChosenKind(null);
-          }}
-        />
-      ) : (
-        <Text size="label" tone="muted">{`Your Goal: ${goalLabel(selected)}`}</Text>
-      )}
+      {goalPicker}
       <ChoiceChips
         label="Situation"
         options={roleplayOptions}
@@ -127,17 +140,17 @@ function RoleplaySetup() {
         placeholder="For example, I need to ask my landlord to fix the heating and they keep delaying."
         error={scenarioError}
       />
-      <ChoiceChips label="Tone" options={options(tones)} value={tone} onValueChange={(v) => setTone(v as Tone)} />
-      <ChoiceChips label="Speak or type" options={modes} value={mode} onValueChange={setMode} />
+      <ChoiceChips
+        layout="segmented"
+        label="Tone"
+        options={options(tones)}
+        value={tone}
+        onValueChange={(v) => setTone(v as Tone)}
+      />
+      <ChoiceChips layout="segmented" label="Speak or type" options={modes} value={mode} onValueChange={setMode} />
       {error && <Notice tone="error">{error}</Notice>}
       <Button fullWidth onClick={() => void start()} disabled={!kind || starting || !!scenarioError}>
-        {starting
-          ? "Starting…"
-          : kind === "custom"
-            ? "Start a Custom Roleplay"
-            : kind
-              ? `Start the ${roleplayKinds[kind]}`
-              : "Start the Roleplay"}
+        {startLabel}
       </Button>
     </Stack>
   );

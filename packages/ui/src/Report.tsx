@@ -3,13 +3,10 @@ import { Card } from "./Card";
 import { Heading } from "./Heading";
 import { Text } from "./Text";
 
-// The Assessment Report sections. SkillBar and CefrScale have their own files.
-
 export type ReportStrengthsProps = {
   strengths: string[];
 };
 
-/** What the Learner does well. */
 export function ReportStrengths({ strengths }: ReportStrengthsProps) {
   return (
     <ul className="flex flex-col gap-3">
@@ -25,12 +22,10 @@ export function ReportStrengths({ strengths }: ReportStrengthsProps) {
 
 export type ReportWeaknessProps = {
   label: string;
-  /** What the Learner said. */
   quote: string;
   betterVersion: string;
 };
 
-/** One weakness: what the Learner said and a better way to say it. */
 export function ReportWeakness({ label, quote, betterVersion }: ReportWeaknessProps) {
   return (
     <Card>

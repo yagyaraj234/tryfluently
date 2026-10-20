@@ -70,7 +70,7 @@ test("an onboarded Learner reaches Home", async () => {
   for (const learner of ["assessed", "confirmed"]) {
     const response = await visit("/home", `learner=${learner}`);
     assert.equal(response.status, 200, learner);
-    assert.match(await response.text(), /<h1[^>]*>Home<\/h1>/);
+    assert.match(await response.text(), /<h1[^>]*>Welcome back, Asha<\/h1>/);
   }
 });
 

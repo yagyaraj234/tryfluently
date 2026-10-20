@@ -1,25 +1,22 @@
 import {
-  ChatBubbles,
   Faq,
-  Feature,
-  FeatureTrio,
   FinalCta,
   floatChips,
   GoalsStrip,
   HowItWorks,
-  LevelCard,
   MarketingColumn,
   MarketingHero,
-  MarketingPanel,
   MarketingShell,
   ProductFrame,
   ReportMock,
   RoadmapPeekMock,
   RoleplayMock,
-  UnitRow,
 } from "@impromptu/ui";
-import { ChartBar, Check, ChatCircle, FileText, Flame, Microphone, Path, Sparkle } from "@phosphor-icons/react";
 import { createFileRoute, isRedirect, Link, redirect } from "@tanstack/react-router";
+import { AssessmentSection } from "../components/landing/AssessmentSection";
+import { MoreWaysSection } from "../components/landing/MoreWaysSection";
+import { RoadmapSection } from "../components/landing/RoadmapSection";
+import { RoleplaySection } from "../components/landing/RoleplaySection";
 import { faqs, site } from "../content/landing";
 import { api } from "../lib/api";
 import { siteOrigin } from "../lib/site";
@@ -32,7 +29,6 @@ const nav = [
   { label: "FAQ", href: "#faq" },
 ];
 
-/** Structured data for search engines and AI assistants, built from the same words as the page. */
 function structuredData(origin: string) {
   return {
     "@context": "https://schema.org",
@@ -160,157 +156,13 @@ function Landing() {
         ]}
       />
 
-      <Feature
-        id="assessment"
-        pill="Assessment"
-        title="See where you stand in 10 minutes"
-        description="Have a short conversation by voice or text. Impromptu scores your fluency, grammar and vocabulary on the A1 to C2 scale."
-        points={[
-          {
-            icon: ChartBar,
-            title: "Your level and what to fix",
-            body: "A CEFR level for each skill, plus the specific mistakes to correct first.",
-          },
-          {
-            icon: Microphone,
-            title: "Voice or written",
-            body: "Speak if you want fluency measured. Type if you are somewhere quiet.",
-          },
-        ]}
-      >
-        <MarketingPanel
-          label="Skill levels on the A1 to C2 scale with a target for each skill"
-          top={
-            <>
-              <Sparkle aria-hidden weight="fill" />
-              Target set for your Goal
-            </>
-          }
-          bottom={
-            <>
-              <Check aria-hidden />
-              Takes up to 10 minutes
-            </>
-          }
-        >
-          <LevelCard skill="Fluency" current="B1" target="B2" />
-          <LevelCard skill="Grammar" current="B2" target="B2" />
-          <LevelCard skill="Vocabulary" current="B1" target="C1" />
-        </MarketingPanel>
-      </Feature>
+      <AssessmentSection />
 
-      <Feature
-        id="roadmap"
-        flip
-        pill="Roadmap"
-        title="A Roadmap that changes as you improve"
-        description="Your Roadmap is a list of Units, each made of short Lessons. Your coach builds each Lesson from how you did in the last one, so you skip what you already know."
-        points={[
-          {
-            icon: Path,
-            title: "Mastered after two Lessons",
-            body: "A Unit is mastered when you hit its goal in two Lessons in a row.",
-          },
-          {
-            icon: ChatCircle,
-            title: "Voice and text Steps",
-            body: "Each Lesson mixes speaking and writing prompts with feedback on every response.",
-          },
-        ]}
-      >
-        <MarketingPanel
-          road
-          label="A Roadmap with one mastered Unit, one in progress and one up next"
-          top={
-            <>
-              <Sparkle aria-hidden weight="fill" />
-              Updated after every Lesson
-            </>
-          }
-        >
-          <UnitRow
-            state="done"
-            index={1}
-            title="Introducing yourself"
-            detail="Mastered in 2 Lessons"
-            status="Mastered"
-          />
-          <UnitRow
-            state="now"
-            index={2}
-            title="Past tense for everyday stories"
-            detail="Lesson 2 of 3"
-            status="In progress"
-            progress
-          />
-          <UnitRow
-            state="next"
-            index={3}
-            title="Telling a story about your week"
-            detail="Conversation Unit"
-            status="Up next"
-          />
-        </MarketingPanel>
-      </Feature>
+      <RoadmapSection />
 
-      <Feature
-        id="roleplay"
-        pill="Roleplay"
-        title="Practise the conversation, then see what to fix"
-        description="The AI plays the other person and stays in character. When it ends, you get feedback that shows what to say instead, with a recording of how it sounds."
-        points={[
-          {
-            icon: Microphone,
-            title: "Questions that follow your answer",
-            body: "The other person responds to what you said.",
-          },
-          {
-            icon: Check,
-            title: "Corrections you can hear",
-            body: "Play the reference pronunciation for any word or phrase.",
-          },
-        ]}
-      >
-        <MarketingPanel
-          label="A Roleplay exchange and the Debrief correction that follows"
-          top={
-            <>
-              <ChatCircle aria-hidden weight="fill" />
-              Stays in character
-            </>
-          }
-          bottom={
-            <>
-              <Check aria-hidden />
-              Feedback when it ends
-            </>
-          }
-        >
-          <ChatBubbles />
-        </MarketingPanel>
-      </Feature>
+      <RoleplaySection />
 
-      <FeatureTrio
-        id="more"
-        title="More ways to practise"
-        items={[
-          {
-            icon: FileText,
-            title: "Bring your own context",
-            body: "Tell Impromptu about your work or situation. It turns that into a short brief and uses it in every Lesson.",
-          },
-          {
-            icon: Microphone,
-            title: "Hear the correct pronunciation",
-            body: "Tap any vocabulary card or correction to play it.",
-          },
-          {
-            icon: Flame,
-            title: "Keep the streak",
-            body: "Short daily Lessons earn XP and build a Streak, so ten minutes a day adds up.",
-          },
-        ]}
-      />
+      <MoreWaysSection />
 
       <Faq id="faq" title="Questions before you start" items={faqs} />
 

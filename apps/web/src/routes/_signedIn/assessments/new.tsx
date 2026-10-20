@@ -25,6 +25,34 @@ const modes: { mode: Mode; title: string; about: string }[] = [
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" });
 
+function ModeCard({
+  title,
+  about,
+  label,
+  disabled,
+  onClick,
+}: {
+  title: string;
+  about: string;
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Card>
+      <Stack gap={4} align="start">
+        <Heading level={2} size="title">
+          {title}
+        </Heading>
+        <Text>{about}</Text>
+        <Button onClick={onClick} disabled={disabled}>
+          {label}
+        </Button>
+      </Stack>
+    </Card>
+  );
+}
+
 function ChooseAssessment() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -54,6 +82,12 @@ function ChooseAssessment() {
     }
   }
 
+  function labelFor(mode: Mode) {
+    if (starting === mode) return "Starting…";
+    if (mode === "written") return "Type with my coach";
+    return ready ? "Join voice conversation" : "Talk with my coach";
+  }
+
   return (
     <Screen>
       <Container width="prose">
@@ -78,26 +112,14 @@ function ChooseAssessment() {
           )}
           <Grid>
             {modes.map(({ mode, title, about }) => (
-              <Card key={mode}>
-                <Stack gap={4} align="start">
-                  <Heading level={2} size="title">
-                    {title}
-                  </Heading>
-                  <Text>{about}</Text>
-                  <Button
-                    onClick={() => (mode === "voice" && !ready ? setReady(true) : start(mode))}
-                    disabled={starting !== undefined}
-                  >
-                    {starting === mode
-                      ? "Starting…"
-                      : mode === "voice"
-                        ? ready
-                          ? "Join voice conversation"
-                          : "Talk with my coach"
-                        : "Type with my coach"}
-                  </Button>
-                </Stack>
-              </Card>
+              <ModeCard
+                key={mode}
+                title={title}
+                about={about}
+                label={labelFor(mode)}
+                disabled={starting !== undefined}
+                onClick={() => (mode === "voice" && !ready ? setReady(true) : start(mode))}
+              />
             ))}
           </Grid>
         </Stack>

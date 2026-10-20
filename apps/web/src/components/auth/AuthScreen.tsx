@@ -6,7 +6,6 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../../lib/api";
 import { signInWithGoogle } from "../../lib/auth";
 
-/** Route loader for sign-in and sign-up: is Google configured on the API? */
 export const loadProviders = async () => (await api().api.auth.providers.$get()).json();
 
 type Field = { name: string; label: string; type: string; autoComplete: string };
@@ -20,6 +19,23 @@ const waiting: AuthPoint = {
   icon: Path,
   title: "Your Roadmap is ready",
   body: "Open it to pick up your next Lesson.",
+};
+
+const signUpStory = {
+  storyLabel: "Getting started with Impromptu",
+  badge: "Free assessment",
+  storyTitle: "Start with a Goal.",
+  storyText: "Practise the conversations you need, one at a time.",
+  steps,
+  note: undefined,
+};
+const signInStory = {
+  storyLabel: "Welcome back to Impromptu",
+  badge: "Your progress is saved",
+  storyTitle: "Pick up where you left off.",
+  storyText: "Your Roadmap and next conversation are ready when you are.",
+  steps: undefined,
+  note: waiting,
 };
 
 function GoogleMark() {
@@ -42,16 +58,13 @@ function GoogleMark() {
   );
 }
 
-/** Sign-in and sign-up with email and optional Google. */
 export function AuthScreen(props: {
   mode: "sign-in" | "sign-up";
   title: string;
   fields: Field[];
   submitLabel: string;
   google: boolean;
-  /** An error to show on arrival, such as a failed Google sign-in. */
   initialError?: string;
-  /** Resolves with Better Auth's error, if any. */
   onSubmit: (values: Record<string, string>) => Promise<{ error: { message?: string } | null }>;
   successTo?: "/home" | "/verify-email";
   footer: ReactNode;
@@ -92,31 +105,23 @@ export function AuthScreen(props: {
     }
   }
 
+  const story = signingUp ? signUpStory : signInStory;
+  const alternative = props.google && (
+    <Button variant="secondary" fullWidth onClick={google} disabled={pending}>
+      <Cluster gap={3} wrap={false}>
+        <GoogleMark /> <span>Continue with Google</span>
+      </Cluster>
+    </Button>
+  );
+
   return (
     <AuthLayout
       home={<Link to="/" />}
-      storyLabel={signingUp ? "Getting started with Impromptu" : "Welcome back to Impromptu"}
-      badge={signingUp ? "Free assessment" : "Your progress is saved"}
-      storyTitle={signingUp ? "Start with a Goal." : "Pick up where you left off."}
-      storyText={
-        signingUp
-          ? "Practise the conversations you need, one at a time."
-          : "Your Roadmap and next conversation are ready when you are."
-      }
-      steps={signingUp ? steps : undefined}
-      note={signingUp ? undefined : waiting}
+      {...story}
       title={props.title}
       subtitle={props.google ? "Continue with email or Google." : "Continue with your email."}
       footer={props.footer}
-      alternative={
-        props.google && (
-          <Button variant="secondary" fullWidth onClick={google} disabled={pending}>
-            <Cluster gap={3} wrap={false}>
-              <GoogleMark /> <span>Continue with Google</span>
-            </Cluster>
-          </Button>
-        )
-      }
+      alternative={alternative}
     >
       <form onSubmit={submit}>
         <Stack gap={5}>
@@ -133,7 +138,6 @@ export function AuthScreen(props: {
   );
 }
 
-/** "No account yet? Create one" and the like. */
 export function AuthFooter({ prompt, to, label }: { prompt: string; to: "/sign-in" | "/sign-up"; label: string }) {
   return (
     <Text>

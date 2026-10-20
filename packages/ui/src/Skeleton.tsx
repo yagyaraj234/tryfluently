@@ -1,7 +1,6 @@
 import { cva } from "class-variance-authority";
 import { textSizeClasses, type TextSize } from "./Text";
 
-/** The spacing steps a Skeleton offers (Tailwind's 4px scale). */
 type SpaceStep = 1 | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 14;
 
 const heights: Record<SpaceStep, string> = {
@@ -37,14 +36,8 @@ const skeleton = cva("block shrink-0 bg-subtle motion-safe:animate-pulse", {
 });
 
 export type SkeletonProps =
-  /** One line of text at a text size. */
-  | { shape: "text"; size?: TextSize }
-  /** Full width, `size` tall. */
-  | { shape: "block"; size: SpaceStep }
-  /** `size` wide and tall. */
-  | { shape: "circle"; size: SpaceStep };
+  { shape: "text"; size?: TextSize } | { shape: "block"; size: SpaceStep } | { shape: "circle"; size: SpaceStep };
 
-/** A placeholder for content that is loading. Hidden from assistive technology: announce loading with a Spinner or text. */
 export function Skeleton(props: SkeletonProps) {
   switch (props.shape) {
     case "text":

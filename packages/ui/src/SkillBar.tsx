@@ -7,7 +7,7 @@ export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
 export const skillNames: Record<Skill, string> = { fluency: "Fluency", grammar: "Grammar", vocabulary: "Vocabulary" };
 
-const indicator = cva("block h-full", {
+const indicator = cva("block h-full origin-left motion-safe:animate-grow", {
   variants: {
     skill: { fluency: "bg-skill-fluency", grammar: "bg-skill-grammar", vocabulary: "bg-skill-vocabulary" },
   },
@@ -15,12 +15,10 @@ const indicator = cva("block h-full", {
 
 export type SkillBarProps = {
   skill: Skill;
-  /** 0–100, rounded. */
   score: number;
   level: CefrLevel;
 };
 
-/** One skill of the Skill Profile: the name on the left, the score and CEFR Level on the right, a bar in the skill colour. */
 export function SkillBar({ skill, score, level }: SkillBarProps) {
   return (
     <Meter.Root

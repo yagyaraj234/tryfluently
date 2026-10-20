@@ -2,7 +2,7 @@ import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 
 export const textSizeClasses = {
-  label: "text-label uppercase",
+  label: "text-label uppercase app:normal-case",
   caption: "text-caption",
   body: "text-body",
   title: "text-title",

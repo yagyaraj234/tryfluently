@@ -5,6 +5,7 @@ import {
   ChatCircleText,
   CheckCircle,
   CircleDashed,
+  type Icon as PhosphorIcon,
   MapPin,
   Play,
   SkipForward,
@@ -23,7 +24,7 @@ const tag = cva(
     variants: {
       status: {
         planned: "bg-paper text-ink",
-        active: "bg-primary text-on-primary",
+        active: "bg-primary-soft text-primary",
         mastered: "bg-correct-tint text-correct",
         skipped: "bg-subtle text-muted",
       },
@@ -44,12 +45,11 @@ export type UnitStatusTagProps = {
   status: UnitStatus;
 };
 
-/** A Unit's status as an icon and a word, each status with its own look, so it never relies on colour alone. */
 export function UnitStatusTag({ status }: UnitStatusTagProps) {
   const { word, icon: Icon } = statuses[status];
   return (
     <span className={tag({ status })}>
-      <Icon aria-hidden />
+      <Icon aria-hidden size={16} />
       {word}
     </span>
   );
@@ -57,19 +57,15 @@ export function UnitStatusTag({ status }: UnitStatusTagProps) {
 
 const body = cva("flex flex-col gap-4");
 const top = cva("flex items-start gap-3");
-const tile = cva("grid size-11 shrink-0 place-items-center rounded-xl bg-primary-soft text-title text-primary");
-const heading = cva("flex min-w-0 flex-1 flex-col gap-0.5");
+const tile = cva("grid size-11 shrink-0 place-items-center rounded-xl bg-subtle text-title text-muted");
+const heading = cva("flex min-w-0 flex-1 flex-col gap-2");
 const titleText = cva("text-body font-semibold text-balance text-ink");
 const titleLink = cva("rounded-lg hover:text-primary");
 const objectiveText = cva("line-clamp-2 text-caption text-muted");
-// The cover stands in for a course thumbnail: a cobalt brand panel with the Unit's icon.
 const cover = cva(
-  "relative isolate -mx-4 -mt-4 grid h-32 place-items-center overflow-hidden rounded-t-2xl bg-linear-160 from-brand-mid to-brand-deep text-hero text-on-brand",
+  "relative -mx-5 -mt-5 grid h-20 place-items-center border-b border-line bg-subtle text-heading text-primary",
 );
-const coverGlow = cva("absolute -top-1/2 -right-1/4 z-behind size-3/4 rounded-full bg-brand-hi/60 blur-3xl");
-const coverBadge = cva(
-  "absolute top-3 left-3 rounded-full bg-on-brand/16 px-2.5 py-0.5 text-label text-on-brand uppercase",
-);
+const coverBadge = cva("absolute top-3 left-3 rounded-full bg-paper px-2.5 py-1 text-label tracking-normal text-muted");
 const meta = cva("flex items-center justify-between gap-3 text-caption text-muted");
 const metaItem = cva("inline-flex items-center gap-1.5");
 const track = cva("h-2 overflow-hidden rounded-full bg-subtle");
@@ -83,28 +79,19 @@ export type UnitCardProps = {
   title: string;
   objective: string;
   status: UnitStatus;
-  /** @default 2 */
   level?: 2 | 3;
-  /** The Unit's place on the Roadmap, from 1. */
   number?: number;
-  /** The Unit's first skill, which picks its icon. */
   skill?: keyof typeof skillIcons;
-  /** Percentage of outlined Lessons completed (0–100), and how many Lessons are done. */
   progress?: { value: number; lessonsDone: number };
-  /** A cobalt cover with the Unit's icon on top of the card, for Units the Learner hasn't started. */
   cover?: boolean;
-  /** A button for the Unit, for example Resume. With an action, `render` goes on the title instead of the whole card. */
   action?: ReactNode;
-  /** Renders the card as this element, for example a router link to the Unit, so the whole card is one tap target. */
   render?: ReactElement;
 };
 
 export type UnitIconProps = {
-  /** The Unit's first skill, which picks the icon. */
   skill?: keyof typeof skillIcons;
 };
 
-/** A Unit's icon on a soft tile. */
 export function UnitIcon({ skill }: UnitIconProps) {
   const Icon = skill ? skillIcons[skill] : MapPin;
   return (
@@ -114,7 +101,15 @@ export function UnitIcon({ skill }: UnitIconProps) {
   );
 }
 
-/** One Unit on the Roadmap: its icon, title, objective and status, and optionally its progress and an action. */
+function UnitCover({ number, Icon }: { number?: number; Icon: PhosphorIcon }) {
+  return (
+    <div className={cover()}>
+      {number && <span className={coverBadge()}>{`Unit ${number}`}</span>}
+      <Icon aria-hidden size={28} />
+    </div>
+  );
+}
+
 export function UnitCard({
   title,
   objective,
@@ -133,29 +128,27 @@ export function UnitCard({
     render: action && render ? render : <span />,
     props: { className: titleLink(), children: title },
   });
-  // A cover already shows the number.
   const label = [!hasCover && number && `Unit ${number}`, skill && skillNames[skill]].filter(Boolean).join(" · ");
+  const coverBlock = hasCover ? <UnitCover number={number} Icon={Icon} /> : null;
+  const tileBlock = hasCover ? null : <UnitIcon skill={skill} />;
+  const labelBlock = label ? (
+    <Text size="label" tone="muted">
+      {label}
+    </Text>
+  ) : null;
   return (
     <Card size="sm" render={action ? undefined : render}>
       <div className={body()}>
-        {hasCover && (
-          <div className={cover()}>
-            <span aria-hidden className={coverGlow()} />
-            {number && <span className={coverBadge()}>{`Unit ${number}`}</span>}
-            <Icon aria-hidden />
-          </div>
-        )}
+        {coverBlock}
         <div className={top()}>
-          {!hasCover && <UnitIcon skill={skill} />}
+          {tileBlock}
           <div className={heading()}>
             <H className={titleText()}>{titleElement}</H>
-            {label && (
-              <Text size="label" tone="muted">
-                {label}
-              </Text>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {labelBlock}
+              <UnitStatusTag status={status} />
+            </div>
           </div>
-          <UnitStatusTag status={status} />
         </div>
         <p className={objectiveText()}>{objective}</p>
         {progress && <ObjectiveMeter {...progress} />}
@@ -173,11 +166,11 @@ function ObjectiveMeter({ value, lessonsDone }: { value: number; lessonsDone: nu
       </BaseMeter.Track>
       <div className={meta()}>
         <span className={metaItem()}>
-          <BookOpenText aria-hidden />
+          <BookOpenText aria-hidden size={16} />
           {`${lessonsDone} ${lessonsDone === 1 ? "Lesson" : "Lessons"} done`}
         </span>
         <BaseMeter.Label className={metaItem()}>
-          <Target aria-hidden />
+          <Target aria-hidden size={16} />
           {`${value}% completed`}
         </BaseMeter.Label>
       </div>

@@ -1,3 +1,4 @@
+import { Flag } from "@phosphor-icons/react";
 import {
   Button,
   Card,
@@ -32,7 +33,6 @@ const skills = ["fluency", "grammar", "vocabulary"] as const;
 const options = (["A1", "A2", "B1", "B2", "C1", "C2"] as const).map((value) => ({ value, label: value }));
 type TargetLevels = Partial<Record<(typeof skills)[number], CefrLevel>>;
 
-/** Review suggestions once, beside the Report or on a direct return to confirmation. */
 export function GoalReview({ initialGoals }: { initialGoals: Awaited<ReturnType<typeof proposedGoals>> }) {
   const router = useRouter();
   const [goals, setGoals] = useState(initialGoals);
@@ -162,7 +162,11 @@ export function GoalReview({ initialGoals }: { initialGoals: Awaited<ReturnType<
         </Card>
       ))}
       {!goals.length && (
-        <EmptyState title="No Goals to confirm" description="Your confirmed Goals will be used for your Roadmap." />
+        <EmptyState
+          icon={Flag}
+          title="No Goals to confirm"
+          description="Your confirmed Goals will be used for your Roadmap."
+        />
       )}
       <Button fullWidth disabled={busy || !ready} onClick={() => void confirm()}>
         {busy ? "Saving your Goals…" : "Build my Roadmap"}

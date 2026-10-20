@@ -74,6 +74,15 @@ describe("ChatComposer", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
+  test("oversized messages cannot be sent", () => {
+    const onSend = mock();
+    render(<ChatComposer label="Your reply" value={"x".repeat(2001)} onValueChange={() => {}} onSend={onSend} />);
+    expect((screen.getByLabelText("Your reply") as HTMLTextAreaElement).maxLength).toBe(2000);
+    expect((screen.getByRole("button", { name: "Send" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.keyDown(screen.getByLabelText("Your reply"), { key: "Enter" });
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
   test("a blank or pending message can't be sent", () => {
     const onSend = mock();
     const { rerender } = render(

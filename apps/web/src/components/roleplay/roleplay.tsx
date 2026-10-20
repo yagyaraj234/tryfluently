@@ -5,16 +5,8 @@ import type { InferResponseType } from "hono/client";
 import { useState } from "react";
 import { api } from "../../lib/api";
 
-// What text and voice Roleplays share: names, ending through /end and the wait for the Debrief.
-
 export type RoleplayKind =
-  | "mock_interview"
-  | "client_call"
-  | "presentation"
-  | "team_meeting"
-  | "phone_call"
-  | "small_talk"
-  | "custom";
+  "mock_interview" | "client_call" | "presentation" | "team_meeting" | "phone_call" | "small_talk" | "custom";
 export type Tone = "friendly" | "standard" | "tough";
 
 export const roleplayKinds: Record<RoleplayKind, string> = {
@@ -30,7 +22,6 @@ export const roleplayOptions = (Object.entries(roleplayKinds) as [RoleplayKind, 
   .filter(([value]) => value !== "custom")
   .map(([value, label]) => ({ value, label }));
 export const tones: Record<Tone, string> = { friendly: "Friendly", standard: "Standard", tough: "Tough" };
-/** Who the coach plays, as screen readers announce their lines. */
 export const characters: Record<RoleplayKind, string> = {
   mock_interview: "Interviewer",
   client_call: "Client",
@@ -45,7 +36,6 @@ type Client = ReturnType<typeof api>["api"]["lessons"][":id"];
 export type Roleplay = InferResponseType<Client["$get"], 200>;
 export type DebriefData = Omit<DebriefProps, "onHear" | "actions">;
 
-/** The Roleplay, or null when it isn't the Learner's (or isn't a Roleplay). */
 export async function fetchRoleplay(id: string) {
   const response = await api().api.lessons[":id"].$get({ param: { id } });
   if (response.status === 404) return null;
@@ -54,16 +44,11 @@ export async function fetchRoleplay(id: string) {
   return roleplay.kind === "roleplay" ? roleplay : null;
 }
 
-/** "Mock Interview · Tough" */
 export const roleplayLabel = (r: Pick<Roleplay, "roleplayKind" | "tone">) =>
   `${roleplayKinds[r.roleplayKind as RoleplayKind]} · ${tones[r.tone as Tone]}`;
 
 export type Ending = "running" | "ending" | "failed";
 
-/**
- * Ends a Roleplay through /end. While the Debrief is written it's "ending"; a 502 makes it "failed", and `end` can be
- * called again. Once it's over the route reloads and shows the Debrief (or that it was abandoned).
- */
 export function useRoleplayEnd(roleplayId: string) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -85,7 +70,6 @@ export function useRoleplayEnd(roleplayId: string) {
   return { ending, end };
 }
 
-/** The wait while the Debrief is written, or a retry when it couldn't be. */
 export function RoleplayEnding({ ending, end }: ReturnType<typeof useRoleplayEnd>) {
   if (ending === "failed")
     return (
@@ -104,7 +88,6 @@ export function RoleplayEnding({ ending, end }: ReturnType<typeof useRoleplayEnd
   );
 }
 
-/** The top of a Roleplay in text: its kind and tone, and End. A voice Roleplay has the LiveBar instead. */
 export function RoleplayBar({
   roleplay,
   onEnd,
@@ -124,7 +107,9 @@ export function RoleplayBar({
   );
 }
 
-/** Plays a phrase's Reference Pronunciation. */
+export const coachIntro = (kind: RoleplayKind) =>
+  `Say hello to start. Your ${characters[kind].toLowerCase()} stays in character until you end the ${roleplayKinds[kind]}. Your Debrief comes after.`;
+
 export function hear(text: string) {
   new Audio(`/api/pronunciation?${new URLSearchParams({ text })}`)
     .play()

@@ -2,7 +2,6 @@ import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
 import { textSizeClasses, type TextSize } from "./Text";
 
-// The small sizes carry no weight of their own, so a heading at them is semibold.
 const heading = cva("text-balance text-ink", {
   variants: {
     size: {

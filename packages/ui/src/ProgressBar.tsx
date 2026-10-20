@@ -1,7 +1,6 @@
 import { Progress } from "@base-ui/react/progress";
 import { cva } from "class-variance-authority";
 
-/** The labelled bar shared by ProgressBar and Meter: label and value above, track below. */
 export const labelledBarParts = {
   root: cva("grid grid-cols-2 gap-y-2 text-ink"),
   label: cva("text-caption font-bold"),
@@ -12,13 +11,10 @@ export const labelledBarParts = {
 
 export type ProgressBarProps = {
   value: number;
-  /** @default 100 */
   max?: number;
-  /** The visible label, which is also the accessible name. */
   label: string;
 };
 
-/** How far through a task the Learner is, for example a Lesson. */
 export function ProgressBar({ label, ...props }: ProgressBarProps) {
   return (
     <Progress.Root className={labelledBarParts.root()} {...props}>

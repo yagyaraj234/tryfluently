@@ -8,12 +8,10 @@ const notice = cva("rounded-xl border border-line px-4 py-3 text-body text-ink",
 });
 
 export type NoticeProps = {
-  /** `error` interrupts as an alert (a failed sign-in); `info` is a polite status (when a retake opens). */
   tone: "error" | "info";
   children: ReactNode;
 };
 
-/** A message in the flow of a form or screen, for errors that don't belong to one field. */
 export function Notice({ tone, children }: NoticeProps) {
   return (
     <div role={tone === "error" ? "alert" : "status"} className={notice({ tone })}>
