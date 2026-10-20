@@ -1,6 +1,6 @@
 import {
-  bigserial,
   boolean,
+  bigserial,
   customType,
   integer,
   index,
@@ -29,45 +29,57 @@ export const user = pgTable("user", {
   updatedAt: timestamp().notNull().defaultNow(),
 });
 
-export const session = pgTable("session", {
-  id: text().primaryKey(),
-  expiresAt: timestamp().notNull(),
-  token: text().notNull().unique(),
-  ipAddress: text(),
-  userAgent: text(),
-  userId: text()
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  createdAt: timestamp().notNull().defaultNow(),
-  updatedAt: timestamp().notNull().defaultNow(),
-});
+export const session = pgTable(
+  "session",
+  {
+    id: text().primaryKey(),
+    expiresAt: timestamp().notNull(),
+    token: text().notNull().unique(),
+    ipAddress: text(),
+    userAgent: text(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [index("session_user_idx").on(t.userId)],
+);
 
-export const account = pgTable("account", {
-  id: text().primaryKey(),
-  accountId: text().notNull(),
-  providerId: text().notNull(),
-  userId: text()
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  accessToken: text(),
-  refreshToken: text(),
-  idToken: text(),
-  accessTokenExpiresAt: timestamp(),
-  refreshTokenExpiresAt: timestamp(),
-  scope: text(),
-  password: text(),
-  createdAt: timestamp().notNull().defaultNow(),
-  updatedAt: timestamp().notNull().defaultNow(),
-});
+export const account = pgTable(
+  "account",
+  {
+    id: text().primaryKey(),
+    accountId: text().notNull(),
+    providerId: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text(),
+    refreshToken: text(),
+    idToken: text(),
+    accessTokenExpiresAt: timestamp(),
+    refreshTokenExpiresAt: timestamp(),
+    scope: text(),
+    password: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [index("account_user_idx").on(t.userId)],
+);
 
-export const verification = pgTable("verification", {
-  id: text().primaryKey(),
-  identifier: text().notNull(),
-  value: text().notNull(),
-  expiresAt: timestamp().notNull(),
-  createdAt: timestamp().notNull().defaultNow(),
-  updatedAt: timestamp().notNull().defaultNow(),
-});
+export const verification = pgTable(
+  "verification",
+  {
+    id: text().primaryKey(),
+    identifier: text().notNull(),
+    value: text().notNull(),
+    expiresAt: timestamp().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [index("verification_identifier_idx").on(t.identifier)],
+);
 
 const id = () =>
   text()
@@ -84,19 +96,23 @@ export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 export const goalKind = pgEnum("goal_kind", ["job_interview", "client_communication", "general_fluency"]);
 export const goalStatus = pgEnum("goal_status", ["proposed", "confirmed"]);
 
-export const goal = pgTable("goal", {
-  id: id(),
-  userId: learner(),
-  kind: goalKind().notNull(),
-  // The Learner's Goal in their own words. Kind stays as an internal category for Roleplay defaults.
-  statement: text(),
-  // Raw Goal Context, kept only so the Brief can be regenerated. Prompts use `brief`.
-  contextRaw: text(),
-  brief: text(),
-  targetLevels: jsonb().$type<Partial<Record<Skill, CefrLevel>>>().notNull().default({}),
-  status: goalStatus().notNull().default("proposed"),
-  createdAt: timestamp().notNull().defaultNow(),
-});
+export const goal = pgTable(
+  "goal",
+  {
+    id: id(),
+    userId: learner(),
+    kind: goalKind().notNull(),
+    // The Learner's Goal in their own words. Kind stays as an internal category for Roleplay defaults.
+    statement: text(),
+    // Raw Goal Context, kept only so the Brief can be regenerated. Prompts use `brief`.
+    contextRaw: text(),
+    brief: text(),
+    targetLevels: jsonb().$type<Partial<Record<Skill, CefrLevel>>>().notNull().default({}),
+    status: goalStatus().notNull().default("proposed"),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [index("goal_user_idx").on(t.userId)],
+);
 
 export const usageKind = pgEnum("usage_kind", ["realtime", "recording", "text"]);
 
@@ -135,6 +151,7 @@ export const assessment = pgTable(
     uniqueIndex("assessment_one_open_per_user_idx")
       .on(t.userId)
       .where(sql`${t.status} = 'in_progress'`),
+    index("assessment_user_status_ended_idx").on(t.userId, t.status, t.endedAt),
   ],
 );
 
@@ -160,6 +177,7 @@ export const assessmentJob = pgTable(
     uniqueIndex("assessment_job_assessment_kind_idx").on(t.assessmentId, t.kind),
     uniqueIndex("assessment_job_lesson_kind_idx").on(t.lessonId, t.kind),
     index("assessment_job_status_available_idx").on(t.status, t.availableAt),
+    index("assessment_job_user_kind_status_idx").on(t.userId, t.kind, t.status),
   ],
 );
 
@@ -171,34 +189,37 @@ export const skillScore = pgTable(
   "skill_score",
   {
     id: id(),
+    sequence: bigserial({ mode: "bigint" }).notNull(),
     userId: learner(),
     skill: skill().notNull(),
     score: real().notNull(),
     source: scoreSource().notNull(),
     sourceId: text().notNull(),
     createdAt: timestamp().notNull(),
-    // Write order, assigned at insert under the Learner lock; createdAt can predate it after slow judging.
-    seq: bigserial({ mode: "number" }).notNull(),
   },
-  (t) => [index("skill_score_user_skill_created_idx").on(t.userId, t.skill, t.createdAt)],
+  (t) => [index("skill_score_user_skill_sequence_idx").on(t.userId, t.skill, t.sequence)],
 );
 
 export const focusKind = pgEnum("focus_kind", ["grammar", "vocabulary", "phrase"]);
 export const focusSource = pgEnum("focus_source", ["assessment", "debrief", "lesson"]);
 export const focusStatus = pgEnum("focus_status", ["open", "closed"]);
 
-export const focusItem = pgTable("focus_item", {
-  id: id(),
-  userId: learner(),
-  label: text().notNull(),
-  kind: focusKind().notNull(),
-  source: focusSource().notNull(),
-  sourceId: text().notNull(),
-  hits: integer().notNull().default(0),
-  status: focusStatus().notNull().default("open"),
-  createdAt: timestamp().notNull(),
-  closedAt: timestamp(),
-});
+export const focusItem = pgTable(
+  "focus_item",
+  {
+    id: id(),
+    userId: learner(),
+    label: text().notNull(),
+    kind: focusKind().notNull(),
+    source: focusSource().notNull(),
+    sourceId: text().notNull(),
+    hits: integer().notNull().default(0),
+    status: focusStatus().notNull().default("open"),
+    createdAt: timestamp().notNull(),
+    closedAt: timestamp(),
+  },
+  (t) => [index("focus_item_user_status_idx").on(t.userId, t.status)],
+);
 
 export const unitStatus = pgEnum("unit_status", ["planned", "active", "mastered", "skipped"]);
 
@@ -314,7 +335,10 @@ export const step = pgTable(
     timing: jsonb().$type<Record<string, unknown>>(),
     answeredAt: timestamp(),
   },
-  (t) => [index("step_lesson_position_idx").on(t.lessonId, t.position)],
+  (t) => [
+    index("step_lesson_position_idx").on(t.lessonId, t.position),
+    index("step_user_answered_idx").on(t.userId, t.answeredAt),
+  ],
 );
 
 // Reference Pronunciation clips, shared by all Learners and cached by text and voice,

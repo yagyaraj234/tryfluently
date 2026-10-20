@@ -168,15 +168,25 @@ describe("text-mode Roleplay", () => {
     expect((await chat(app, cookie, roleplay.id, "Hi")).res.status).toBe(409);
   });
 
-  test("two overlapping chat messages don't overwrite each other: the stale reply is dropped", async () => {
-    const app = makeApp({ models: { step: mockChat("First reply.", "Second reply.") } });
+  test("overlapping chats on separate API instances drop the stale reply", async () => {
+    const step = mockChat("First reply.", "Second reply.");
+    const generate = step.doStream.bind(step);
+    const gate = Promise.withResolvers<void>();
+    let calls = 0;
+    step.doStream = async (options) => {
+      if (++calls === 2) gate.resolve();
+      await gate.promise;
+      return generate(options);
+    };
+    const app = makeApp({ models: { step } });
+    const otherInstance = makeApp({ models: { step } });
     const { cookie } = await learnerWithRoadmap();
     const roleplay = await startRoleplay(app, cookie, { textMode: true });
 
     // The stale reply's stream fails (the read throws or carries an error chunk); the other one completes.
     const outcomes = await Promise.all(
-      ["Answer A", "Answer B"].map((text) =>
-        chat(app, cookie, roleplay.id, text).then(
+      [app, otherInstance].map((instance, i) =>
+        chat(instance, cookie, roleplay.id, `Answer ${i ? "B" : "A"}`).then(
           (r) => String(r.body),
           () => "failed",
         ),

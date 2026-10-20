@@ -17,13 +17,13 @@ export function cefr(score: number): CefrLevel {
 
 export const scoreView = (score: number) => ({ score: Math.round(score), level: cefr(score) });
 
-// Latest score per skill; skills never measured are missing.
+// Latest committed score per skill; model calls can finish out of event-time order.
 async function latestScores(db: Db, userId: string) {
   const rows = await db
     .selectDistinctOn([schema.skillScore.skill], { skill: schema.skillScore.skill, score: schema.skillScore.score })
     .from(schema.skillScore)
     .where(eq(schema.skillScore.userId, userId))
-    .orderBy(schema.skillScore.skill, desc(schema.skillScore.seq));
+    .orderBy(schema.skillScore.skill, desc(schema.skillScore.sequence));
   return Object.fromEntries(rows.map((r) => [r.skill, r.score])) as Partial<Record<Skill, number>>;
 }
 
@@ -35,7 +35,7 @@ export async function skillProfile(db: Db, userId: string) {
   >;
 }
 
-// Every score change, oldest first, rounded and labelled with its CEFR Level like the Skill Profile.
+// Every score change in write order, rounded and labelled like the Skill Profile.
 export const skillHistory = (db: Db, userId: string) =>
   db
     .select({
@@ -47,7 +47,7 @@ export const skillHistory = (db: Db, userId: string) =>
     })
     .from(schema.skillScore)
     .where(eq(schema.skillScore.userId, userId))
-    .orderBy(asc(schema.skillScore.seq))
+    .orderBy(asc(schema.skillScore.sequence))
     .then((rows) => rows.map((row) => ({ ...row, ...scoreView(row.score) })));
 
 export const skillProfileRoutes = (db: Db) =>
