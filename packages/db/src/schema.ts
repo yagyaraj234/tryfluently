@@ -1,4 +1,5 @@
 import {
+  bigserial,
   boolean,
   customType,
   integer,
@@ -170,6 +171,8 @@ export const skillScore = pgTable("skill_score", {
   source: scoreSource().notNull(),
   sourceId: text().notNull(),
   createdAt: timestamp().notNull(),
+  // Write order, assigned at insert under the Learner lock; createdAt can predate it after slow judging.
+  seq: bigserial({ mode: "number" }).notNull(),
 });
 
 export const focusKind = pgEnum("focus_kind", ["grammar", "vocabulary", "phrase"]);
