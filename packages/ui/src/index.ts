@@ -60,6 +60,7 @@ export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { LiveBar, type LiveBarProps } from "./LiveBar";
 export { VoiceOrb, type VoiceOrbProps, type VoicePhase } from "./VoiceOrb";
+export { PollyWalking, type PollyWalkingProps } from "./PollyWalking";
 export { Mascot, type MascotName, type MascotProps } from "./Mascot";
 export { LessonComplete, type LessonCompleteProps } from "./LessonComplete";
 export {
@@ -105,6 +106,7 @@ export { RecordButton, type RecordButtonProps } from "./RecordButton";
 export { ReportStrengths, ReportWeakness, type ReportStrengthsProps, type ReportWeaknessProps } from "./Report";
 export { ScoreHistory, type ScoreHistoryEntry, type ScoreHistoryProps } from "./ScoreHistory";
 export { Screen, type ScreenProps } from "./Screen";
+export { type SpeechControl } from "./SpeakAnswer";
 export { PageBlock, PageDots, QuestionSkeleton, ReadingCard, type PageQuestion, type PageResult } from "./PagedLesson";
 export { Select, type SelectProps } from "./Select";
 export { Sheet, type SheetProps } from "./Sheet";

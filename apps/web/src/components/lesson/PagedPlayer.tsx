@@ -10,14 +10,16 @@ import {
   Stack,
   Text,
   type PageQuestion,
+  type SpeechControl,
   type PageResult,
 } from "@impromptu/ui";
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useSpeech } from "../../hooks/speech";
 import { api } from "../../lib/api";
 import { lessonPagesQuery } from "../../lib/lessons";
-import { Complete } from "./Complete";
+import { PagedComplete } from "./PagedComplete";
 import { lessonXp, type Lesson } from "./lesson";
 
 type PageData = {
@@ -38,6 +40,22 @@ type PagedData = {
   status: "abandoned" | "completed" | "in_progress";
   pages: PageData[];
 };
+
+/** Wraps the speaking Block with the browser's speech recognition. Recordings stay in browser memory until the Lesson is left. */
+function SpeakingBlock(props: {
+  question: PageQuestion;
+  result?: PageResult;
+  pending: boolean;
+  onSubmit: (answer: unknown) => void;
+  onRetry: () => void;
+  kept: string | undefined;
+  keep: (url: string) => void;
+}) {
+  const { onRetry, kept, keep, ...block } = props;
+  const speech = useSpeech((text) => block.onSubmit(text), keep, kept);
+  const control: SpeechControl = { ...speech, onRetry };
+  return <PageBlock {...block} speech={control} />;
+}
 
 const hasQuestion = (p: PageData) => p.block !== undefined && p.block !== "reading";
 
@@ -61,6 +79,15 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   const heading = useRef<HTMLDivElement>(null);
   const first = useRef(true);
   const page = pages[index];
+  // Replay URLs for spoken answers, by Page. Only this browser holds the audio; the URLs are freed on leaving.
+  const recordings = useRef(new Map<number, string>());
+  useEffect(() => {
+    const kept = recordings.current;
+    return () => {
+      for (const url of kept.values()) URL.revokeObjectURL(url);
+      kept.clear();
+    };
+  }, []);
 
   // Move focus to the new Page, but not on the first render so the browser keeps its own starting point.
   useEffect(() => {
@@ -96,6 +123,16 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
       ),
   });
 
+  const analyse = useMutation({
+    mutationFn: async (at: number) => {
+      const response = await api().api.lessons[":id"].pages[":index{[0-9]+}"].analyse.$post({
+        param: { id: lesson.id, index: String(at) },
+      });
+      if (!response.ok) throw new Error("We couldn't check your speech. Try again.");
+    },
+    onSuccess: () => queryClient.invalidateQueries(lessonPagesQuery(lesson.id)),
+  });
+
   const retry = useMutation({
     mutationFn: async () => {
       const response = await api().api.lessons[":id"].retry.$post({ param: { id: lesson.id } });
@@ -116,12 +153,15 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   });
 
   const answered = pages.filter((p) => p.result).length;
-  if (lesson.status === "completed") return <Complete xpGained={lessonXp(answered)} />;
+  const graded = pages.filter((p) => p.result?.verdict);
+  const correct = graded.filter((p) => p.result?.verdict === "correct").length;
+  if (lesson.status === "completed")
+    return (
+      <PagedComplete lessonId={lesson.id} xpGained={lessonXp(answered)} correct={correct} graded={graded.length} />
+    );
 
   const broken = !page ? false : page.status === "failed" || (hasQuestion(page) && page.question === "failed");
   const ready = Boolean(page && page.status === "ready" && (!hasQuestion(page) || page.result));
-  const graded = pages.filter((p) => p.result?.verdict);
-  const correct = graded.filter((p) => p.result?.verdict === "correct").length;
 
   let body;
   if (index === recap)
@@ -159,16 +199,30 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
         <ReadingCard title={page.title ?? ""} body={page.body ?? ""} example={page.example} />
         {hasQuestion(page) &&
           (page.question === "ready" && page.questionData ? (
-            <PageBlock
-              key={index}
-              question={page.questionData}
-              result={page.result}
-              pending={answer.isPending}
-              onSubmit={(value) => answer.mutate(value)}
-            />
+            page.questionData.block === "speakPrompt" ? (
+              <SpeakingBlock
+                key={index}
+                question={page.questionData}
+                result={page.result}
+                pending={answer.isPending}
+                onSubmit={(value) => answer.mutate(value)}
+                onRetry={() => analyse.mutate(index)}
+                kept={recordings.current.get(index)}
+                keep={(url) => recordings.current.set(index, url)}
+              />
+            ) : (
+              <PageBlock
+                key={index}
+                question={page.questionData}
+                result={page.result}
+                pending={answer.isPending}
+                onSubmit={(value) => answer.mutate(value)}
+              />
+            )
           ) : (
             <QuestionSkeleton />
           ))}
+        {analyse.isError && <Notice tone="error">{analyse.error.message}</Notice>}
         {answer.isError && !page.result && <Notice tone="error">{answer.error.message}</Notice>}
       </Stack>
     );

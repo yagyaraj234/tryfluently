@@ -135,7 +135,7 @@ export const assessmentJob = pgTable(
     assessmentId: text().references(() => assessment.id, { onDelete: "cascade" }),
     lessonId: text().references(() => lesson.id, { onDelete: "cascade" }),
     userId: learner(),
-    kind: text().$type<"report_email" | "practice" | "lesson">().notNull(),
+    kind: text().$type<"report_email" | "practice" | "lesson" | "lesson_analysis">().notNull(),
     status: text().$type<"pending" | "running" | "done" | "failed">().notNull().default("pending"),
     attempts: integer().notNull().default(0),
     availableAt: timestamp().notNull().defaultNow(),
@@ -191,7 +191,17 @@ export const unit = pgTable("unit", {
   objective: text().notNull(),
   skills: jsonb().$type<Skill[]>().notNull(),
   lessonOutline: jsonb()
-    .$type<{ title: string; objective: string; skill: Skill; kind: "practice" | "roleplay"; position: number }[]>()
+    .$type<
+      {
+        title: string;
+        objective: string;
+        skill: Skill;
+        kind: "practice" | "roleplay";
+        position: number;
+        estimatedMinutes?: number;
+        pageCount?: number;
+      }[]
+    >()
     .notNull()
     .default([]),
   endsWithRoleplay: boolean().notNull().default(false),

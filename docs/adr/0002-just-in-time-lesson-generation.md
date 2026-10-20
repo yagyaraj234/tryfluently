@@ -1,6 +1,6 @@
 # Stable Roadmap outlines; prepare one Lesson at a time
 
-Updated 19 October 2026.
+Updated 19 October 2026. Partly superseded by [0003](0003-paged-lessons-generated-on-start.md).
 
 After an Assessment and Goal confirmation, generate the full Roadmap of Units and Lesson titles/objectives. Outlines stay stable across performance changes and Assessment retakes. Existing outline sizes remain 3–5 practice Lessons per Unit, with an optional final Roleplay.
 

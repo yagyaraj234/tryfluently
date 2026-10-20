@@ -7,6 +7,7 @@ import { Cluster } from "./Cluster";
 import { Heading } from "./Heading";
 import { Notice } from "./Notice";
 import { Skeleton } from "./Skeleton";
+import { SpeakAnswer, speechNote, type SpeakResult, type SpeechControl } from "./SpeakAnswer";
 import { Spinner } from "./Spinner";
 import { Stack } from "./Stack";
 import { Text } from "./Text";
@@ -30,6 +31,8 @@ export type PageResult = {
   verdict: "correct" | "almost" | "incorrect" | null;
   correctAnswer: unknown;
   explanation: string | null;
+  /** Spoken answers only: whether the written feedback is still being made. */
+  analysis?: "analysing" | "done" | "failed";
 };
 
 const dot = cva("block size-3 rounded-full border border-line-strong", {
@@ -126,6 +129,8 @@ type BlockProps<Q extends PageQuestion> = {
   result?: PageResult;
   pending: boolean;
   onSubmit: (answer: unknown) => void;
+  /** Browser speech recognition for speaking Pages. Without it (or when it can't work) speaking Pages take typed answers. */
+  speech?: SpeechControl;
 };
 
 function Check({
@@ -319,16 +324,19 @@ function TextAnswer({
   result,
   pending,
   onSubmit,
+  speech,
 }: BlockProps<Extract<PageQuestion, { block: "rewrite" | "speakPrompt" }>>) {
   const [value, setValue] = useState("");
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!pending && value.trim()) onSubmit(value.trim());
   };
+  const note = question.block === "speakPrompt" && speech ? speechNote(speech.status) : undefined;
   return (
     <form onSubmit={submit}>
       <Stack gap={4}>
         <Text size="title">{question.prompt}</Text>
+        {note && !result && <Text tone="muted">{note}</Text>}
         <TextArea
           label={question.block === "rewrite" ? "Your version" : "Your answer"}
           value={result ? String(result.answer) : value}
@@ -385,6 +393,19 @@ export function PageBlock(props: BlockProps<PageQuestion>) {
     case "reorder":
       block = <Reorder {...props} question={question} />;
       break;
+    case "speakPrompt":
+      block =
+        props.speech && (result || !speechNote(props.speech.status)) ? (
+          <SpeakAnswer
+            prompt={question.prompt}
+            speech={props.speech}
+            result={result as SpeakResult | undefined}
+            pending={props.pending}
+          />
+        ) : (
+          <TextAnswer {...props} question={question} />
+        );
+      break;
     default:
       block = <TextAnswer {...props} question={question} />;
   }
@@ -392,7 +413,9 @@ export function PageBlock(props: BlockProps<PageQuestion>) {
     <Card>
       <Stack gap={5}>
         {block}
-        {result && question.block !== "vocabCard" && <Feedback result={result} question={question} />}
+        {result && question.block !== "vocabCard" && !(question.block === "speakPrompt" && props.speech) && (
+          <Feedback result={result} question={question} />
+        )}
       </Stack>
     </Card>
   );

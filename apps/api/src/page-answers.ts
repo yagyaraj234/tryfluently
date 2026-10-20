@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Deps } from "./app";
 import { questionBlocks, questionSchema, type Question } from "./lesson-blocks";
 import { judgeRewrite } from "./rewrite-judge";
+import { speakResult, startAnalysis } from "./speech-answers";
 
 const { lesson, step } = schema;
 
@@ -93,7 +94,8 @@ export function answeredPages(l: typeof lesson.$inferSelect, rows: StepRow[]) {
   const out = new Map<number, PageResult>();
   for (const s of rows) {
     const q = (l.material?.[s.position] as Stored | undefined)?.question;
-    if (q && s.answeredAt)
+    if (q?.block === "speakPrompt" && s.answeredAt) out.set(s.position, speakResult(s.output?.answer, s));
+    else if (q && s.answeredAt)
       out.set(s.position, pageResult(q, s.output?.answer, s.feedback?.verdict ?? null, s.feedback));
   }
   return out;
@@ -104,6 +106,19 @@ export function answeredPages(l: typeof lesson.$inferSelect, rows: StepRow[]) {
  * The answer is a `step` row (position = Page index), so the finish and analysis step reads it like any other Step.
  */
 export async function answerPage(
+  ctx: Pick<Deps, "db" | "now" | "models">,
+  userId: string,
+  lessonId: string,
+  index: number,
+  answer: unknown,
+) {
+  const r = await save(ctx, userId, lessonId, index, answer);
+  // A spoken answer's transcript is analysed in the background, once it is safely saved.
+  if (r.status === 201 && r.result.block === "speakPrompt") startAnalysis(ctx, userId, lessonId, index);
+  return r;
+}
+
+async function save(
   { db, now, models }: Pick<Deps, "db" | "now" | "models">,
   userId: string,
   lessonId: string,
@@ -164,14 +179,18 @@ export async function answerPage(
     }
     const ok = grade(questionSchema.parse(q), parsed.data);
     const verdict = ok === null ? null : ok ? ("correct" as const) : ("incorrect" as const);
-    const result = pageResult(q, parsed.data, verdict);
+    const speak = q.block === "speakPrompt";
+    const analysis = { state: "analysing" as const, at: Date.now() };
+    const result = speak
+      ? speakResult(parsed.data, { feedback: null, output: { analysis } })
+      : pageResult(q, parsed.data, verdict);
     await tx.insert(step).values({
       userId,
       lessonId: l.id,
       position: index,
       type: q.block,
       input: { page: index, prompt: "prompt" in q ? q.prompt : null },
-      output: { answer: parsed.data },
+      output: speak ? { answer: parsed.data, analysis } : { answer: parsed.data },
       feedback: verdict && {
         verdict,
         corrected: JSON.stringify(result.correctAnswer),

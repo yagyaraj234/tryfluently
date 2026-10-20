@@ -57,3 +57,13 @@ test("an outline for a different Unit is rejected without writing any plan", asy
   const [unchanged] = await testDb.select().from(schema.unit).where(eq(schema.unit.id, units[0].id));
   expect(unchanged!.lessonOutline).toEqual([]);
 });
+
+test("new outlines keep each Lesson's estimated minutes and page count, and older outlines without them still load", async () => {
+  const { cookie, units } = await learnerWithRoadmap();
+  expect(units[0].lessonOutline[0]).toMatchObject({ estimatedMinutes: 6, pageCount: 5 });
+  const [row] = await testDb.select().from(schema.unit).where(eq(schema.unit.id, units[0].id));
+  const old = row!.lessonOutline.map(({ estimatedMinutes: _m, pageCount: _p, ...rest }) => rest);
+  await testDb.update(schema.unit).set({ lessonOutline: old }).where(eq(schema.unit.id, units[0].id));
+  const roadmap = (await (await makeApp().request("/api/roadmap", get(cookie))).json()) as any[];
+  expect(roadmap[0].lessonOutline).toEqual(old);
+});

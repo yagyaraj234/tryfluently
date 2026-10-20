@@ -70,6 +70,14 @@ _Avoid_: Module, chapter, lesson
 One short sitting inside a Unit: learning material followed by a short assessment made of Steps. Its complete content is prepared from earlier performance and Learner Memory, then stays fixed.
 _Avoid_: Sub-lesson, class, session
 
+**Page**:
+One screen of a Lesson's learning material: a single idea of at most about 150 words, usually with one Block for the Learner to try. A Lesson has 4–6 Pages and a recap.
+_Avoid_: Slide, card, section
+
+**Block**:
+A typed piece of a Page that the Learner reads or answers, such as an example, a fill-in-the-gap or a reorder. Each is rendered by a fixed component.
+_Avoid_: Widget, component, exercise
+
 **Step**:
 A single prompt in a Lesson, together with the Learner's response and the feedback on it. A Step is either voice or text, and belongs to the Lesson’s saved assessment. Regular Lesson questions are fixed before the Lesson starts.
 _Avoid_: Exercise, question, task, sub-lesson

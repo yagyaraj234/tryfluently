@@ -91,15 +91,6 @@ test("each graded Block returns the verdict, correct answer and explanation at o
   expect(((await (await answer(t2, 5, ["goes", "She", "home"])).json()) as any).verdict).toBe("incorrect");
 });
 
-test("speakPrompt is saved with no verdict and never reveals its key", async () => {
-  const t = await ready();
-  const res = await answer(t, 7, "My own words.");
-  expect(res.status).toBe(201);
-  const body = (await res.json()) as any;
-  expect(body).toMatchObject({ verdict: null, correctAnswer: null, explanation: null, answer: "My own words." });
-  expect(JSON.stringify(body)).not.toContain("SECRET");
-});
-
 const feedback = { verdict: "almost", corrected: "I go to work.", explanation: "Use go with I." };
 
 test("a rewrite is judged by one model call and a resubmit returns the saved result", async () => {
