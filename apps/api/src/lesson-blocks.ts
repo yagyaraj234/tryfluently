@@ -59,9 +59,10 @@ export type Question = z.infer<typeof questionSchema>;
 /** Blocks that carry a question. `reading` has none. */
 export const questionBlocks: string[] = questionSchema.options.map((o) => o.shape.block.value);
 
-/** What the question agent returns: one question per interactive Page, by Page index (0-based). */
+/** What the question agent returns: one question per interactive Page, by Page index (0-based).
+ * A plain union, not questionSchema: a discriminated union becomes `oneOf`, which OpenAI structured output rejects. */
 export const questionsOutput = z.object({
-  questions: z.array(z.object({ page: z.number().int().min(0), question: questionSchema })),
+  questions: z.array(z.object({ page: z.number().int().min(0), question: z.union(questionSchema.options) })),
 });
 
 /** Whether `phrase` appears in `text` as whole words, so `is` isn't found inside `This`. */
