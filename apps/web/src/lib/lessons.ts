@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { api } from "./api";
 import { roadmapQuery } from "./queries";
@@ -8,6 +8,40 @@ export const lessonRoute = (l: { id: string; kind: "practice" | "roleplay" }) =>
   l.kind === "roleplay"
     ? ({ to: "/roleplays/$roleplayId", params: { roleplayId: l.id } } as const)
     : ({ to: "/lessons/$lessonId", params: { lessonId: l.id } } as const);
+
+type Pages = { preparation: string | null; pages: { status: "pending" | "ready" | "failed" }[] };
+
+/** Nothing more will arrive once the Lesson failed or every Page is ready or failed. */
+export const pagesSettled = (d?: Pages) =>
+  Boolean(d && (d.preparation === "failed" || d.pages.every((p) => p.status !== "pending")));
+
+/** Polls a paged Lesson's Pages every 1.5 seconds until they have all settled. */
+export const lessonPagesQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["lesson-pages", id],
+    retry: false,
+    queryFn: async ({ signal }) => {
+      const response = await api().api.lessons[":id"].pages.$get({ param: { id } }, { init: { signal } });
+      if (!response.ok) throw new Error("We couldn't check on your Lesson.");
+      return response.json();
+    },
+    refetchInterval: (query) => (query.state.status === "error" || pagesSettled(query.state.data) ? false : 1_500),
+  });
+
+/** Reserves the outlined Lesson at this position and queues its Pages. Pressing it twice returns the same Lesson. */
+export function useStartLesson() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (position: number) => {
+      const response = await api().api.lessons[":position{[0-9]+}"].start.$post({
+        param: { position: String(position) },
+      });
+      if (!response.ok) throw new Error(`Couldn't start your Lesson (${response.status})`);
+      return response.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries(roadmapQuery),
+  });
+}
 
 /** Resumes the Lesson in progress in the active Unit, or starts the next one (which may be its Roleplay), and opens it. */
 export function useNextLesson() {

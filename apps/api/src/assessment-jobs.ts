@@ -3,7 +3,6 @@ import { and, asc, desc, eq, inArray, lte, or, sql } from "drizzle-orm";
 import type { Deps } from "./app";
 import { reportEmail } from "./mailer";
 import { generateLesson } from "./paged-lessons";
-import { prepareNext } from "./preparation";
 import { buildRoadmap } from "./roadmap";
 
 const { assessmentJob: job, assessment, user, unit, lesson, goal } = schema;
@@ -96,24 +95,6 @@ export async function runAssessmentJobs(deps: Deps, userId?: string) {
           const ctx = { ...deps, signal: AbortSignal.timeout(90_000) };
           const result = await buildRoadmap(ctx, row.userId);
           if (result === "failed") throw new Error("Roadmap generation failed");
-          if (result !== "not_ready") {
-            // A prior attempt may have saved Units before Lesson preparation failed.
-            const next =
-              result === "exists"
-                ? await prepareNext(ctx, row.userId)
-                : (
-                    await db
-                      .select({ preparation: lesson.preparation })
-                      .from(lesson)
-                      .innerJoin(unit, eq(lesson.unitId, unit.id))
-                      .where(
-                        and(eq(unit.userId, row.userId), eq(unit.status, "active"), eq(lesson.status, "in_progress")),
-                      )
-                      .limit(1)
-                  )[0];
-            if (next?.preparation === "failed" || next?.preparation === "preparing")
-              throw new Error("Lesson preparation is not ready");
-          }
         }
         await db.update(job).set({ status: "done", token: null, lockedAt: null }).where(mine);
       } catch (error) {
@@ -194,11 +175,10 @@ export async function practicePreparation(db: Deps["db"], userId: string, at = n
     .limit(1);
   if (work?.status === "pending" || work?.status === "running")
     return { status: work.status === "pending" ? ("pending" as const) : ("preparing" as const), lesson: null };
-  // Legacy outlines and fully completed Roadmaps remain accessible.
+  // The Learner starts their first Lesson from the Roadmap, so a built Roadmap with no Lesson is ready.
   if (
     !current &&
-    ((active && !active.lessonOutline.length) ||
-      (!active && (await db.select({ id: unit.id }).from(unit).where(eq(unit.userId, userId)).limit(1)).length))
+    (active || (await db.select({ id: unit.id }).from(unit).where(eq(unit.userId, userId)).limit(1)).length)
   )
     return { status: "ready" as const, lesson: null };
   return { status: "failed" as const, lesson: null };
