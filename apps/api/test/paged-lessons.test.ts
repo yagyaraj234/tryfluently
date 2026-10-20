@@ -76,6 +76,7 @@ function fakeLessonModel(
       .filter((p) => p.block !== "reading")
       .map((p) => ({ page: p.page, question: questionFor[p.block] })),
   }),
+  ideas: (i: number) => string = (i) => `Idea ${i + 1}`,
 ) {
   let questionAttempts = 0;
   const attempts = new Map<number, number>();
@@ -86,7 +87,11 @@ function fakeLessonModel(
       let reply: object;
       if (system.includes("Plan one short English Lesson")) {
         calls.planner++;
-        reply = { pages: pageBlocks.map((block, i) => ({ idea: `Idea ${i + 1}`, block })) };
+        reply = {
+          focus: "Describe your daily routine.",
+          keyExample: "Maya's morning commute",
+          pages: pageBlocks.map((block, i) => ({ idea: ideas(i), block })),
+        };
       } else if (system.includes("Write the questions")) {
         const body = JSON.parse(options.prompt.at(-1).content[0].text);
         calls.questions.push(body);
@@ -114,7 +119,7 @@ const good = (n: number) => ({
   title: `Page ${n}`,
   body: `Short reading ${n}.`,
   example: null,
-  answerKey: [3, 4, 5, 6].includes(n) ? "goes" : null,
+  answerKey: [3, 4, 5, 6].includes(n) ? `goes${n}` : null,
 });
 
 async function learner() {
@@ -164,7 +169,7 @@ test("starting a Lesson plans it, writes every Page in parallel, and the status 
 
 test("a Page that fails its checks retries alone and then lands", async () => {
   const { cookie, id: userId } = await learner();
-  const leaky = { ...good(3), body: "She goes to work." };
+  const leaky = { ...good(3), body: "She goes3 to work." };
   const fake = fakeLessonModel((n, attempt) => (n === 3 && attempt < 3 ? leaky : good(n)));
   const app = makeApp({ models: { step: fake.model } });
   const { id } = (await (await start(app, cookie)).json()) as any;
@@ -428,6 +433,11 @@ test("retrying a Lesson with one failed Page writes only that Page and keeps eve
   expect(fake.calls.planner).toBe(1);
   expect(fake.calls.writers.map((w) => w.page)).toEqual([1, 2, 3, 4, 5, 3]);
   expect(fake.calls.writers.at(-1).idea).toBe("Idea 3");
+  // The retried Page is written to the same brief as the rest.
+  expect(fake.calls.writers.at(-1)).toMatchObject({
+    focus: "Describe your daily routine.",
+    keyExample: "Maya's morning commute",
+  });
   // Pages 1, 2, 4 and 5 are exactly as they were, questions included.
   for (const i of [0, 1, 3, 4]) expect(row!.material![i]).toEqual(before.material![i]!);
   expect((row!.material![2] as any).title).toBe("Page 3");
@@ -463,4 +473,41 @@ test("retrying a Lesson whose Pages all failed starts it over", async () => {
   expect(ready.preparation).toBe("ready");
   expect(ready.pages.map((p: any) => p.question)).toEqual(Array(5).fill("ready"));
   expect(fake.calls.planner).toBe(2);
+});
+
+test("every Page writer sees all Page ideas, its place, the focus and the shared example", async () => {
+  const { cookie, id: userId } = await learner();
+  const fake = fakeLessonModel();
+  const app = makeApp({ models: { step: fake.model } });
+  await start(app, cookie);
+  await app.runJobs(userId);
+  expect(fake.calls.writers).toHaveLength(5);
+  for (const w of fake.calls.writers) {
+    expect(w.allIdeas).toEqual(["Idea 1", "Idea 2", "Idea 3", "Idea 4", "Idea 5"]);
+    expect(w.focus).toBe("Describe your daily routine.");
+    expect(w.keyExample).toBe("Maya's morning commute");
+    expect(w.of).toBe(5);
+  }
+});
+
+test("a Page whose title repeats another Page is retried alone", async () => {
+  const { cookie, id: userId } = await learner();
+  // Page 2 first tries Page 1's planned idea as its title (the check ignores case and punctuation).
+  const fake = fakeLessonModel((n, attempt) => (n === 2 && attempt < 2 ? { ...good(2), title: "idea 1!" } : good(n)));
+  const app = makeApp({ models: { step: fake.model } });
+  const { id } = (await (await start(app, cookie)).json()) as any;
+  await app.runJobs(userId);
+  expect((await pages(app, cookie, id)).preparation).toBe("ready");
+  expect(fake.attempts.get(2)).toBe(2);
+  expect(fake.attempts.get(1)).toBe(1);
+});
+
+test("a plan with two Pages on the same idea fails the Lesson", async () => {
+  const { cookie, id: userId } = await learner();
+  const fake = fakeLessonModel(good, blocks, undefined, (i) => (i < 2 ? "Same  idea" : `Idea ${i + 1}`));
+  const app = makeApp({ models: { step: fake.model } });
+  const { id } = (await (await start(app, cookie)).json()) as any;
+  await app.runJobs(userId);
+  expect(fake.calls.writers).toHaveLength(0);
+  expect((await pages(app, cookie, id)).preparation).not.toBe("ready");
 });

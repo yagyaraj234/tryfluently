@@ -20,6 +20,7 @@ import { useSpeech } from "../../hooks/speech";
 import { api } from "../../lib/api";
 import { lessonPagesQuery } from "../../lib/lessons";
 import { PagedComplete } from "./PagedComplete";
+import { PagedReview } from "./PagedReview";
 import { lessonXp, type Lesson } from "./lesson";
 
 type PageData = {
@@ -76,6 +77,7 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   const pages = data!.pages;
   const recap = pages.length;
   const [index, setIndex] = useState(Math.min(lesson.currentPage, recap));
+  const [reviewing, setReviewing] = useState(false);
   const heading = useRef<HTMLDivElement>(null);
   const first = useRef(true);
   const page = pages[index];
@@ -144,7 +146,10 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   const finish = useMutation({
     mutationFn: async () => {
       const response = await api().api.lessons[":id"].finish.$post({ param: { id: lesson.id } });
-      if (!response.ok) throw new Error("Your Lesson couldn't be finished. Try again.");
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Your Lesson couldn't be finished. Try again.");
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries();
@@ -153,11 +158,20 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   });
 
   const answered = pages.filter((p) => p.result).length;
-  const graded = pages.filter((p) => p.result?.verdict);
+  // Vocabulary cards can't be wrong, so they don't count towards the score (the server leaves them out too).
+  const graded = pages.filter((p) => p.result?.verdict && p.result.block !== "vocabCard");
   const correct = graded.filter((p) => p.result?.verdict === "correct").length;
   if (lesson.status === "completed")
-    return (
-      <PagedComplete lessonId={lesson.id} xpGained={lessonXp(answered)} correct={correct} graded={graded.length} />
+    return reviewing && recap > 0 ? (
+      <PagedReview pages={pages} onClose={() => setReviewing(false)} />
+    ) : (
+      <PagedComplete
+        lessonId={lesson.id}
+        xpGained={lessonXp(answered)}
+        correct={correct}
+        graded={graded.length}
+        onReview={recap > 0 ? () => setReviewing(true) : undefined}
+      />
     );
 
   const broken = !page ? false : page.status === "failed" || (hasQuestion(page) && page.question === "failed");
