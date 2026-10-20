@@ -147,7 +147,9 @@ describe("assessment lifecycle", () => {
   });
 
   test("a retake keeps earlier Reports readable", async () => {
-    const second = { ...reportReply(), overallLevel: "B2" };
+    const second = reportReply({
+      skills: { grammar: { score: 70, evidence: ["x"] }, vocabulary: { score: 75, evidence: ["y"] }, fluency: null },
+    });
     const { app, clock } = setup([reportReply(), second]);
     const { cookie } = await signUp(app);
     const first = await takeWrittenAssessment(app, cookie, clock);
@@ -155,8 +157,16 @@ describe("assessment lifecycle", () => {
     await takeWrittenAssessment(app, cookie, clock);
 
     const list = (await (await app.request("/api/assessments", get(cookie))).json()) as any[];
-    expect(list.map((a) => a.report.overallLevel)).toEqual(["B1", "B2"]);
+    expect(list.map((a) => a.report.overallLevel)).toEqual(["B1", "C1"]);
     expect(await read(app, cookie, first.id)).toMatchObject({ report: { overallLevel: "B1" } });
+  });
+
+  test("the overall level is worked out from the skill scores, not taken from the model", async () => {
+    const { app, clock } = setup([reportReply({ overallLevel: "C2" })]);
+    const { cookie } = await signUp(app);
+    const taken = await takeWrittenAssessment(app, cookie, clock);
+    // grammar 42 and vocabulary 55 average 48.5, which is B1
+    expect(await read(app, cookie, taken.id)).toMatchObject({ report: { overallLevel: "B1" } });
   });
 });
 
