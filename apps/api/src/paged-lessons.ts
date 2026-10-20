@@ -5,11 +5,12 @@ import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
 import { publicQuestion, questionBlocks, questionProblem, questionsOutput, type Question } from "./lesson-blocks";
+import { waitForAnalysis, type Clock } from "./lesson-analysis";
 import { answeredPages } from "./page-answers";
 import { skillProfile } from "./scoring";
 
 const { lesson, unit, goal, focusItem, learnerMemory, assessmentJob: job } = schema;
-type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal };
+type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal; clock?: Clock };
 
 export const blockTypes = [
   "reading",
@@ -241,6 +242,8 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
         .where(eq(lesson.id, lessonId));
     });
   try {
+    // The last Lesson's analysis feeds this plan; give it a few seconds, then go on with what exists.
+    await waitForAnalysis(db, row.userId, { clock: ctx.clock });
     const [[active], goals, focus, memory, profile] = await Promise.all([
       db.select().from(unit).where(eq(unit.id, row.unitId!)),
       db

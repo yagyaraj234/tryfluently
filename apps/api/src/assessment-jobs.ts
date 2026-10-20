@@ -2,6 +2,7 @@ import { schema, type Tx } from "@impromptu/db";
 import { and, asc, desc, eq, inArray, lte, or, sql } from "drizzle-orm";
 import type { Deps } from "./app";
 import { reportEmail } from "./mailer";
+import { analyseLesson } from "./lesson-analysis";
 import { generateLesson } from "./paged-lessons";
 import { buildRoadmap } from "./roadmap";
 
@@ -90,6 +91,8 @@ export async function runAssessmentJobs(deps: Deps, userId?: string) {
       try {
         if (row.kind === "lesson") {
           await generateLesson({ ...deps, signal: AbortSignal.timeout(90_000) }, row.lessonId!, row.attempts);
+        } else if (row.kind === "lesson_analysis") {
+          await analyseLesson({ ...deps, signal: AbortSignal.timeout(90_000) }, row.lessonId!);
         } else if (row.kind === "report_email") await emailReport(deps, row.assessmentId!, row.userId);
         else {
           const ctx = { ...deps, signal: AbortSignal.timeout(90_000) };

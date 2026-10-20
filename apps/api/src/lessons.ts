@@ -11,6 +11,7 @@ import { answerPage, setCurrentPage, stepsOf } from "./page-answers";
 import { publicPages, retryLesson, startLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
 import { completeLesson } from "./completion";
+import { finishPagedLesson } from "./paged-finish";
 import { findRecording, recordedSecondsToday, recordingForm, timingOf, type Timing } from "./recordings";
 import { createRoleplay, roleplayKindFor } from "./roleplays";
 import { readyForRoleplay } from "./roadmap";
@@ -202,6 +203,16 @@ export const lessons = ({
         const row = await find(c.req.param("id"), c.var.user.id);
         return row?.contentVersion === 2 ? c.json(await pagesView(row)) : c.json({ error: "Lesson not found" }, 404);
       })
+      // The end screen polls this: the background analysis status and, once it is done, the short summary.
+      .get("/:id/analysis", async (c) => {
+        const row = await find(c.req.param("id"), c.var.user.id);
+        if (row?.contentVersion !== 2) return c.json({ error: "Lesson not found" }, 404);
+        const [work] = await db
+          .select({ status: schema.assessmentJob.status })
+          .from(schema.assessmentJob)
+          .where(and(eq(schema.assessmentJob.lessonId, row.id), eq(schema.assessmentJob.kind, "lesson_analysis")));
+        return c.json({ status: work?.status ?? null, summary: row.summary });
+      })
       // Grades a paged Lesson's Page on the server and returns the verdict, correct answer and explanation straight away.
       // The `answer` shape depends on the Block (see page-answers.ts). Sending it again returns the first result.
       .post("/:id/pages/:index{[0-9]+}/answer", zValidator("json", z.object({ answer: z.unknown() })), async (c) => {
@@ -318,6 +329,7 @@ export const lessons = ({
         // A paged Lesson has one Step per question Page; all of them must be answered before it can finish.
         if (paged && rows.length < (row.material ?? []).filter((p: any) => p.question).length)
           return c.json({ error: "Answer every question first" }, 409);
+        if (paged) return c.json(await finishPagedLesson({ db, now, settings }, row.id, row.userId));
         const result = await completeLesson({ db, now, models, settings }, row.id, row.userId);
         return result.status === "failed"
           ? c.json({ error: "Your report couldn't be prepared. Try again." }, 502)
