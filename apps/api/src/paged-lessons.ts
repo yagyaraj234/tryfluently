@@ -176,7 +176,7 @@ async function writeQuestions(ctx: Ctx, lessonId: string, token: string) {
           model: models.step,
           reasoning: "low",
           abortSignal: ctx.signal,
-          instructions: `Write the questions for an English Lesson, one per Page whose block is not "reading" (pages ${wanted.join(", ")}, 0-based). Each question's "block" must match the Page's block and test only that Page's idea, using its answerKey when given. Give the exact answer and a one or two sentence explanation so answers can be graded with no AI later. For rewrite and speakPrompt give the prompt, an expectedAnswer and a short rubric instead.`,
+          instructions: `Write the questions for an English Lesson, one per Page whose block is not "reading" (pages ${wanted.join(", ")}, 0-based). Each question's "block" must match the Page's block and test only that Page's idea, using its answerKey when given. Give the exact answer and a one or two sentence explanation so answers can be graded with no AI later. For rewrite and speakPrompt give the prompt, an expectedAnswer and a short rubric instead. Plain text only: no markdown or asterisks.`,
           prompt: JSON.stringify({ lesson: row.title, pages: plan }),
           output: Output.object({ schema: questionsOutput }),
         });
@@ -367,7 +367,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
         try {
           const { output } = await generate(ctx, row.userId, {
             ...base,
-            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} You write Page ${i + 1} of ${total}. Cover only your idea, for this Block type: ${slice.block}. The other Pages cover the rest, so do not repeat them. Stay on the Lesson focus and reuse the keyExample. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).`,
+            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} You write Page ${i + 1} of ${total}. Cover only your idea, for this Block type: ${slice.block}. The other Pages cover the rest, so do not repeat them. Stay on the Lesson focus and reuse the keyExample. Plain text only: no markdown, asterisks or underscores for emphasis. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).`,
             prompt: JSON.stringify({
               lesson: row.title,
               focus: lessonFocus,

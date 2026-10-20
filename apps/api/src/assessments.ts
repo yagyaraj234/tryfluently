@@ -65,6 +65,7 @@ const answersOf = (messages: UIMessage[]) =>
 // A Written Assessment passes `written`; a Voice Assessment has no items and is timed instead.
 const instructions = (goalTexts: string[], written?: { items: number; answers: number }) =>
   `You are Fluently, an English coach, running an Assessment of the Learner's English.
+Write plain text only: no markdown, no asterisks or bold.
 ${phases.replace(
   "{goals}",
   goalTexts.length
