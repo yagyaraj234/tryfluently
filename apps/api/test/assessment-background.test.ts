@@ -229,6 +229,6 @@ test("worker claims a lesson job; existing Lessons stay on the old format", asyn
     .values({ lessonId: made!.id, userId, kind: "lesson", availableAt: clock() });
   await app.runJobs(userId);
   const [claimed] = await testDb.select().from(schema.assessmentJob).where(eq(schema.assessmentJob.lessonId, made!.id));
-  // Generation is not built yet, so the claimed job goes back to pending with one attempt recorded.
-  expect(claimed).toMatchObject({ kind: "lesson", status: "pending", attempts: 1, assessmentId: null });
+  // An old-format Lesson has nothing to generate, so the claimed job just finishes.
+  expect(claimed).toMatchObject({ kind: "lesson", status: "done", attempts: 1, assessmentId: null });
 });

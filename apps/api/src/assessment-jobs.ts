@@ -2,6 +2,7 @@ import { schema, type Tx } from "@impromptu/db";
 import { and, asc, desc, eq, inArray, lte, or, sql } from "drizzle-orm";
 import type { Deps } from "./app";
 import { reportEmail } from "./mailer";
+import { generateLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
 import { buildRoadmap } from "./roadmap";
 
@@ -89,8 +90,7 @@ export async function runAssessmentJobs(deps: Deps, userId?: string) {
       heartbeat.unref();
       try {
         if (row.kind === "lesson") {
-          // Generation arrives with paged Lessons (ticket #129); until then a claimed Lesson job fails and retries.
-          throw new Error("Lesson generation is not implemented yet");
+          await generateLesson({ ...deps, signal: AbortSignal.timeout(90_000) }, row.lessonId!, row.attempts);
         } else if (row.kind === "report_email") await emailReport(deps, row.assessmentId!, row.userId);
         else {
           const ctx = { ...deps, signal: AbortSignal.timeout(90_000) };
