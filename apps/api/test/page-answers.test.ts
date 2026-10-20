@@ -91,9 +91,9 @@ test("each graded Block returns the verdict, correct answer and explanation at o
   expect(((await (await answer(t2, 5, ["goes", "She", "home"])).json()) as any).verdict).toBe("incorrect");
 });
 
-test("rewrite and speakPrompt are saved with no verdict and never reveal their keys", async () => {
+test("rewrite is saved with no verdict and never reveals its key", async () => {
   const t = await ready();
-  for (const page of [6, 7]) {
+  for (const page of [6]) {
     const res = await answer(t, page, "My own words.");
     expect(res.status).toBe(201);
     const body = (await res.json()) as any;
@@ -103,7 +103,6 @@ test("rewrite and speakPrompt are saved with no verdict and never reveal their k
   const rows = await testDb.select().from(schema.step).where(eq(schema.step.lessonId, t.lessonId));
   expect(rows.map((r) => [r.position, r.type, r.feedback])).toEqual([
     [6, "rewrite", null],
-    [7, "speakPrompt", null],
   ]);
 });
 

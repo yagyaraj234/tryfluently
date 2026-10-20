@@ -8,6 +8,7 @@ import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { answerPage, setCurrentPage, stepsOf } from "./page-answers";
+import { retryAnalysis } from "./speech-answers";
 import { publicPages, retryLesson, startLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
 import { completeLesson } from "./completion";
@@ -206,13 +207,22 @@ export const lessons = ({
       // The `answer` shape depends on the Block (see page-answers.ts). Sending it again returns the first result.
       .post("/:id/pages/:index{[0-9]+}/answer", zValidator("json", z.object({ answer: z.unknown() })), async (c) => {
         const r = await answerPage(
-          { db, now },
+          { db, now, models },
           c.var.user.id,
           c.req.param("id"),
           Number(c.req.param("index")),
           c.req.valid("json").answer,
         );
         return "error" in r ? c.json({ error: r.error }, r.status) : c.json(r.result, r.status);
+      })
+      // Tries a spoken answer's text analysis again after it failed. The saved transcript is kept as it was.
+      .post("/:id/pages/:index{[0-9]+}/analyse", async (c) => {
+        const l = await find(c.req.param("id"), c.var.user.id);
+        const r =
+          l?.contentVersion === 2
+            ? await retryAnalysis({ db, now, models }, c.var.user.id, l.id, Number(c.req.param("index")))
+            : undefined;
+        return r ? c.json(r, 202) : c.json({ error: "Nothing to analyse on this Page" }, 404);
       })
       // Remembers which Page the Learner is on (0-based; the recap is one past the last Page) so a return visit resumes there.
       .patch("/:id/page", zValidator("json", z.object({ page: z.number().int().min(0) })), async (c) => {
