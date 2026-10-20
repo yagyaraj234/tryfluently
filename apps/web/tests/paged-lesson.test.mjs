@@ -46,6 +46,20 @@ const lessons = {
   broken: lesson("broken", 1, [ready(0), { page: 1, status: "failed", question: "pending" }, ready(2)]),
   recap: lesson("recap", 3, [ready(0), fillGap(1, { result: answered }), ready(2)]),
   done: lesson("done", 3, [ready(0), fillGap(1, { result: answered }), ready(2)], { status: "completed" }),
+  // A vocabulary card always "passes", so it must not count towards the score.
+  doneVocab: lesson(
+    "doneVocab",
+    3,
+    [
+      ready(0, {
+        block: "vocabCard",
+        questionData: { block: "vocabCard", term: "commute" },
+        result: { block: "vocabCard", verdict: "correct" },
+      }),
+      fillGap(1, { result: answered }),
+    ],
+    { status: "completed" },
+  ),
   oldPlayer: lesson("oldPlayer", 0, [], { contentVersion: 1, phase: "learning" }),
 };
 
@@ -124,4 +138,31 @@ test("a finished paged Lesson shows its score and XP, with no Lesson Report", as
   assert.match(t, /\+30 XP/);
   assert.match(t, /0 of 1 checked questions right/);
   assert.doesNotMatch(t, /Report/);
+});
+
+test("vocabulary cards don't count towards the score", async () => {
+  const t = text(await page("/lessons/doneVocab"));
+  assert.match(t, /0 of 1 checked questions right/);
+});
+
+test("a finished Lesson offers a Review button and no Finish button", async () => {
+  const html = await page("/lessons/done");
+  assert.ok(button(html, "Review this Lesson"));
+  assert.ok(!button(html, "Finish Lesson"));
+});
+
+test("reviewing a finished Lesson shows the saved answer and explanation, with no way to submit or finish", async () => {
+  const { PagedReview } = await web.loadModule("/src/components/lesson/PagedReview.tsx");
+  const { createElement } = await import("react");
+  const { renderToString } = await import("react-dom/server");
+  const html = renderToString(
+    createElement(PagedReview, { pages: [fillGap(0, { result: answered }), ready(1)], onClose() {} }),
+  );
+  const t = text(html);
+  assert.match(t, /Incorrect/);
+  assert.match(t, /Correct answer: goes/);
+  assert.match(t, /Add -es for she\./);
+  assert.ok(button(html, "Back to summary"));
+  assert.ok(!button(html, "Check") && !button(html, "Check answer") && !button(html, "Finish Lesson"));
+  assert.ok(disabled(button(html, "Back")));
 });

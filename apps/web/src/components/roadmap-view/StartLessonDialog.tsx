@@ -1,6 +1,6 @@
 import { Button, Chip, Cluster, Dialog, Notice } from "@fluently/ui";
 
-// estimatedMinutes and pageCount come from the stored outline once it carries them.
+// estimatedMinutes and pageCount come from the stored outline. Outlines saved before paged Lessons have neither.
 export type Selected = {
   title: string;
   objective: string;
@@ -20,7 +20,7 @@ type Props = {
   onClose: () => void;
 };
 
-// Matches the 5 Pages the API writes when the outline gives no count.
+// Fallback for old outlines with no pageCount; matches the 5 Pages the API writes when none is given.
 const DEFAULT_PAGES = 5;
 
 export function StartLessonDialog({ selected, pending, success, failed, onStart, onClose }: Props) {
