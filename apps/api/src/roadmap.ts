@@ -15,6 +15,8 @@ const outlineItem = z.object({
   objective: z.string().min(1).max(300),
   skill: z.enum(skills),
   kind: z.enum(["practice", "roleplay"]),
+  estimatedMinutes: z.number().int().min(3).max(10),
+  pageCount: z.number().int().min(4).max(6),
 });
 const outline = z.array(outlineItem).min(3).max(6);
 const validOutline = (items: z.infer<typeof outline>, roleplay: boolean) =>
@@ -46,7 +48,8 @@ const outlineInstructions = `Give each Unit 3–5 distinct practice Lesson outli
 Vary the focus to fit the Unit and Learner: useful vocabulary, clearing up a misconception, rewriting, explaining an idea,
 or speaking confidently. Do not repeat generic titles or the same sequence in every Unit.
 Use kind practice, with skill grammar, vocabulary or fluency. If endsWithRoleplay, append exactly one final kind roleplay
-outline with a specific conversation title; otherwise include no roleplay. These are editable outlines, not generated Steps.`;
+outline with a specific conversation title; otherwise include no roleplay. Each Lesson is a short 3–10 minute sitting: give every outline an estimatedMinutes (3–10) and a pageCount (4–6 Pages,
+about 1 minute each plus a recap). These are editable outlines, not generated Steps.`;
 
 function positionedOutline(items: z.infer<typeof outline>, start = 0) {
   return items.map((item) => ({ ...item, position: start++ }));

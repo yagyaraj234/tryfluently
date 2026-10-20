@@ -61,18 +61,24 @@ export const unitsReply = (n = 8, name = "Unit") => ({
         objective: "Use useful words in context",
         skill: "vocabulary",
         kind: "practice",
+        estimatedMinutes: 6,
+        pageCount: 5,
       },
       {
         title: `${name} clearer sentences ${i + 1}`,
         objective: "Make your meaning clear",
         skill: "grammar",
         kind: "practice",
+        estimatedMinutes: 6,
+        pageCount: 5,
       },
       {
         title: `${name} explain your ideas ${i + 1}`,
         objective: "Explain a real example confidently",
         skill: "fluency",
         kind: "practice",
+        estimatedMinutes: 6,
+        pageCount: 5,
       },
       ...(i === n - 1
         ? [
@@ -81,6 +87,8 @@ export const unitsReply = (n = 8, name = "Unit") => ({
               objective: "Use this Unit in a conversation",
               skill: "fluency",
               kind: "roleplay",
+              estimatedMinutes: 6,
+              pageCount: 5,
             },
           ]
         : []),
