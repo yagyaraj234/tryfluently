@@ -9,8 +9,8 @@ This Bun workspace contains the Hono API (`apps/api`), TanStack Start web app (`
 Choose either development mode or Docker below. Both need service credentials in a root `.env` file.
 
 ```sh
-git clone https://github.com/yagyaraj234/impromptu-monorepo.git
-cd impromptu-monorepo
+git clone https://github.com/yagyaraj234/tryfluently.git
+cd tryfluently
 cp .env.example .env
 ```
 
