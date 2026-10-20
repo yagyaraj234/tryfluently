@@ -1,4 +1,4 @@
-import { ErrorState, LoadingState } from "@impromptu/ui";
+import { ErrorState, LoadingState, PollyWalking } from "@impromptu/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -35,6 +35,5 @@ export function StartingLesson({ id, title, objective }: Starting) {
         onRetry={() => (failed ? retry.mutate() : void pages.refetch())}
       />
     );
-  // The mascot here is a placeholder until the Polly mascot arrives.
-  return <LoadingState title={title} description={objective} />;
+  return <LoadingState title={title} description={objective} mascot={<PollyWalking />} />;
 }

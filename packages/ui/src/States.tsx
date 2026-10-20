@@ -37,12 +37,14 @@ export function EmptyState({ icon: StateIcon, title, description, action }: Empt
 export type LoadingStateProps = {
   title: string;
   description?: string;
+  /** Replaces the default mascot. */
+  mascot?: ReactNode;
 };
 
-export function LoadingState({ title, description }: LoadingStateProps) {
+export function LoadingState({ title, description, mascot }: LoadingStateProps) {
   return (
     <div role="status" className={state()}>
-      <Mascot name="hush" />
+      {mascot ?? <Mascot name="hush" />}
       <Text size="title">{title}</Text>
       {description && <Text tone="muted">{description}</Text>}
     </div>
