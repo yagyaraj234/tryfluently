@@ -206,7 +206,7 @@ export const lessons = ({
       // The `answer` shape depends on the Block (see page-answers.ts). Sending it again returns the first result.
       .post("/:id/pages/:index{[0-9]+}/answer", zValidator("json", z.object({ answer: z.unknown() })), async (c) => {
         const r = await answerPage(
-          { db, now },
+          { db, now, models },
           c.var.user.id,
           c.req.param("id"),
           Number(c.req.param("index")),

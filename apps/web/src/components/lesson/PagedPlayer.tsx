@@ -80,9 +80,14 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
         param: { id: lesson.id, index: String(index) },
         json: { answer: value },
       });
-      if (!response.ok) throw new Error("Your answer couldn't be saved. Try again.");
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Your answer couldn't be saved. Try again.");
+      }
       return (await response.json()) as unknown as PageResult;
     },
+    // A failed check still saved the answer, so reload to show it with its retry button.
+    onError: () => queryClient.invalidateQueries(lessonPagesQuery(lesson.id)),
     onSuccess: (result) =>
       queryClient.setQueryData(
         pagesQuery.queryKey!,
@@ -164,7 +169,7 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
           ) : (
             <QuestionSkeleton />
           ))}
-        {answer.isError && <Notice tone="error">{answer.error.message}</Notice>}
+        {answer.isError && !page.result && <Notice tone="error">{answer.error.message}</Notice>}
       </Stack>
     );
 

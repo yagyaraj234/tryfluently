@@ -77,13 +77,36 @@ test("a vocab card hides its meaning until Show meaning is pressed, and shows it
   expect(screen.getByText("daily trip to work")).toBeTruthy();
 });
 
-test("a saved rewrite shows its text and no verdict", () => {
+test("a saved speaking answer shows its text and no verdict", () => {
   show(
-    { block: "rewrite", prompt: "Rewrite." },
-    { block: "rewrite", answer: "Mine.", verdict: null, correctAnswer: null, explanation: null },
+    { block: "speakPrompt", prompt: "Say it." },
+    { block: "speakPrompt", answer: "Mine.", verdict: null, correctAnswer: null, explanation: null },
   );
   expect(screen.getByText("Your answer is saved.")).toBeTruthy();
-  expect((screen.getByLabelText("Your version") as HTMLTextAreaElement).value).toBe("Mine.");
+  expect((screen.getByLabelText("Your answer") as HTMLTextAreaElement).value).toBe("Mine.");
+});
+
+test("a rewrite shows a checking state, then the verdict, corrected version and why", () => {
+  render(<PageBlock question={{ block: "rewrite", prompt: "Rewrite." }} pending onSubmit={mock()} />);
+  expect(screen.getAllByText("Checking your answer").length).toBeGreaterThan(0);
+  cleanup();
+  show(
+    { block: "rewrite", prompt: "Rewrite." },
+    { block: "rewrite", answer: "I goes.", verdict: "almost", correctAnswer: "I go.", explanation: "Use go." },
+  );
+  expect(screen.getByText("Almost")).toBeTruthy();
+  expect(screen.getByText("I go.")).toBeTruthy();
+  expect(screen.getByText("Use go.")).toBeTruthy();
+});
+
+test("a rewrite that could not be checked keeps the answer and offers Try again", () => {
+  const onSubmit = show(
+    { block: "rewrite", prompt: "Rewrite." },
+    { block: "rewrite", answer: "I goes.", verdict: null, correctAnswer: null, explanation: null },
+  );
+  expect((screen.getByLabelText("Your version") as HTMLTextAreaElement).value).toBe("I goes.");
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(onSubmit).toHaveBeenCalledWith("I goes.");
 });
 
 test("progress dots name the current Page", () => {

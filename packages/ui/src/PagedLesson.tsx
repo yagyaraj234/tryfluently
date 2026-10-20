@@ -5,7 +5,9 @@ import { Card } from "./Card";
 import { ChoiceChips } from "./ChoiceChips";
 import { Cluster } from "./Cluster";
 import { Heading } from "./Heading";
+import { Notice } from "./Notice";
 import { Skeleton } from "./Skeleton";
+import { Spinner } from "./Spinner";
 import { Stack } from "./Stack";
 import { Text } from "./Text";
 import { TextArea } from "./TextArea";
@@ -25,7 +27,7 @@ export type PageQuestion =
 export type PageResult = {
   block: PageQuestion["block"];
   answer: unknown;
-  verdict: "correct" | "incorrect" | null;
+  verdict: "correct" | "almost" | "incorrect" | null;
   correctAnswer: unknown;
   explanation: string | null;
 };
@@ -89,6 +91,7 @@ const correctWords = (r: PageResult): ReactNode => {
 
 /** The result shown the moment an answer is saved: verdict, the right answer and the written explanation. */
 function Feedback({ result, question }: { result: PageResult; question: PageQuestion }) {
+  if (result.verdict === null && question.block === "rewrite") return null; // TextAnswer shows the waiting and retry states.
   if (result.verdict === null)
     return (
       <div role="status">
@@ -106,9 +109,9 @@ function Feedback({ result, question }: { result: PageResult; question: PageQues
           <div>
             <VerdictTag verdict={result.verdict} />
           </div>
-          {question.block !== "vocabCard" && result.verdict === "incorrect" && (
+          {question.block !== "vocabCard" && result.verdict !== "correct" && (
             <Text>
-              <strong>Correct answer:</strong> {right}
+              <strong>{question.block === "rewrite" ? "Corrected version:" : "Correct answer:"}</strong> {right}
             </Text>
           )}
           {result.explanation && <Text tone="muted">{result.explanation}</Text>}
@@ -310,7 +313,7 @@ function Reorder({ question, result, pending, onSubmit }: BlockProps<Extract<Pag
   );
 }
 
-/** Rewrite and speaking prompts: a plain text answer, saved with no grading yet. */
+/** Rewrite and speaking prompts: a text answer. A rewrite is checked by the server (spinner, then feedback, or a retry if the check failed). */
 function TextAnswer({
   question,
   result,
@@ -333,7 +336,30 @@ function TextAnswer({
           disabled={Boolean(result)}
           maxLength={2000}
         />
-        {!result && <Check pending={pending} disabled={!value.trim()} label="Save answer" />}
+        {question.block === "rewrite" && pending && (
+          <Cluster gap={2}>
+            <Spinner label="Checking your answer" />
+            <Text tone="muted">Checking your answer…</Text>
+          </Cluster>
+        )}
+        {question.block === "rewrite" && result?.verdict === null && !pending && (
+          <Notice tone="error">
+            <Stack gap={3}>
+              <span>Your answer is saved, but we couldn't check it just now.</span>
+              <div>
+                <Button type="button" size="sm" onClick={() => onSubmit(result.answer)}>
+                  Try again
+                </Button>
+              </div>
+            </Stack>
+          </Notice>
+        )}
+        {!result && question.block === "rewrite" && !pending && (
+          <Check pending={pending} disabled={!value.trim()} label="Check answer" />
+        )}
+        {!result && question.block !== "rewrite" && (
+          <Check pending={pending} disabled={!value.trim()} label="Save answer" />
+        )}
       </Stack>
     </form>
   );
