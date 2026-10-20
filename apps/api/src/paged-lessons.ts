@@ -1,6 +1,6 @@
 import { schema } from "@fluently/db";
 import { Output } from "ai";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
@@ -54,7 +54,8 @@ export function pageProblem(page: PageOutput, block: string) {
   }
 }
 
-type Stored = PageOutput & { block: string; question?: Question };
+// `idea` is the plan slice, kept so a failed Page can be written again without planning the whole Lesson again.
+type Stored = PageOutput & { block: string; idea?: string; question?: Question };
 const blank = { title: "", body: "", example: null };
 
 /** What a Learner may see: no answer keys. Pending Pages are listed without content. */
@@ -96,7 +97,7 @@ export async function startLesson({ db, now }: Pick<Deps, "db" | "now">, userId:
       (p) => !rows.some((l) => l.position === p.position && l.status === "completed"),
     );
     if (next?.position !== position) return { error: "Finish your earlier Lessons first" as const };
-    // The outline's pageCount arrives with ticket #137; until then every Lesson has 5 Pages.
+    // Outlines written before pageCount existed have none: they get the default.
     const pages = (planned as { pageCount?: number }).pageCount ?? DEFAULT_PAGES;
     const [created] = await tx
       .insert(lesson)
@@ -139,23 +140,29 @@ async function writeQuestions(ctx: Ctx, lessonId: string, token: string) {
     example: p.example,
     answerKey: p.answerKey,
   }));
-  const wanted = plan.filter((p) => questionBlocks.includes(p.block)).map((p) => p.page);
+  // Pages that already hold a ready question (and maybe a saved answer) are never rewritten.
+  const wanted = plan
+    .filter((p) => questionBlocks.includes(p.block) && row.pageStatus![p.page]?.question !== "ready")
+    .map((p) => p.page);
   for (let tries = 0; tries <= MAX_RETRIES; tries++) {
     try {
-      const { output } = await generate(ctx, row.userId, {
-        model: models.step,
-        reasoning: "low",
-        abortSignal: ctx.signal,
-        instructions: `Write the questions for an English Lesson, one per Page whose block is not "reading" (pages ${wanted.join(", ")}, 0-based). Each question's "block" must match the Page's block and test only that Page's idea, using its answerKey when given. Give the exact answer and a one or two sentence explanation so answers can be graded with no AI later. For rewrite and speakPrompt give the prompt, an expectedAnswer and a short rubric instead.`,
-        prompt: JSON.stringify({ lesson: row.title, pages: plan }),
-        output: Output.object({ schema: questionsOutput }),
-      });
-      const byPage = new Map(questionsOutput.parse(output).questions.map((q) => [q.page, q.question]));
-      for (const i of wanted) {
-        const q = byPage.get(i);
-        if (!q || q.block !== plan[i]!.block) throw new Error(`Page ${i + 1} question missing or wrong Block`);
-        const problem = questionProblem(q);
-        if (problem) throw new Error(`Page ${i + 1} question rejected: ${problem}`);
+      const byPage = new Map<number, Question>();
+      if (wanted.length) {
+        const { output } = await generate(ctx, row.userId, {
+          model: models.step,
+          reasoning: "low",
+          abortSignal: ctx.signal,
+          instructions: `Write the questions for an English Lesson, one per Page whose block is not "reading" (pages ${wanted.join(", ")}, 0-based). Each question's "block" must match the Page's block and test only that Page's idea, using its answerKey when given. Give the exact answer and a one or two sentence explanation so answers can be graded with no AI later. For rewrite and speakPrompt give the prompt, an expectedAnswer and a short rubric instead.`,
+          prompt: JSON.stringify({ lesson: row.title, pages: plan }),
+          output: Output.object({ schema: questionsOutput }),
+        });
+        for (const q of questionsOutput.parse(output).questions) byPage.set(q.page, q.question);
+        for (const i of wanted) {
+          const q = byPage.get(i);
+          if (!q || q.block !== plan[i]!.block) throw new Error(`Page ${i + 1} question missing or wrong Block`);
+          const problem = questionProblem(q);
+          if (problem) throw new Error(`Page ${i + 1} question rejected: ${problem}`);
+        }
       }
       await db.transaction(async (tx) => {
         const [cur] = await tx.select().from(lesson).where(mine).for("update");
@@ -164,7 +171,10 @@ async function writeQuestions(ctx: Ctx, lessonId: string, token: string) {
           wanted.includes(i) ? { ...p, question: byPage.get(i)! } : p,
         );
         const pageStatus = cur.pageStatus!.map((s) => ({ ...s, question: "ready" as const }));
-        await tx.update(lesson).set({ material, pageStatus, preparationToken: null }).where(eq(lesson.id, lessonId));
+        await tx
+          .update(lesson)
+          .set({ material, pageStatus, preparation: "ready", preparationToken: null })
+          .where(eq(lesson.id, lessonId));
       });
       return;
     } catch (error) {
@@ -186,7 +196,10 @@ async function writeQuestions(ctx: Ctx, lessonId: string, token: string) {
   });
 }
 
-/** A failed Lesson goes back to pending and runs again from the planner. */
+/**
+ * A failed Lesson runs again, but only the Pages that are not ready. Ready Pages keep their content, question and
+ * saved answers. If nothing is ready (or a failed Page lost its plan slice) the whole Lesson starts over.
+ */
 export async function retryLesson({ db, now }: Pick<Deps, "db" | "now">, userId: string, lessonId: string) {
   return db.transaction(async (tx) => {
     const [l] = await tx
@@ -195,14 +208,23 @@ export async function retryLesson({ db, now }: Pick<Deps, "db" | "now">, userId:
       .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), eq(lesson.contentVersion, 2)))
       .for("update");
     if (!l || l.preparation !== "failed") return;
+    const old = l.material as Stored[];
+    const redo = l.pageStatus!.flatMap((s, i) => (s.page === "ready" ? [] : [i]));
+    const all = redo.length === l.pageStatus!.length || redo.some((i) => !old[i]?.idea || !old[i]?.block);
+    const regen = (i: number) => all || redo.includes(i);
+    // An answer to a Page that is written again would be an answer to a different question: drop it with the Page.
+    const gone = all ? [] : [inArray(schema.step.position, redo)];
+    if (all || redo.length) await tx.delete(schema.step).where(and(eq(schema.step.lessonId, l.id), ...gone));
     const [row] = await tx
       .update(lesson)
       .set({
         preparation: "preparing",
         preparationToken: crypto.randomUUID(),
         preparationAt: now(),
-        pageStatus: pending(l.pageStatus!.length),
-        material: l.pageStatus!.map(() => blank),
+        pageStatus: l.pageStatus!.map((s, i) =>
+          regen(i) ? { page: "pending" as const, question: "pending" as const } : s,
+        ),
+        material: old.map((p, i) => (regen(i) ? { ...blank, ...(!all && { idea: p.idea, block: p.block }) } : p)),
       })
       .where(eq(lesson.id, l.id))
       .returning();
@@ -246,43 +268,58 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
         .where(eq(lesson.id, lessonId));
     });
   try {
-    if (row.preparation === "ready") return void (await writeQuestions(ctx, lessonId, token));
-    // The last Lesson's analysis feeds this plan; give it a few seconds, then go on with what exists.
-    await waitForAnalysis(db, row.userId, { clock: ctx.clock });
-    const [[active], goals, focus, memory, profile] = await Promise.all([
-      db.select().from(unit).where(eq(unit.id, row.unitId!)),
-      db
-        .select({ statement: goal.statement, brief: goal.brief, targetLevels: goal.targetLevels })
-        .from(goal)
-        .where(and(eq(goal.userId, row.userId), eq(goal.status, "confirmed"))),
-      db
-        .select({ label: focusItem.label })
-        .from(focusItem)
-        .where(and(eq(focusItem.userId, row.userId), eq(focusItem.status, "open"))),
-      db.select().from(learnerMemory).where(eq(learnerMemory.userId, row.userId)),
-      skillProfile(db, row.userId),
-    ]);
+    // Pages still to write: all of them on a first run, only the failed ones on a retry.
+    const todo = row.pageStatus!.flatMap((s, i) => (s.page === "ready" ? [] : [i]));
+    if (!todo.length) return void (await writeQuestions(ctx, lessonId, token));
     const base = { model: models.step, reasoning: "low" as const, abortSignal: ctx.signal };
-    const { output: plan } = await generate(ctx, row.userId, {
-      ...base,
-      instructions: `Plan one short English Lesson of exactly ${total} Pages. Each Page teaches one idea and uses one Block type (${blockTypes.join(", ")}). Build up from simple to practised, and adapt to the Learner's evidence, Focus Items and memory.`,
-      prompt: JSON.stringify({
-        unit: { title: active?.title, objective: active?.objective },
-        lesson: { title: row.title, objective: row.objective },
-        goals,
-        skillProfile: profile,
-        focusItems: focus.map((f) => f.label),
-        learnerMemory: memory[0]?.summary ?? "",
-      }),
-      output: Output.object({ schema: planOutput }),
-    });
-    const pages = planOutput.parse(plan).pages;
-    if (pages.length !== total) throw new Error(`Planner returned ${pages.length} Pages, wanted ${total}`);
-    const hint = levelHint(profile);
+    let slices = row.material as Stored[];
+    let hint: string;
+    if (todo.length < total) hint = levelHint(await skillProfile(db, row.userId));
+    else {
+      // The last Lesson's analysis feeds this plan; give it a few seconds, then go on with what exists.
+      await waitForAnalysis(db, row.userId, { clock: ctx.clock });
+      const [[active], goals, focus, memory, profile] = await Promise.all([
+        db.select().from(unit).where(eq(unit.id, row.unitId!)),
+        db
+          .select({ statement: goal.statement, brief: goal.brief, targetLevels: goal.targetLevels })
+          .from(goal)
+          .where(and(eq(goal.userId, row.userId), eq(goal.status, "confirmed"))),
+        db
+          .select({ label: focusItem.label })
+          .from(focusItem)
+          .where(and(eq(focusItem.userId, row.userId), eq(focusItem.status, "open"))),
+        db.select().from(learnerMemory).where(eq(learnerMemory.userId, row.userId)),
+        skillProfile(db, row.userId),
+      ]);
+      const { output: plan } = await generate(ctx, row.userId, {
+        ...base,
+        instructions: `Plan one short English Lesson of exactly ${total} Pages. Each Page teaches one idea and uses one Block type (${blockTypes.join(", ")}). Build up from simple to practised, and adapt to the Learner's evidence, Focus Items and memory.`,
+        prompt: JSON.stringify({
+          unit: { title: active?.title, objective: active?.objective },
+          lesson: { title: row.title, objective: row.objective },
+          goals,
+          skillProfile: profile,
+          focusItems: focus.map((f) => f.label),
+          learnerMemory: memory[0]?.summary ?? "",
+        }),
+        output: Output.object({ schema: planOutput }),
+      });
+      const pages = planOutput.parse(plan).pages;
+      if (pages.length !== total) throw new Error(`Planner returned ${pages.length} Pages, wanted ${total}`);
+      hint = levelHint(profile);
+      slices = pages as Stored[];
+      // Keep the plan next to each Page so a failed one can be written again alone.
+      await db.transaction(async (tx) => {
+        const [cur] = await tx.select().from(lesson).where(mine).for("update");
+        if (!cur) return;
+        const material = pages.map((p, i) => ({ ...(cur.material![i] as Stored), idea: p.idea, block: p.block }));
+        await tx.update(lesson).set({ material }).where(eq(lesson.id, lessonId));
+      });
+    }
 
     // Each writer sees only its own slice. A Page that fails its checks retries alone.
     const write = async (i: number) => {
-      const slice = pages[i]!;
+      const slice = { idea: slices[i]!.idea!, block: slices[i]!.block };
       for (let tries = 0; tries <= MAX_RETRIES; tries++) {
         try {
           const { output } = await generate(ctx, row.userId, {
@@ -301,7 +338,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
             const [cur] = await tx.select().from(lesson).where(mine).for("update");
             if (!cur) return;
             const material = [...(cur.material ?? [])];
-            material[i] = { ...page, block: slice.block } as Stored;
+            material[i] = { ...page, block: slice.block, idea: slice.idea } as Stored;
             const pageStatus = cur.pageStatus!.map((s, j) => (j === i ? { ...s, page: "ready" as const } : s));
             const done = pageStatus.every((s) => s.page === "ready");
             await tx
@@ -317,8 +354,8 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
       }
       return false;
     };
-    const ok = await Promise.all(pages.map((_, i) => write(i)));
-    if (ok.includes(false)) await fail(ok.map((v) => !v));
+    const ok = await Promise.all(todo.map(write));
+    if (ok.includes(false)) await fail(row.pageStatus!.map((_, i) => ok[todo.indexOf(i)] === false));
     else await writeQuestions(ctx, lessonId, token);
   } catch (error) {
     // Planner or database trouble: the job retries, and its last attempt fails the Lesson.
