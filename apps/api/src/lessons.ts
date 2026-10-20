@@ -319,7 +319,9 @@ export const lessons = ({
         // A recorded answer points at a recording the server transcribed; the transcript stands in as the answer.
         const incoming = c.req.valid("json").message;
         let voice: Timing | undefined;
-        const recorded = incoming?.parts?.find?.((p: any) => typeof p?.output?.recordingId === "string");
+        const recorded = Array.isArray(incoming?.parts)
+          ? incoming.parts.find((p: any) => typeof p?.output?.recordingId === "string")
+          : undefined;
         if (recorded) {
           const recording = await findRecording(db, userId, row.id, recorded.output.recordingId);
           if (!recording) return c.json({ error: "That recording wasn't found" }, 400);

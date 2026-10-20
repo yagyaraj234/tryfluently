@@ -1,5 +1,23 @@
 import { schema, type Tx } from "@impromptu/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+
+// Caller holds the Learner lock, so concurrent completions share the same open practice target.
+export async function addFocusItems(tx: Tx, userId: string, items: (typeof schema.focusItem.$inferInsert)[]) {
+  const open = await tx
+    .select()
+    .from(schema.focusItem)
+    .where(and(eq(schema.focusItem.userId, userId), eq(schema.focusItem.status, "open")));
+  const key = (item: { kind: string; label: string }) =>
+    `${item.kind}:${item.label.trim().replace(/\s+/g, " ").toLowerCase()}`;
+  const seen = new Set(open.map(key));
+  const fresh = items.filter((item) => {
+    const id = key(item);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+  if (fresh.length) await tx.insert(schema.focusItem).values(fresh);
+}
 
 // Caller holds the Learner lock. Keep recent evidence, never raw Goal Context or full transcripts.
 export async function remember(tx: Tx, userId: string, evidence: string, at: Date) {

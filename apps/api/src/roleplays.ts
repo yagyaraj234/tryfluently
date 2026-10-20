@@ -4,6 +4,7 @@ import { safeValidateUIMessages, type UIMessage } from "ai";
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
+import { learnerMessage } from "./steps";
 import { streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
@@ -232,7 +233,7 @@ export const roleplays = (
       )
       // The text-mode Roleplay: the same character as a chat, one message at a time, history kept on the server.
       // Chatting before any call switches a Roleplay to text, so one at the end of a Unit can be done in text too.
-      .post("/:id/chat", zValidator("json", z.object({ message: z.unknown() })), async (c) => {
+      .post("/:id/chat", zValidator("json", z.object({ message: learnerMessage })), async (c) => {
         const userId = c.var.user.id;
         const row = await find(c.req.param("id"), userId);
         if (!row) return c.json({ error: "Roleplay not found" }, 404);

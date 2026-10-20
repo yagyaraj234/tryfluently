@@ -10,11 +10,11 @@ import { goalText } from "./goal-text";
 import { cefrLevel } from "./goals";
 import { enqueueAssessmentJobs, practicePreparation, retryPracticePreparation } from "./assessment-jobs";
 import type { RealtimeBroker } from "./realtime";
-import { remember } from "./learning-memory";
+import { remember, addFocusItems } from "./learning-memory";
 import { fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
 
-const { assessment, goal, focusItem } = schema;
+const { assessment, goal } = schema;
 
 const MIN_MINUTES = 4;
 const RETAKE_DAYS = 7;
@@ -180,18 +180,18 @@ export const assessments = ({
         { grammar: grammar.score, vocabulary: vocabulary.score, ...(fluency !== null && { fluency }) },
         { alpha: settings.alphaAssessment, source: "assessment", sourceId: row.id, at },
       );
-      await tx
-        .insert(focusItem)
-        .values(
-          out.weaknesses.map((w) => ({
-            userId,
-            label: w.label,
-            kind: w.kind,
-            source: "assessment" as const,
-            sourceId: row.id,
-            createdAt: at,
-          })),
-        );
+      await addFocusItems(
+        tx,
+        userId,
+        out.weaknesses.map((w) => ({
+          userId,
+          label: w.label,
+          kind: w.kind,
+          source: "assessment" as const,
+          sourceId: row.id,
+          createdAt: at,
+        })),
+      );
       const hasGoals = (await tx.select({ id: goal.id }).from(goal).where(eq(goal.userId, userId)).limit(1)).length > 0;
       if (!hasGoals && out.proposedGoals.length)
         await tx

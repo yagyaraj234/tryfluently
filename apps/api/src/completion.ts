@@ -4,11 +4,11 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import { remember, advanceUnit } from "./learning-memory";
+import { remember, advanceUnit, addFocusItems } from "./learning-memory";
 import { prepareNext } from "./preparation";
 import { fluencyScore, recordScores, skillProfile, skills, speechSegments } from "./scoring";
 
-const { lesson, step, unit, focusItem } = schema;
+const { lesson, step, unit } = schema;
 type Ctx = Pick<Deps, "db" | "now" | "models"> & { settings: { alphaLesson: number } };
 
 const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
@@ -212,7 +212,9 @@ export async function completeLesson({ db, now, models, settings }: Ctx, id: str
             answeredAt: at,
           })),
         );
-        await tx.insert(focusItem).values(
+        await addFocusItems(
+          tx,
+          userId,
           phrasesToLearn.map((label) => ({
             userId,
             label,
@@ -223,7 +225,9 @@ export async function completeLesson({ db, now, models, settings }: Ctx, id: str
           })),
         );
       } else if (judged.focusItems?.length) {
-        await tx.insert(focusItem).values(
+        await addFocusItems(
+          tx,
+          userId,
           judged.focusItems.map((f) => ({
             userId,
             ...f,
