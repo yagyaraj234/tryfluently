@@ -4,28 +4,104 @@ AI English coach for job interviews, client communication and everyday fluency. 
 
 This Bun workspace contains the Hono API (`apps/api`), TanStack Start web app (`apps/web`), Postgres schema (`packages/db`) and shared design system (`packages/ui`).
 
+## Run locally
+
+Choose either development mode or Docker below. Both need service credentials in a root `.env` file.
+
+```sh
+git clone https://github.com/yagyaraj234/tryfluently.git
+cd tryfluently
+cp .env.example .env
+```
+
+### Configure the environment
+
+Edit `.env` before starting the app:
+
+| Variable                                                                                      | Value                                                                                                                 |
+| --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`                                                                          | Replace `change-me` with a random secret, for example from `openssl rand -hex 32`.                                    |
+| `OPENAI_API_KEY`                                                                              | Your OpenAI key with access to the models in `.env.example`.                                                          |
+| `MODEL_STEP`, `MODEL_BRIEF`, `MODEL_ROADMAP`, `MODEL_JUDGE`, `MODEL_REPORT`, `MODEL_REALTIME` | Keep the example values, or choose models available to your account.                                                  |
+| `RESEND_API_KEY`, `EMAIL_FROM`                                                                | Your Resend key and an allowed sender. Email sign-up requires a verification email.                                   |
+| `KENPATH_BASE_URL`, `KENPATH_API_KEY`, `KENPATH_MODEL`                                        | Your Kenpath API URL, key and speech model; required at API startup.                                                  |
+| `KENPATH_VOICE`                                                                               | A supported voice ID for Reference Pronunciation. Without it, pronunciation playback is unavailable.                  |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                                                    | Optional Google sign-in; otherwise leave blank. Register `<web-origin>/api/auth/callback/google` as its redirect URI. |
+| `GOOGLE_GENERATIVE_AI_API_KEY`                                                                | Only needed when a text model uses the `google:` provider.                                                            |
+
+Use the database and origin settings shown for your chosen mode below. Keep `.env` private; it is ignored by Git. The full app needs working provider credentials, and provider usage may incur charges.
+
+### Option 1: development mode
+
+Install Bun 1.3.6, Node.js 22.12+ (Node.js 24 recommended), and Docker with the Compose plugin. Start Docker for local Postgres. Bun is required by the workspace scripts even when using `npm run dev`.
+
+Keep these values in `.env`:
+
+```dotenv
+DATABASE_URL=postgres://impromptu:impromptu@localhost:5433/impromptu
+BETTER_AUTH_URL=http://localhost:3001
+WEB_ORIGIN=http://localhost:3001
+API_URL=http://localhost:3000
+```
+
+```sh
+bun install --frozen-lockfile
+bun run db:up
+bun run db:migrate
+npm run dev
+```
+
+`bun run dev` also works. Open http://localhost:3001; the API runs on port 3000 and Postgres on port 5433. The API dev script loads the root `.env`. If you use a custom database URL, also export `DATABASE_URL` in your shell before running `bun run db:migrate`.
+
+Stop development with Ctrl+C. Use `docker compose stop` to stop Postgres while keeping its data.
+
+### Option 2: Docker images
+
+Install Docker with the Compose plugin; host Bun and Node.js are not required. This uses the existing Dockerfile to build the `fluently-runtime` image and runs Postgres, migrations, API, web and Caddy together.
+
+Change these values in `.env` for container networking and local HTTP:
+
+```dotenv
+DATABASE_URL=postgres://impromptu:impromptu@postgres:5432/impromptu
+BETTER_AUTH_URL=http://localhost
+WEB_ORIGIN=http://localhost
+API_URL=http://api:3000
+```
+
+Keep ports 80, 443 and 5433 available. Start Postgres first so it is ready for migrations:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --wait postgres
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build --wait
+```
+
+Open http://localhost. Caddy forwards requests to the web container, which forwards `/api/*` to the API. The startup command applies database migrations automatically. After changing code, rerun the second command to rebuild the image.
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f api web proxy
+docker compose -f docker-compose.yml -f docker-compose.production.yml down
+```
+
+Stopping containers preserves database and Caddy volumes. Switch the `.env` values back before returning to development mode.
+
+### First run and troubleshooting
+
+Sign up with an email address you can receive mail at, open the verification link, and set a Goal. Choose a Written Assessment to try the flow without a microphone, confirm your Goals, then start a Lesson from the Roadmap. Voice requires microphone permission; remote access requires HTTPS.
+
+- `Missing env var ...`: fill in the named setting and restart the app. Docker containers must be recreated with the startup command to load changed environment values.
+- Database connection refused: check Docker is running and that `DATABASE_URL` matches your chosen mode.
+- Missing database relations: rerun migrations in development mode, or inspect the Docker `migrate` service logs.
+- No verification email: check Resend sender/recipient restrictions and delivery status.
+
 ## Web app
 
 `apps/web` is a TanStack Start React app with TanStack Query and SSR, built from `@fluently/ui`.
-Requires Bun 1.3.6 and Node.js 22.12+ (Node.js 24 recommended).
-
-### Running web and API together
 
 The browser only talks to the web app. The web server passes every `/api/*` request through to the
 API at `API_URL` (default `http://localhost:3000`), cookies included, so Better Auth cookies are
 first-party and no CORS setup is needed.
 
-```sh
-bun install
-bun run db:up                              # Postgres on :5433
-cp .env.example .env                       # then fill in the keys
-bun run db:migrate
-bun run dev                                # API on :3000, web on :3001
-```
-
-Open http://localhost:3001. `WEB_ORIGIN` and `BETTER_AUTH_URL` point at the web origin, because that's
-where the browser reaches the API.
-The API dev script loads the root `.env`. It requires the database, auth, OpenAI, Resend and Kenpath settings at startup; Google credentials are optional. The web server uses `API_URL` to reach the API.
+`WEB_ORIGIN` and `BETTER_AUTH_URL` point at the web origin, because that's where the browser reaches the API.
 
 API reference: http://localhost:3000/docs. The OpenAPI document is served at
 http://localhost:3000/docs/openapi.json. Operations are listed from the Hono
@@ -50,7 +126,7 @@ bun run --filter @fluently/web test
 
 ### Deploy on a Linux VM
 
-Install Docker Engine with the Compose plugin, enable Docker at boot, and install Bun 1.3.6.
+Install Docker Engine with the Compose plugin and enable Docker at boot. Host Bun is not required.
 Clone the repo on the VM. Copy `.env.example` to `.env`, fill in the service keys, then set:
 
 ```dotenv
@@ -74,7 +150,7 @@ Ports 80 and 443 must be free for Caddy. Set `WEB_ORIGIN` and `BETTER_AUTH_URL` 
 public HTTPS origin, with no path (for example, `https://app.example.com`). On the VM, run:
 
 ```sh
-bun run deploy
+docker compose --env-file .env -f docker-compose.production.yml up -d --build --wait
 ```
 
 This builds the web app, applies pending migrations to `DATABASE_URL`, and starts the API and
