@@ -1,4 +1,4 @@
-import { Card, Heading, Stack, toastManager } from "@impromptu/ui";
+import { Card, Heading, Stack, toastManager } from "@fluently/ui";
 import type { ReactNode } from "react";
 
 export const themes = ["Light", "Dark", "System"].map((label) => ({ label, value: label.toLowerCase() }));

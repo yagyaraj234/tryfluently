@@ -1,5 +1,5 @@
 import { Flag } from "@phosphor-icons/react";
-import { Button, ChoiceChips, EmptyState, Heading, Notice, Stack, Text, TextArea } from "@impromptu/ui";
+import { Button, ChoiceChips, EmptyState, Heading, Notice, Stack, Text, TextArea } from "@fluently/ui";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "../../../../lib/api";
@@ -85,7 +85,7 @@ function RoleplaySetup() {
       const { id } = await response.json();
       await router.navigate({ to: "/roleplays/$roleplayId", params: { roleplayId: id } });
     } catch {
-      setError("We couldn't reach Impromptu. Check your connection and try again.");
+      setError("We couldn't reach Fluently. Check your connection and try again.");
     } finally {
       setStarting(false);
     }

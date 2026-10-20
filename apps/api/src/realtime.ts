@@ -1,4 +1,4 @@
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import type { UIMessage } from "ai";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { Hono } from "hono";

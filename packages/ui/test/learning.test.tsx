@@ -10,7 +10,7 @@ import {
   TeachingPage,
   VoiceOrb,
   type VoicePhase,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 
 test("voice phase changes preserve running loops while updating amplitude and status", () => {
   const { container, rerender } = render(<VoiceOrb phase="connecting" label="Connecting" />);

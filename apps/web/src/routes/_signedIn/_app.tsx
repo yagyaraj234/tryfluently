@@ -1,4 +1,4 @@
-import { AppShell, StreakChip, XpChip, type AppShellDestination } from "@impromptu/ui";
+import { AppShell, StreakChip, XpChip, type AppShellDestination } from "@fluently/ui";
 import { ChartLineUp, UserCircle, House, MapTrifold, Chats } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, useMatches } from "@tanstack/react-router";

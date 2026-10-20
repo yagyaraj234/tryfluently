@@ -1,4 +1,4 @@
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { zValidator } from "@hono/zod-validator";
 import { NoObjectGeneratedError, Output, safeValidateUIMessages, tool, type UIMessage } from "ai";
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
@@ -44,7 +44,7 @@ and work in the Learner's open Focus Items where they fit the Unit.`;
 type Focus = { id: string; label: string };
 
 const chatInstructions = (l: { objective: string }, briefs: string[], focus: Focus[], answered: number) =>
-  `You are Impromptu, an English coach, running a short Lesson made of Steps.
+  `You are Fluently, an English coach, running a short Lesson made of Steps.
 Lesson objective: ${l.objective}
 ${briefs.length ? `What you know about the Learner:\n${briefs.join("\n\n")}` : ""}
 ${focus.length ? `Their open Focus Items, to weave in where natural (id: label):\n${focus.map((f) => `${f.id}: ${f.label}`).join("\n")}` : ""}

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createRef } from "react";
 import { render, screen } from "@testing-library/react";
 import { Fire } from "@phosphor-icons/react";
-import { Card, Chip, VerdictTag } from "@impromptu/ui";
+import { Card, Chip, VerdictTag } from "@fluently/ui";
 
 describe("Card", () => {
   test("renders its content", () => {

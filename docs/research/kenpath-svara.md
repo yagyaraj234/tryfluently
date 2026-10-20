@@ -118,7 +118,7 @@ Source: [pricing](https://kenpathlabs.com/pricing). Outside India the Svara page
 
 For scale: a reference word or short phrase is about 10–30 characters, so the free 100k characters cover roughly 3,000–10,000 uncached plays a month. With a cache, cost tracks the number of distinct words, not the number of plays.
 
-## Fit for Impromptu
+## Fit for Fluently
 
 - **Good fit:** OpenAI-compatible, so the Hono API can call it with the standard `openai` npm package. It has Indian, US and UK English voices and returns small mp3 clips. The price is low, and the Terms allow caching.
 - **Gaps:** there's no phoneme or IPA input ("No SSML or phonemes"), so a word the model misreads can only be fixed with a text-respelling rule in a pronunciation dictionary. The docs give no latency figure for buffered requests, and output isn't guaranteed to be deterministic.

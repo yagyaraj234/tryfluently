@@ -1,4 +1,4 @@
-import { schema, type Skill } from "@impromptu/db";
+import { schema, type Skill } from "@fluently/db";
 import { NoObjectGeneratedError, Output, type UIMessage } from "ai";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";

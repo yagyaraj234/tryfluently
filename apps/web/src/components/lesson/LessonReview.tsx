@@ -1,4 +1,4 @@
-import { Button, LessonStage, Stack, StepFeedback, StepHeader, Text } from "@impromptu/ui";
+import { Button, LessonStage, Stack, StepFeedback, StepHeader, Text } from "@fluently/ui";
 import { useState } from "react";
 import type { Feedback, Lesson } from "./lesson";
 import { displayAnswer, stepKinds } from "./stepKinds";

@@ -1,5 +1,5 @@
 import { ChatCircleDots, Prohibit } from "@phosphor-icons/react";
-import { Button, ChatTurn, Debrief, EmptyState, Stack, Text } from "@impromptu/ui";
+import { Button, ChatTurn, Debrief, EmptyState, Stack, Text } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { UIMessage } from "ai";

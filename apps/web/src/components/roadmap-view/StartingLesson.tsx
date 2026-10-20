@@ -1,4 +1,4 @@
-import { ErrorState, LoadingState, PollyWalking } from "@impromptu/ui";
+import { ErrorState, LoadingState, PollyWalking } from "@fluently/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";

@@ -1,4 +1,4 @@
-import { Dashboard } from "@impromptu/ui";
+import { Dashboard } from "@fluently/ui";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { practicePreparationQuery } from "../../../lib/practice-preparation";
 import { api } from "../../../lib/api";

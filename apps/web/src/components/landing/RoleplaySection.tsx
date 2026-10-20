@@ -1,4 +1,4 @@
-import { ChatBubbles, Feature, MarketingPanel } from "@impromptu/ui";
+import { ChatBubbles, Feature, MarketingPanel } from "@fluently/ui";
 import { ChatCircle, Check, Microphone } from "@phosphor-icons/react";
 
 export function RoleplaySection() {

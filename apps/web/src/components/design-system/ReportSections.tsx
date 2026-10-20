@@ -1,4 +1,4 @@
-import { Debrief, LessonComplete, ReportStrengths, ReportWeakness, Button, Switch } from "@impromptu/ui";
+import { Debrief, LessonComplete, ReportStrengths, ReportWeakness, Button, Switch } from "@fluently/ui";
 import { useState } from "react";
 import { Example, sample } from "./shared";
 

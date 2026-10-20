@@ -1,5 +1,5 @@
 import { FileText } from "@phosphor-icons/react";
-import { Button, Card, EmptyState, ErrorState, Heading, LoadingState, Stack, Text } from "@impromptu/ui";
+import { Button, Card, EmptyState, ErrorState, Heading, LoadingState, Stack, Text } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { reportsQuery } from "../../lib/queries";

@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: Impromptu
+  - name: Fluently
     orgId: 1
-    folder: Impromptu
+    folder: Fluently
     type: file
     disableDeletion: true
     editable: true

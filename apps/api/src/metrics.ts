@@ -5,17 +5,17 @@ import type { AppEnv } from "./app";
 
 export const metricsRegistry = new Registry();
 
-collectDefaultMetrics({ register: metricsRegistry, prefix: "impromptu_" });
+collectDefaultMetrics({ register: metricsRegistry, prefix: "fluently_" });
 
 const requests = new Counter({
-  name: "impromptu_http_requests_total",
+  name: "fluently_http_requests_total",
   help: "Total HTTP requests",
   labelNames: ["method", "route", "status_code"],
   registers: [metricsRegistry],
 });
 
 const requestDuration = new Histogram({
-  name: "impromptu_http_request_duration_seconds",
+  name: "fluently_http_request_duration_seconds",
   help: "HTTP request duration in seconds",
   labelNames: ["method", "route", "status_code"],
   buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],

@@ -1,6 +1,6 @@
 import type { LanguageModel } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { eq } from "drizzle-orm";
 import {
   createApp,

@@ -9,7 +9,7 @@ import {
   Stack,
   Text,
   TextLink,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { Link } from "@tanstack/react-router";
 import { BuildRoadmap } from "../roadmap/BuildRoadmap";
 import { GoalReview, type proposedGoals } from "./GoalReview";

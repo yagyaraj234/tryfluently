@@ -1,4 +1,4 @@
-import { Button, EmptyState, ErrorState, Heading, LoadingState, Stack, Text } from "@impromptu/ui";
+import { Button, EmptyState, ErrorState, Heading, LoadingState, Stack, Text } from "@fluently/ui";
 import { MapTrifold } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";

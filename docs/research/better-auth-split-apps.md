@@ -36,7 +36,7 @@ Rejected alternative: mounting the handler in TanStack Start at `src/routes/api/
 ```ts
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { db, schema } from "@impromptu/db";
+import { db, schema } from "@fluently/db";
 
 const WEB_URL = process.env.WEB_URL!; // http://localhost:3000
 

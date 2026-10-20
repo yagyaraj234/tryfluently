@@ -1,5 +1,5 @@
 import { FlagCheckered } from "@phosphor-icons/react";
-import { Button, EmptyState, ErrorState, Stack, Text } from "@impromptu/ui";
+import { Button, EmptyState, ErrorState, Stack, Text } from "@fluently/ui";
 import { createFileRoute, Link, redirect, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import { useState } from "react";
 import { Complete } from "../../../../components/lesson/Complete";

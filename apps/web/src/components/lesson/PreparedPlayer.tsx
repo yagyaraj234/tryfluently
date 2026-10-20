@@ -1,5 +1,5 @@
 import { Hourglass } from "@phosphor-icons/react";
-import { Button, Card, EmptyState, Heading, Stack, Text } from "@impromptu/ui";
+import { Button, Card, EmptyState, Heading, Stack, Text } from "@fluently/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { Fragment, useEffect, useState, type ReactNode } from "react";

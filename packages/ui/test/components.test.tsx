@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import { Star } from "@phosphor-icons/react";
-import { Heading, Screen, Text, UIProvider } from "@impromptu/ui";
+import { Heading, Screen, Text, UIProvider } from "@fluently/ui";
 
 describe("UIProvider", () => {
   test("renders the app inside it", () => {

@@ -10,7 +10,7 @@ import {
   ProgressBar,
   Skeleton,
   Spinner,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { Example, sample } from "./shared";
 
 export function FeedbackSection() {

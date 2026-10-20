@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { ReportStrengths, ReportWeakness } from "@impromptu/ui";
+import { ReportStrengths, ReportWeakness } from "@fluently/ui";
 
 describe("ReportStrengths", () => {
   test("lists each strength", () => {

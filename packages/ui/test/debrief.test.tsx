@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { Debrief, type DebriefProps } from "@impromptu/ui";
+import { Debrief, type DebriefProps } from "@fluently/ui";
 
 const debrief: DebriefProps = {
   overallImpression: "You kept the conversation going and explained your project clearly.",

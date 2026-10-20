@@ -1,4 +1,4 @@
-import { CoachCall, ErrorState, Notice, Stack } from "@impromptu/ui";
+import { CoachCall, ErrorState, Notice, Stack } from "@fluently/ui";
 import { useEffect, useState } from "react";
 import { useRealtimeCall } from "../../lib/call";
 import { AssessmentEnding, LeaveDialog, TimeLeft, useAssessmentSession, type Assessment } from "./assessment";
@@ -11,7 +11,7 @@ function CallScreen({ call, session }: { call: Call; session: Session }) {
     return (
       <ErrorState
         title="Allow your microphone"
-        description="The Voice Assessment needs your microphone. Allow it for Impromptu in your browser's site settings, or connect one, then try again."
+        description="The Voice Assessment needs your microphone. Allow it for Fluently in your browser's site settings, or connect one, then try again."
         onRetry={call.retry}
       />
     );

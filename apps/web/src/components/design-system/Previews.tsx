@@ -1,4 +1,4 @@
-import { AppShell, Button, Cluster, Heading, PracticeShell, StreakChip, Text, XpChip } from "@impromptu/ui";
+import { AppShell, Button, Cluster, Heading, PracticeShell, StreakChip, Text, XpChip } from "@fluently/ui";
 import { House, MapTrifold } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 

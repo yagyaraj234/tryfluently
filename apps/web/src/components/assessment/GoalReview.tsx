@@ -13,7 +13,7 @@ import {
   Text,
   TextArea,
   type CefrLevel,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "../../lib/api";

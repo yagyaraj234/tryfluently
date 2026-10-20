@@ -1,4 +1,4 @@
-import { ChoiceChips, Grid, Notice, Stack, Text, TextArea, TextField } from "@impromptu/ui";
+import { ChoiceChips, Grid, Notice, Stack, Text, TextArea, TextField } from "@fluently/ui";
 
 const examples = [
   { value: "Get ready for a job interview in English.", label: "Job Interview" },

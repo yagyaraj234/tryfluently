@@ -1,4 +1,4 @@
-import { Button, Heading, ProgressCheckIn, Stack, Text } from "@impromptu/ui";
+import { Button, Heading, ProgressCheckIn, Stack, Text } from "@fluently/ui";
 import { Link } from "@tanstack/react-router";
 import { RETAKE_DAYS } from "./constants";
 

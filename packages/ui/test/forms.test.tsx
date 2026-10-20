@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
-import { ChoiceChips, Select, Switch, TextArea, TextField } from "@impromptu/ui";
+import { ChoiceChips, Select, Switch, TextArea, TextField } from "@fluently/ui";
 
 describe("TextField", () => {
   test("labels the input and links its description and error", () => {

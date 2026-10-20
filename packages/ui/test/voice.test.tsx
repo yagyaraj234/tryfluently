@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { RecordButton, SpeakPromptStep, StepFeedback, VocabCardStep, type RecordingState } from "@impromptu/ui";
+import { RecordButton, SpeakPromptStep, StepFeedback, VocabCardStep, type RecordingState } from "@fluently/ui";
 
 const button = (name: string | RegExp) => screen.getByRole("button", { name }) as HTMLButtonElement;
 const click = (name: string | RegExp) => fireEvent.click(button(name));
@@ -91,7 +91,7 @@ describe("SpeakPromptStep", () => {
   });
 
   for (const [reason, explanation] of [
-    ["denied", "Impromptu isn't allowed to use your microphone"],
+    ["denied", "Fluently isn't allowed to use your microphone"],
     ["no-microphone", "We couldn't find a microphone"],
     ["unsupported", "This browser can't record"],
   ] as const) {

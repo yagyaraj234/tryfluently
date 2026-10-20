@@ -1,4 +1,4 @@
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { zValidator } from "@hono/zod-validator";
 import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";

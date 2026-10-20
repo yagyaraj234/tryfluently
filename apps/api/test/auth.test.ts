@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { eq, sql } from "drizzle-orm";
 import { cookieFrom, fakeMailer, fakeRealtime, json, makeApp, signUp, uniqueEmail, WEB_ORIGIN } from "./helpers";
 import { testDb } from "./setup";
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 
 describe("auth", () => {
   test("credential accounts require a valid password even with a fresh session and linked Google account", async () => {
@@ -115,7 +115,7 @@ describe("auth", () => {
     const signUp = await app.request("/api/auth/sign-up/email", json({ name: "Asha", email, password }));
     expect(signUp.status).toBe(200);
     expect(mailer.sent).toHaveLength(1);
-    expect(mailer.sent[0]).toMatchObject({ to: email, subject: "Verify your Impromptu email" });
+    expect(mailer.sent[0]).toMatchObject({ to: email, subject: "Verify your Fluently email" });
     expect((await app.request("/api/me", { headers: { cookie: cookieFrom(signUp) } })).status).not.toBe(200);
 
     const signIn = await app.request("/api/auth/sign-in/email", json({ email, password }));

@@ -7,7 +7,7 @@ import {
   Stack,
   Text,
   type Skill,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { assessmentsQuery, focusItemsQuery, skillHistoryQuery, skillProfileQuery } from "../../lib/queries";
 import { formatDay } from "./day";

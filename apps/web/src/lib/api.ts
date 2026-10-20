@@ -1,4 +1,4 @@
-import type { AppType } from "@impromptu/api";
+import type { AppType } from "@fluently/api";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { hc } from "hono/client";

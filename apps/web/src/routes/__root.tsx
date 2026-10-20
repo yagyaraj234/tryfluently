@@ -1,6 +1,6 @@
 import { MagnifyingGlass } from "@phosphor-icons/react";
-import { Button, EmptyState, ErrorState, OfflineBanner, Screen, UIProvider } from "@impromptu/ui";
-import appCss from "@impromptu/ui/styles.css?url";
+import { Button, EmptyState, ErrorState, OfflineBanner, Screen, UIProvider } from "@fluently/ui";
+import appCss from "@fluently/ui/styles.css?url";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useRouter } from "@tanstack/react-router";
 import { dataTheme } from "../lib/theme";
@@ -12,7 +12,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Impromptu" },
+      { title: "Fluently" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

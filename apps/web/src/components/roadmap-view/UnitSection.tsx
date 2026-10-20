@@ -1,4 +1,4 @@
-import { EmptyState, RoadmapNode, RoadmapUnit, TextLink, UnitStatusTag } from "@impromptu/ui";
+import { EmptyState, RoadmapNode, RoadmapUnit, TextLink, UnitStatusTag } from "@fluently/ui";
 import { Hourglass } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { lessonRoute } from "../../lib/lessons";

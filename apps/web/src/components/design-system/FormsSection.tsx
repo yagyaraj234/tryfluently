@@ -1,4 +1,4 @@
-import { ChoiceChips, Select, Switch, TextArea, TextField } from "@impromptu/ui";
+import { ChoiceChips, Select, Switch, TextArea, TextField } from "@fluently/ui";
 import { Example } from "./shared";
 
 export function FormsSection() {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { Cluster, Container, Split, Stack } from "@impromptu/ui";
+import { Cluster, Container, Split, Stack } from "@fluently/ui";
 
 describe("Stack", () => {
   test("renders its children", () => {

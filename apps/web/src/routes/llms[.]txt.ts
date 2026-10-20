@@ -14,7 +14,7 @@ export const Route = createFileRoute("/llms.txt")({
           "",
           "## Pages",
           "",
-          `- [Home](${origin}/): what Impromptu does, how it works and common questions`,
+          `- [Home](${origin}/): what Fluently does, how it works and common questions`,
           `- [Sign up](${origin}/sign-up): create a free account and start the assessment`,
           "",
           "## Questions and answers",

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { eq, inArray } from "drizzle-orm";
 import { learnerWithRoadmap, preparedContent, unitsReply } from "./fixtures";
 import { get, json, makeApp, mockModel } from "./helpers";

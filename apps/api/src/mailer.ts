@@ -20,9 +20,9 @@ export const resendMailer = (apiKey: string, from: string): Mailer => ({
 export function verificationEmail(to: string, url: string): Email {
   return {
     to,
-    subject: "Verify your Impromptu email",
-    text: `Verify your email to start using Impromptu: ${url}`,
-    html: `<!doctype html><html><body><p>Verify your email to start using Impromptu.</p><p><a href="${escape(url)}">Verify email</a></p><p>If you didn't create an account, you can ignore this email.</p></body></html>`,
+    subject: "Verify your Fluently email",
+    text: `Verify your email to start using Fluently: ${url}`,
+    html: `<!doctype html><html><body><p>Verify your email to start using Fluently.</p><p><a href="${escape(url)}">Verify email</a></p><p>If you didn't create an account, you can ignore this email.</p></body></html>`,
   };
 }
 
@@ -62,14 +62,14 @@ export function reportEmail(to: string, report: Report, webOrigin: string): Emai
   // Inline styles and layout tables keep the Report readable in email clients without app CSS or remote images.
   return {
     to,
-    subject: "Your Impromptu Assessment Report",
+    subject: "Your Fluently Assessment Report",
     text,
-    html: `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your Impromptu Assessment Report</title></head>
+    html: `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your Fluently Assessment Report</title></head>
 <body style="margin:0;background:#f2f5ea;color:#111111;font-family:Arial,sans-serif;font-size:17px;line-height:1.6">
 <div style="display:none;max-height:0;overflow:hidden">Your ${escape(report.overallLevel)} Assessment Report, strengths and next steps.</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:24px 16px">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border:2px solid #111111;border-radius:12px"><tr><td style="padding:24px;background:#c6f432;border-bottom:2px solid #111111">
-<p style="margin:0;font-weight:bold">IMPROMPTU · YOUR ASSESSMENT REPORT</p><h1 style="margin:12px 0 0;font-size:28px">Your English level: ${escape(report.overallLevel)}</h1></td></tr>
+<p style="margin:0;font-weight:bold">FLUENTLY · YOUR ASSESSMENT REPORT</p><h1 style="margin:12px 0 0;font-size:28px">Your English level: ${escape(report.overallLevel)}</h1></td></tr>
 <tr><td style="padding:24px">
 ${partial ? `<p>${escape(partial)}</p>` : ""}
 <h2 style="font-size:21px">Your skills</h2><ul>${skills.map((s) => `<li>${escape(s)}</li>`).join("")}</ul>
@@ -80,7 +80,7 @@ ${report.weaknesses.map((w) => `<p><strong>${escape(w.label)}</strong><br>You sa
 <p><a href="${escape(home)}" style="display:inline-block;background:#6a3df0;color:#ffffff;border:2px solid #111111;border-radius:12px;padding:12px 20px;font-weight:bold">Start your first Lesson</a></p>
 <p style="font-size:15px">Confirm your Goals first if prompted. Your Roadmap follows from them.</p>
 <p style="font-size:15px">If the button doesn't work, open <a href="${escape(home)}">${escape(home)}</a>.</p>
-</td></tr></table><p style="font-size:15px">You received this because you completed your first Impromptu Assessment.</p>
+</td></tr></table><p style="font-size:15px">You received this because you completed your first Fluently Assessment.</p>
 </td></tr></table></body></html>`,
   };
 }

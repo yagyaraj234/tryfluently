@@ -1,4 +1,4 @@
-import { Button, Container, Heading, Screen, Stack, Text, TextLink, TokenReference } from "@impromptu/ui";
+import { Button, Container, Heading, Screen, Stack, Text, TextLink, TokenReference } from "@fluently/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ActionsAndDisplay, LayoutAndShells, Typography } from "../components/design-system/BasicSections";
 import { FeedbackSection } from "../components/design-system/FeedbackSection";
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/design-system")({
         ? search.preview
         : undefined,
   }),
-  head: () => ({ meta: [{ title: "Design System · Impromptu" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Design System · Fluently" }, { name: "robots", content: "noindex" }] }),
   component: Guide,
 });
 
@@ -36,7 +36,7 @@ function Guide() {
       <Container width="prose">
         <Stack gap={10}>
           <Stack gap={4}>
-            <Text size="label">Impromptu · one theme for the landing page and the app</Text>
+            <Text size="label">Fluently · one theme for the landing page and the app</Text>
             <Heading level={1}>Design System</Heading>
             <Text>Real components and live tokens.</Text>
             <ThemeChips theme={theme} />
@@ -65,7 +65,7 @@ function Guide() {
             Motion: 80ms presses, 160ms overlays, one short celebration. Reduced motion keeps all content and removes
             movement. Actions here use example content; no microphone or AI calls.
           </Text>
-          <TextLink render={<Link to="/" />}>Open Impromptu</TextLink>
+          <TextLink render={<Link to="/" />}>Open Fluently</TextLink>
         </Stack>
       </Container>
     </Screen>

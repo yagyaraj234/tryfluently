@@ -14,7 +14,7 @@ import {
   TextLink,
   UnitIcon,
   UnitStatusTag,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LessonAction } from "../../../../components/roadmap/LessonAction";

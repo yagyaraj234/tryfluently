@@ -1,5 +1,5 @@
 import { useChat } from "@ai-sdk/react";
-import { Button, ChatComposer, ChatThread, ChatTurn, ChatWriting, Notice, Stack, Text } from "@impromptu/ui";
+import { Button, ChatComposer, ChatThread, ChatTurn, ChatWriting, Notice, Stack, Text } from "@fluently/ui";
 import type { UIMessage } from "ai";
 import { useState } from "react";
 import { chatOptions } from "../../lib/chat";

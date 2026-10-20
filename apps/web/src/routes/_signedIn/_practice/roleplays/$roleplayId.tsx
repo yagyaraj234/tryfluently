@@ -1,5 +1,5 @@
 import { MagnifyingGlass } from "@phosphor-icons/react";
-import { ChatSkeleton, EmptyState, ErrorState, Stack } from "@impromptu/ui";
+import { ChatSkeleton, EmptyState, ErrorState, Stack } from "@fluently/ui";
 import { createFileRoute, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import { useState } from "react";
 import { Abandoned, Conversation, DebriefScreen } from "../../../../components/roleplay/DebriefScreen";

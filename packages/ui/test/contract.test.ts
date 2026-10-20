@@ -4,7 +4,7 @@ import { compile, optimize } from "@tailwindcss/node";
 import { ESLint } from "eslint";
 
 async function compileStyles(classes: string[]) {
-  const path = Bun.resolveSync("@impromptu/ui/styles.css", import.meta.dir);
+  const path = Bun.resolveSync("@fluently/ui/styles.css", import.meta.dir);
   const compiler = await compile(await Bun.file(path).text(), {
     base: dirname(path),
     onDependency: () => {},
@@ -97,14 +97,14 @@ describe("theming", () => {
 
 describe("package exports", () => {
   test("expose the barrel, the one stylesheet and the apps lint config", () => {
-    for (const entry of ["@impromptu/ui", "@impromptu/ui/styles.css", "@impromptu/ui/eslint"]) {
+    for (const entry of ["@fluently/ui", "@fluently/ui/styles.css", "@fluently/ui/eslint"]) {
       expect(() => Bun.resolveSync(entry, import.meta.dir)).not.toThrow();
     }
   });
 
   test("block deep imports", () => {
-    expect(() => Bun.resolveSync("@impromptu/ui/src/Screen.tsx", import.meta.dir)).toThrow();
-    expect(() => Bun.resolveSync("@impromptu/ui/src/index.ts", import.meta.dir)).toThrow();
+    expect(() => Bun.resolveSync("@fluently/ui/src/Screen.tsx", import.meta.dir)).toThrow();
+    expect(() => Bun.resolveSync("@fluently/ui/src/index.ts", import.meta.dir)).toThrow();
   });
 });
 
@@ -115,7 +115,7 @@ async function lintWith(eslint: ESLint, code: string, filePath: string) {
 }
 
 describe("apps lint config", async () => {
-  const { default: config } = await import("@impromptu/ui/eslint");
+  const { default: config } = await import("@fluently/ui/eslint");
   const eslint = new ESLint({ cwd: import.meta.dir, overrideConfigFile: true, overrideConfig: config });
   const lintApp = (code: string, filePath = "app/route.tsx") => lintWith(eslint, code, filePath);
 
@@ -139,8 +139,8 @@ describe("apps lint config", async () => {
   test("CSS imports fail, except the ui stylesheet", async () => {
     expect(await lintApp(`import "./app.css";`)).toEqual(["no-restricted-imports"]);
     expect(await lintApp(`import css from "some-lib/dist/theme.css?url";`)).toEqual(["no-restricted-imports"]);
-    expect(await lintApp(`import "@impromptu/ui/styles.css";`)).toEqual([]);
-    expect(await lintApp(`import appCss from "@impromptu/ui/styles.css?url";`)).toEqual([]);
+    expect(await lintApp(`import "@fluently/ui/styles.css";`)).toEqual([]);
+    expect(await lintApp(`import appCss from "@fluently/ui/styles.css?url";`)).toEqual([]);
   });
 });
 
@@ -196,8 +196,8 @@ describe("ui package lint config", () => {
     for (const lib of [
       "@tanstack/react-router",
       "@tanstack/react-query",
-      "@impromptu/api",
-      "@impromptu/db",
+      "@fluently/api",
+      "@fluently/db",
       "zustand",
     ]) {
       expect({ lib, rules: await lintUi(`import { x } from "${lib}";`) }).toEqual({

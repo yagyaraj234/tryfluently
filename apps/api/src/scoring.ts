@@ -1,4 +1,4 @@
-import { schema, type CefrLevel, type Skill, type Tx as Db } from "@impromptu/db";
+import { schema, type CefrLevel, type Skill, type Tx as Db } from "@fluently/db";
 import type { UIMessage } from "ai";
 import { asc, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";

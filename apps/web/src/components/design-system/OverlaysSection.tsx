@@ -1,4 +1,4 @@
-import { Button, Cluster, Dialog, IconButton, Menu, Sheet, toastManager } from "@impromptu/ui";
+import { Button, Cluster, Dialog, IconButton, Menu, Sheet, toastManager } from "@fluently/ui";
 import { DotsThree } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Example, sample } from "./shared";

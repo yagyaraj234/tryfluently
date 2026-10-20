@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { Meter, Notice, ProgressBar, Skeleton, Spinner, UIProvider, toastManager } from "@impromptu/ui";
+import { Meter, Notice, ProgressBar, Skeleton, Spinner, UIProvider, toastManager } from "@fluently/ui";
 
 describe("Toast", () => {
   afterEach(() => act(() => toastManager.close()));

@@ -10,7 +10,7 @@ import {
   TextLink,
   VerdictTag,
   type TextSize,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { House, Microphone, SpeakerHigh } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { Example, sample } from "./shared";

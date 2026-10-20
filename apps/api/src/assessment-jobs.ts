@@ -1,4 +1,4 @@
-import { schema, type Tx } from "@impromptu/db";
+import { schema, type Tx } from "@fluently/db";
 import { and, asc, desc, eq, inArray, lte, or, sql } from "drizzle-orm";
 import type { Deps } from "./app";
 import { reportEmail } from "./mailer";

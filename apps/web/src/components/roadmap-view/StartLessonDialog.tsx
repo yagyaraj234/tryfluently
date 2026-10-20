@@ -1,4 +1,4 @@
-import { Button, Chip, Cluster, Dialog, Notice } from "@impromptu/ui";
+import { Button, Chip, Cluster, Dialog, Notice } from "@fluently/ui";
 
 // estimatedMinutes and pageCount come from the stored outline once it carries them.
 export type Selected = {

@@ -1,4 +1,4 @@
-import { AnswerBox, ChatTurn, FillGapStep, RewriteStep, StepFeedback, StepHeader, VocabCardStep } from "@impromptu/ui";
+import { AnswerBox, ChatTurn, FillGapStep, RewriteStep, StepFeedback, StepHeader, VocabCardStep } from "@fluently/ui";
 import { answered, Example, sample } from "./shared";
 
 const verdicts = ["correct", "almost", "incorrect"] as const;

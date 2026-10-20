@@ -14,7 +14,7 @@ import {
   Stack,
   StepHeader,
   Text,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import type { UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { answerStep, chatOptions } from "../../lib/chat";
@@ -67,7 +67,7 @@ function Header({ left, onFinish }: { left?: number; onFinish: () => void }) {
         <CoachAvatar small />
         <Stack gap={1}>
           <Heading level={1} size="title">
-            Your conversation with Impromptu
+            Your conversation with Fluently
           </Heading>
           <Text size="caption" tone="muted">
             Your AI coach · one question at a time

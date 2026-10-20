@@ -11,7 +11,7 @@ import {
   Text,
   UnitCard,
   UnitIcon,
-} from "@impromptu/ui";
+} from "@fluently/ui";
 import { Confetti } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";

@@ -11,12 +11,12 @@
       },
     },
     "apps/api": {
-      "name": "@impromptu/api",
+      "name": "@fluently/api",
       "dependencies": {
         "@ai-sdk/google": "4.0.96",
         "@ai-sdk/openai": "4.0.94",
+        "@fluently/db": "workspace:*",
         "@hono/zod-validator": "^0.9.1",
-        "@impromptu/db": "workspace:*",
         "@scalar/hono-api-reference": "^0.12.13",
         "ai": "7.0.141",
         "better-auth": "^1.7.10",
@@ -27,16 +27,16 @@
         "zod": "^4.6.7",
       },
       "devDependencies": {
-        "@impromptu/ui": "workspace:*",
+        "@fluently/ui": "workspace:*",
         "@types/bun": "^1.4.3",
         "eslint": "^10.12.0",
       },
     },
     "apps/web": {
-      "name": "@impromptu/web",
+      "name": "@fluently/web",
       "dependencies": {
         "@ai-sdk/react": "4.0.145",
-        "@impromptu/ui": "workspace:*",
+        "@fluently/ui": "workspace:*",
         "@phosphor-icons/react": "^2.1.10",
         "@tanstack/react-query": "^5.104.3",
         "@tanstack/react-router": "^1.170.44",
@@ -49,7 +49,7 @@
         "react-dom": "^19.3.1",
       },
       "devDependencies": {
-        "@impromptu/api": "workspace:*",
+        "@fluently/api": "workspace:*",
         "@tailwindcss/vite": "^4.3.3",
         "@types/node": "^24.0.0",
         "@types/react": "^19.3.0",
@@ -61,7 +61,7 @@
       },
     },
     "packages/db": {
-      "name": "@impromptu/db",
+      "name": "@fluently/db",
       "dependencies": {
         "drizzle-orm": "^0.45.4",
         "postgres": "^3.4.9",
@@ -72,7 +72,7 @@
       },
     },
     "packages/ui": {
-      "name": "@impromptu/ui",
+      "name": "@fluently/ui",
       "dependencies": {
         "@base-ui/react": "^1.9.0",
         "class-variance-authority": "^0.7.1",
@@ -262,6 +262,14 @@
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/@floating-ui/utils/-/utils-0.2.12.tgz", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
 
+    "@fluently/api": ["@fluently/api@workspace:apps/api"],
+
+    "@fluently/db": ["@fluently/db@workspace:packages/db"],
+
+    "@fluently/ui": ["@fluently/ui@workspace:packages/ui"],
+
+    "@fluently/web": ["@fluently/web@workspace:apps/web"],
+
     "@happy-dom/global-registrator": ["@happy-dom/global-registrator@21.0.1", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/@happy-dom/global-registrator/-/global-registrator-21.0.1.tgz", { "dependencies": { "@types/node": ">=20.0.0", "happy-dom": "^21.0.1" } }, "sha512-wr/Rpo2cUXb9hOXdpsA3jJvite0YR+jWz3j5XNuXzzBoKpI17U4nzrPNykFu3iUNxT7WWQm/YxpW/aEqfgaZMA=="],
 
     "@hono/zod-validator": ["@hono/zod-validator@0.9.1", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/@hono/zod-validator/-/zod-validator-0.9.1.tgz", { "peerDependencies": { "hono": ">=4.11.2", "zod": "^3.25.0 || ^4.0.0" } }, "sha512-iiv6w0qrIc0arfvCtUqBWsvl4fXjzaTcQcCJTTtCnkawF9HHGE+KjEl0ox3gQJ6rKZEgE3mLExlQCF72M+mNuw=="],
@@ -275,14 +283,6 @@
     "@humanwhocodes/module-importer": ["@humanwhocodes/module-importer@1.0.1", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/@humanwhocodes/module-importer/-/module-importer-1.0.1.tgz", {}, "sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA=="],
 
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/@humanwhocodes/retry/-/retry-0.4.3.tgz", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
-
-    "@impromptu/api": ["@impromptu/api@workspace:apps/api"],
-
-    "@impromptu/db": ["@impromptu/db@workspace:packages/db"],
-
-    "@impromptu/ui": ["@impromptu/ui@workspace:packages/ui"],
-
-    "@impromptu/web": ["@impromptu/web@workspace:apps/web"],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.4.0-beta.0", "https://repository.wavemaker.com/repository/wavemaker-npm-repo/@jridgewell/gen-mapping/-/gen-mapping-0.4.0-beta.0.tgz", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.6.0-beta.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-JdGNkbE4GlNPYQhM0L95fBQr7ctLZJ276QXQLTad4t1oSdnnCI3fDq9DW3BqYAWv8Wc3+HS+4Gsii1oPMCfz1w=="],
 

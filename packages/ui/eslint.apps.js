@@ -1,5 +1,5 @@
-// The styling boundary for apps: they assemble screens from @impromptu/ui and never style anything.
-// Adopt it with one line in the app's eslint.config.js: `export { default } from "@impromptu/ui/eslint";`
+// The styling boundary for apps: they assemble screens from @fluently/ui and never style anything.
+// Adopt it with one line in the app's eslint.config.js: `export { default } from "@fluently/ui/eslint";`
 import babelParser from "@babel/eslint-parser";
 
 /**
@@ -28,7 +28,7 @@ export default [
         "error",
         {
           selector: "JSXAttribute[name.name=/^(className|style)$/]",
-          message: "Apps don't style anything. Use a @impromptu/ui component, or add the variant there.",
+          message: "Apps don't style anything. Use a @fluently/ui component, or add the variant there.",
         },
       ],
       "no-restricted-imports": [
@@ -36,8 +36,8 @@ export default [
         {
           patterns: [
             {
-              regex: "^(?!@impromptu/ui/styles\\.css(\\?|$)).*\\.css(\\?|$)",
-              message: "Apps have no CSS. The only stylesheet is @impromptu/ui/styles.css.",
+              regex: "^(?!@fluently/ui/styles\\.css(\\?|$)).*\\.css(\\?|$)",
+              message: "Apps have no CSS. The only stylesheet is @fluently/ui/styles.css.",
             },
           ],
         },

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { LessonComplete } from "@impromptu/ui";
+import { LessonComplete } from "@fluently/ui";
 
 describe("LessonComplete", () => {
   test("celebrates with the XP gained, the Streak and what to do next", () => {

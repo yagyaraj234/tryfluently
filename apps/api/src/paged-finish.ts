@@ -1,4 +1,4 @@
-import { schema, type Skill } from "@impromptu/db";
+import { schema, type Skill } from "@fluently/db";
 import { and, eq } from "drizzle-orm";
 import type { Deps } from "./app";
 import { advanceUnit } from "./learning-memory";

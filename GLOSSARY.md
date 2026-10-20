@@ -1,4 +1,4 @@
-# Impromptu
+# Fluently
 
 An AI coach that helps anyone build their communication skills, for work, study, travel or everyday life. English is the only supported language today; others may follow. It assesses how a learner speaks, then builds a personalised, adaptive path of lessons.
 
@@ -7,7 +7,7 @@ An AI coach that helps anyone build their communication skills, for work, study,
 ### People and intent
 
 **Learner**:
-A person using Impromptu to improve their English.
+A person using Fluently to improve their English.
 _Avoid_: User, student, candidate
 
 **Goal**:
@@ -15,7 +15,7 @@ What the Learner wants to achieve with English, written in their own words. Exam
 _Avoid_: Objective, target, purpose
 
 **Goal Context**:
-What the Learner tells Impromptu about their situation for a Goal, such as role, seniority, CV, job description or kind of clients.
+What the Learner tells Fluently about their situation for a Goal, such as role, seniority, CV, job description or kind of clients.
 _Avoid_: Background, bio
 
 **Target Level**:

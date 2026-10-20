@@ -12,13 +12,13 @@ test("the first Report email is readable as HTML or text, escapes model output, 
       weaknesses: [{ label: "Tenses", quote: "I work since 2023.", betterVersion: "I've worked since 2023." }],
       firstUnit: { title: "Your experience", objective: "Describe work that continues today." },
     },
-    "https://impromptu.example",
+    "https://fluently.example",
   );
   expect(email.html).not.toContain("<script>");
   expect(email.html).toContain("&#60;script&#62;");
-  expect(email.html).toContain('href="https://impromptu.example/"');
+  expect(email.html).toContain('href="https://fluently.example/"');
   expect(email.text).toContain("Grammar: 45/100 · B1");
   expect(email.text).toContain("Fluency: Not measured yet");
   expect(email.text).toContain("partial Report");
-  expect(email.text).toContain("Start your first Lesson: https://impromptu.example/");
+  expect(email.text).toContain("Start your first Lesson: https://fluently.example/");
 });

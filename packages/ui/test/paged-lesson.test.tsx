@@ -1,6 +1,6 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { PageBlock, PageDots, type PageQuestion, type PageResult } from "@impromptu/ui";
+import { PageBlock, PageDots, type PageQuestion, type PageResult } from "@fluently/ui";
 
 afterEach(cleanup);
 

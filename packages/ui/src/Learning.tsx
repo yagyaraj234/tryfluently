@@ -142,7 +142,7 @@ export function CoachCall({
     >
       <div className="flex flex-col gap-2">
         <Text size="label" tone="muted">
-          Impromptu · AI coach
+          Fluently · AI coach
         </Text>
         <Heading level={1} size="title">
           A little conversation. A clearer path.

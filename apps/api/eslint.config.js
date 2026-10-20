@@ -1,1 +1,1 @@
-export { default } from "@impromptu/ui/eslint";
+export { default } from "@fluently/ui/eslint";

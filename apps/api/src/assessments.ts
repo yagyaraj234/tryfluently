@@ -1,4 +1,4 @@
-import { schema } from "@impromptu/db";
+import { schema } from "@fluently/db";
 import { zValidator } from "@hono/zod-validator";
 import { NoObjectGeneratedError, Output, safeValidateUIMessages, type UIMessage } from "ai";
 import { and, asc, desc, eq } from "drizzle-orm";
@@ -57,7 +57,7 @@ const MAX_ITEMS = 4;
 
 // `items` is the count of structured items answered so far; a Voice Assessment has none.
 const instructions = (goalTexts: string[], minutes: number, items?: number) =>
-  `You are Impromptu, an English coach, running an Assessment of the Learner's English.
+  `You are Fluently, an English coach, running an Assessment of the Learner's English.
 ${phases.replace(
   "{goals}",
   goalTexts.length

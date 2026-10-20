@@ -1,4 +1,4 @@
-import { Button, ErrorState, LoadingState, Notice, Stack } from "@impromptu/ui";
+import { Button, ErrorState, LoadingState, Notice, Stack } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";

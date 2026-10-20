@@ -1,5 +1,5 @@
 import { MagnifyingGlass } from "@phosphor-icons/react";
-import { ChatSkeleton, EmptyState } from "@impromptu/ui";
+import { ChatSkeleton, EmptyState } from "@fluently/ui";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Discarded } from "../../../../components/assessment/assessment";
 import { VoiceAssessment } from "../../../../components/assessment/VoiceAssessment";

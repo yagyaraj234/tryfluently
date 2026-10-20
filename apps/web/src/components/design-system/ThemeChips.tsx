@@ -1,4 +1,4 @@
-import { ChoiceChips } from "@impromptu/ui";
+import { ChoiceChips } from "@fluently/ui";
 import { useRouter } from "@tanstack/react-router";
 import { saveTheme, type Theme } from "../../lib/theme";
 import { themes } from "./shared";

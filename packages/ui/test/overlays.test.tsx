@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { DotsThree } from "@phosphor-icons/react";
-import { Button, Dialog, IconButton, Menu, Sheet } from "@impromptu/ui";
+import { Button, Dialog, IconButton, Menu, Sheet } from "@fluently/ui";
 
 describe("Dialog", () => {
   function renderDialog(onOpenChange = mock()) {
