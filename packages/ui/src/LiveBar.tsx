@@ -3,7 +3,6 @@ import { cva } from "class-variance-authority";
 import { Button } from "./Button";
 import { IconButton } from "./IconButton";
 
-// Pink only once the call is live: the colour means a live microphone.
 const bar = cva("sticky top-0 z-sticky flex flex-wrap items-center gap-3 rounded-xl border bg-paper px-4 py-3", {
   variants: { live: { true: "border-live", false: "border-line" } },
 });
@@ -26,13 +25,9 @@ const states = { connecting: "Connecting…", live: "Live", reconnecting: "Recon
 
 export type LiveBarProps = {
   state: keyof typeof states;
-  /** What the call is, for example "Voice Assessment" or "Mock Interview · Friendly". */
   title: string;
-  /** Milliseconds since the call started. */
   elapsed?: number;
-  /** Milliseconds left, for example of the 10-minute Assessment or of today's voice minutes. */
   left?: number;
-  /** Follows the time left: "left" (the default) or, say, "left today". */
   leftLabel?: string;
   muted: boolean;
   onMutedChange: (muted: boolean) => void;
@@ -40,7 +35,6 @@ export type LiveBarProps = {
   endLabel?: string;
 };
 
-/** The top of a live voice call: whether it's live, the time so far and left, mute and End. */
 export function LiveBar({
   state,
   title: name,
@@ -53,6 +47,16 @@ export function LiveBar({
   endLabel = "End",
 }: LiveBarProps) {
   const live = state === "live";
+  const elapsedTime =
+    elapsed !== undefined ? (
+      <span className={time({ live })}>{minutes(Math.max(0, Math.floor(elapsed / 1000)))}</span>
+    ) : null;
+  const leftTime =
+    left !== undefined ? (
+      <span className={time({ live })}>
+        {minutes(Math.max(0, Math.ceil(left / 1000)))} {leftLabel}
+      </span>
+    ) : null;
   return (
     <div className={bar({ live })}>
       <div className={about()}>
@@ -61,14 +65,8 @@ export function LiveBar({
           {states[state]}
         </span>
         <span className={title()}>{name}</span>
-        {elapsed !== undefined && (
-          <span className={time({ live })}>{minutes(Math.max(0, Math.floor(elapsed / 1000)))}</span>
-        )}
-        {left !== undefined && (
-          <span className={time({ live })}>
-            {minutes(Math.max(0, Math.ceil(left / 1000)))} {leftLabel}
-          </span>
-        )}
+        {elapsedTime}
+        {leftTime}
       </div>
       <div className={actions()}>
         <IconButton

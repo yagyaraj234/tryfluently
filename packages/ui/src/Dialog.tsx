@@ -16,12 +16,11 @@ const viewport = cva("fixed inset-0 z-overlay flex justify-center", {
 });
 
 const popup = cva(
-  `flex max-h-full w-full max-w-content flex-col gap-4 overflow-y-auto border border-line bg-paper p-6 text-ink shadow-card ${fade}`,
+  `type-app flex max-h-full w-full max-w-content flex-col gap-4 overflow-y-auto border border-line bg-paper p-6 text-ink shadow-card ${fade}`,
   {
     variants: {
       kind: {
         dialog: "rounded-xl",
-        // Below desktop it slides up from the bottom edge, within thumb reach.
         sheet:
           "rounded-t-xl lg:rounded-xl max-lg:data-starting-style:translate-y-full max-lg:data-ending-style:translate-y-full",
       },
@@ -31,15 +30,12 @@ const popup = cva(
 
 export type DialogProps = {
   open: boolean;
-  /** Called with `false` when the Learner asks to close (Escape, the close button or the backdrop). */
   onOpenChange: (open: boolean) => void;
-  /** The heading, and the dialog's accessible name. */
   title: string;
   description?: string;
   children?: ReactNode;
 };
 
-/** Shared by Dialog and Sheet, which differ only in where the popup sits. */
 export function Overlay({
   kind,
   open,
@@ -69,7 +65,6 @@ export function Overlay({
   );
 }
 
-/** A modal dialog, for example to confirm a destructive action. Controlled: the app owns `open`. */
 export function Dialog(props: DialogProps) {
   return <Overlay kind="dialog" {...props} />;
 }

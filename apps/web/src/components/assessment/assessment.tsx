@@ -1,12 +1,10 @@
+import { ArrowCounterClockwise } from "@phosphor-icons/react";
 import { Button, Cluster, Dialog, EmptyState, ErrorState, LoadingState, Text } from "@impromptu/ui";
 import { Link, useBlocker, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
-
-// What the Written and Voice Assessments share: the 10-minute clock, ending through /end, leaving early,
-// and the screens shown while the Report is written.
 
 type Client = ReturnType<typeof api>["api"]["assessments"][":id"];
 export type Assessment = InferResponseType<Client["$get"], 200>;
@@ -15,13 +13,11 @@ export type Report = Extract<InferResponseType<Client["end"]["$post"], 200>, { s
 export const LIMIT_MS = 10 * 60_000;
 const MIN_MS = 4 * 60_000;
 
-/** "9:05" */
 export const clock = (ms: number) => {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
-/** Milliseconds left of the 10 minutes, ticking each second; undefined until it runs in the browser. */
 function useTimeLeft(startedAt: string) {
   const [left, setLeft] = useState<number>();
   useEffect(() => {
@@ -35,10 +31,6 @@ function useTimeLeft(startedAt: string) {
 
 export type Ending = "running" | "ending" | "failed" | "discarded";
 
-/**
- * Runs an Assessment in progress. At 10:00, or on `finish()`, it calls /end; then it goes to the Report, or shows
- * that a short attempt was discarded. Navigating away mid-way asks first, and ends with `left: true` (a partial Report).
- */
 export function useAssessmentSession(assessment: Assessment) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -80,14 +72,11 @@ export function useAssessmentSession(assessment: Assessment) {
   });
 
   return {
-    /** Milliseconds left, once the clock runs. */
     left,
     ending,
-    /** The Learner is done (or the call ended): end now and see the Report. */
     finish: end,
     /** Try /end again after it failed (a 502 means the Report couldn't be written). */
     retry: end,
-    /** Shown when the Learner tries to leave mid-way. */
     leaving: {
       open: blocker.status === "blocked",
       short: left !== undefined && LIMIT_MS - left < MIN_MS,
@@ -103,7 +92,6 @@ export function useAssessmentSession(assessment: Assessment) {
 
 type Session = ReturnType<typeof useAssessmentSession>;
 
-/** The time left, for the top of the Assessment screen. */
 export function TimeLeft({ left }: { left?: number }) {
   if (left === undefined) return null;
   return (
@@ -113,7 +101,6 @@ export function TimeLeft({ left }: { left?: number }) {
   );
 }
 
-/** What the Learner sees once the Assessment is ending: the wait for the Report, a retry, or a discarded attempt. */
 export function AssessmentEnding({ session }: { session: Session }) {
   if (session.ending === "discarded") return <Discarded />;
   if (session.ending === "failed")
@@ -136,6 +123,7 @@ export function AssessmentEnding({ session }: { session: Session }) {
 export function Discarded() {
   return (
     <EmptyState
+      icon={ArrowCounterClockwise}
       title="Attempt discarded"
       description="An Assessment needs at least 4 minutes to count, so this one wasn't saved. You can start again now."
       action={<Button render={<Link to="/assessments/new" />}>Start again</Button>}
@@ -143,7 +131,6 @@ export function Discarded() {
   );
 }
 
-/** Asks before leaving mid-way. */
 export function LeaveDialog({ session }: { session: Session }) {
   const { leaving } = session;
   return (

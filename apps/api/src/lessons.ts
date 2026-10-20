@@ -7,8 +7,12 @@ import { z } from "zod";
 import { generate, streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
+import { answerPage, setCurrentPage, stepsOf } from "./page-answers";
+import { retryAnalysis } from "./speech-answers";
+import { publicPages, retryLesson, startLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
 import { completeLesson } from "./completion";
+import { finishPagedLesson } from "./paged-finish";
 import { findRecording, recordedSecondsToday, recordingForm, timingOf, type Timing } from "./recordings";
 import { createRoleplay, roleplayKindFor } from "./roleplays";
 import { readyForRoleplay } from "./roadmap";
@@ -76,8 +80,17 @@ export const lessons = ({
       return { ...s, input, feedback: l.status === "completed" ? s.feedback : null };
     });
     const { preparationToken, ...view } = l;
+    if (l.contentVersion === 2) return { ...view, material: publicPages(l, rows), questions: [], steps: [] };
     return { ...view, questions: safe, steps: safe };
   };
+
+  const pagesView = async (l: typeof lesson.$inferSelect) => ({
+    id: l.id,
+    preparation: l.preparation,
+    currentPage: l.currentPage,
+    status: l.status,
+    pages: publicPages(l, await stepsOf(db, l.id)),
+  });
 
   const openFocus = (userId: string) =>
     db
@@ -176,6 +189,57 @@ export const lessons = ({
           .returning();
         return c.json(await withSteps(created!), 201);
       })
+      // Starts a Lesson from the outline. Starting twice returns the same Lesson.
+      .post("/:position{[0-9]+}/start", async (c) => {
+        const r = await startLesson({ db, now }, c.var.user.id, Number(c.req.param("position")));
+        if ("error" in r) return c.json({ error: r.error }, 409);
+        return c.json(await pagesView(r.lesson), r.created ? 201 : 200);
+      })
+      .post("/:id/retry", async (c) => {
+        const r = await retryLesson({ db, now }, c.var.user.id, c.req.param("id"));
+        return r ? c.json(await pagesView(r), 202) : c.json({ error: "Only a failed Lesson can be retried" }, 409);
+      })
+      // Polled while Pages are written: which are ready, with their content so far (never answer keys).
+      .get("/:id/pages", async (c) => {
+        const row = await find(c.req.param("id"), c.var.user.id);
+        return row?.contentVersion === 2 ? c.json(await pagesView(row)) : c.json({ error: "Lesson not found" }, 404);
+      })
+      // The end screen polls this: the background analysis status and, once it is done, the short summary.
+      .get("/:id/analysis", async (c) => {
+        const row = await find(c.req.param("id"), c.var.user.id);
+        if (row?.contentVersion !== 2) return c.json({ error: "Lesson not found" }, 404);
+        const [work] = await db
+          .select({ status: schema.assessmentJob.status })
+          .from(schema.assessmentJob)
+          .where(and(eq(schema.assessmentJob.lessonId, row.id), eq(schema.assessmentJob.kind, "lesson_analysis")));
+        return c.json({ status: work?.status ?? null, summary: row.summary });
+      })
+      // Grades a paged Lesson's Page on the server and returns the verdict, correct answer and explanation straight away.
+      // The `answer` shape depends on the Block (see page-answers.ts). Sending it again returns the first result.
+      .post("/:id/pages/:index{[0-9]+}/answer", zValidator("json", z.object({ answer: z.unknown() })), async (c) => {
+        const r = await answerPage(
+          { db, now, models },
+          c.var.user.id,
+          c.req.param("id"),
+          Number(c.req.param("index")),
+          c.req.valid("json").answer,
+        );
+        return "error" in r ? c.json({ error: r.error }, r.status) : c.json(r.result, r.status);
+      })
+      // Tries a spoken answer's text analysis again after it failed. The saved transcript is kept as it was.
+      .post("/:id/pages/:index{[0-9]+}/analyse", async (c) => {
+        const l = await find(c.req.param("id"), c.var.user.id);
+        const r =
+          l?.contentVersion === 2
+            ? await retryAnalysis({ db, now, models }, c.var.user.id, l.id, Number(c.req.param("index")))
+            : undefined;
+        return r ? c.json(r, 202) : c.json({ error: "Nothing to analyse on this Page" }, 404);
+      })
+      // Remembers which Page the Learner is on (0-based; the recap is one past the last Page) so a return visit resumes there.
+      .patch("/:id/page", zValidator("json", z.object({ page: z.number().int().min(0) })), async (c) => {
+        const ok = await setCurrentPage(db, c.var.user.id, c.req.param("id"), c.req.valid("json").page);
+        return ok ? c.json({ currentPage: c.req.valid("json").page }) : c.json({ error: "Page not found" }, 404);
+      })
       .get("/:id", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
         return row ? c.json(await withSteps(row)) : c.json({ error: "Lesson not found" }, 404);
@@ -267,10 +331,15 @@ export const lessons = ({
       .post("/:id/finish", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
         if (!row) return c.json({ error: "Lesson not found" }, 404);
-        if (row.preparation !== "ready" || row.phase !== "assessment")
+        const paged = row.contentVersion === 2;
+        if (row.preparation !== "ready" || (!paged && row.phase !== "assessment"))
           return c.json({ error: "Start the assessment first" }, 409);
         const rows = await db.select().from(step).where(eq(step.lessonId, row.id));
         if (rows.some((s) => !s.answeredAt)) return c.json({ error: "Answer every question first" }, 409);
+        // A paged Lesson has one Step per question Page; all of them must be answered before it can finish.
+        if (paged && rows.length < (row.material ?? []).filter((p: any) => p.question).length)
+          return c.json({ error: "Answer every question first" }, 409);
+        if (paged) return c.json(await finishPagedLesson({ db, now, settings }, row.id, row.userId));
         const result = await completeLesson({ db, now, models, settings }, row.id, row.userId);
         return result.status === "failed"
           ? c.json({ error: "Your report couldn't be prepared. Try again." }, 502)
@@ -295,16 +364,14 @@ export const lessons = ({
         }
         const recordingId = crypto.randomUUID();
         const timing = timingOf(text, seconds);
-        await db
-          .insert(schema.aiUsage)
-          .values({
-            userId: user.id,
-            kind: "recording",
-            callId: recordingId,
-            startedAt: now(),
-            seconds,
-            usage: { lessonId: row.id, text, timing },
-          });
+        await db.insert(schema.aiUsage).values({
+          userId: user.id,
+          kind: "recording",
+          callId: recordingId,
+          startedAt: now(),
+          seconds,
+          usage: { lessonId: row.id, text, timing },
+        });
         return c.json({ recordingId, text, timing }, 201);
       })
       // One turn. The body carries the newest message: a user message, or the last assistant message with the Step answered.
@@ -319,7 +386,9 @@ export const lessons = ({
         // A recorded answer points at a recording the server transcribed; the transcript stands in as the answer.
         const incoming = c.req.valid("json").message;
         let voice: Timing | undefined;
-        const recorded = incoming?.parts?.find?.((p: any) => typeof p?.output?.recordingId === "string");
+        const recorded = Array.isArray(incoming?.parts)
+          ? incoming.parts.find((p: any) => typeof p?.output?.recordingId === "string")
+          : undefined;
         if (recorded) {
           const recording = await findRecording(db, userId, row.id, recorded.output.recordingId);
           if (!recording) return c.json({ error: "That recording wasn't found" }, 400);

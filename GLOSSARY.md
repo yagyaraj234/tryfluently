@@ -70,6 +70,14 @@ _Avoid_: Module, chapter, lesson
 One short sitting inside a Unit: learning material followed by a short assessment made of Steps. Its complete content is prepared from earlier performance and Learner Memory, then stays fixed.
 _Avoid_: Sub-lesson, class, session
 
+**Page**:
+One screen of a Lesson's learning material: a single idea of at most about 150 words, usually with one Block for the Learner to try. A Lesson has 4–6 Pages and a recap.
+_Avoid_: Slide, card, section
+
+**Block**:
+A typed piece of a Page that the Learner reads or answers, such as an example, a fill-in-the-gap or a reorder. Each is rendered by a fixed component.
+_Avoid_: Widget, component, exercise
+
 **Step**:
 A single prompt in a Lesson, together with the Learner's response and the feedback on it. A Step is either voice or text, and belongs to the Lesson’s saved assessment. Regular Lesson questions are fixed before the Lesson starts.
 _Avoid_: Exercise, question, task, sub-lesson
@@ -81,7 +89,7 @@ Saved feedback from one Lesson’s assessment: objective progress, measured skil
 An internal, bounded summary of recent demonstrated strengths, difficulties and progress used when preparing the next Lesson. Goals, Skill Profile and Focus Items remain authoritative structured context.
 
 **Roleplay**:
-A Lesson in which the agent stays in character for a real-world conversation, then ends with a Debrief.
+A Lesson in which the agent stays in character for a real-world conversation, then ends with a Debrief. The Learner chooses a preset situation or describes their own.
 _Avoid_: Simulation, scenario
 
 **Mock Interview**:
@@ -91,6 +99,10 @@ _Avoid_: Interview (on its own)
 **Client Call**:
 A Roleplay in which the agent plays a client for client work.
 _Avoid_: Client meeting, sales call
+
+**Custom Roleplay**:
+A Roleplay in which the Learner describes the situation and the agent plays the other person.
+_Avoid_: Free Roleplay, open scenario
 
 **Debrief**:
 The detailed feedback the Learner gets at the end of a Roleplay.

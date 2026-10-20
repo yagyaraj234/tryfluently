@@ -17,42 +17,38 @@ import { TextField } from "./TextField";
 import { TextLink } from "./TextLink";
 import { VerdictTag, type VerdictTagProps } from "./VerdictTag";
 
-// The Step parts shared by the Lesson player and the Written Assessment.
-// Step props use the backend's Step tool input names, so apps pass `{...step.input}` straight through.
-
 const header = cva("flex flex-col gap-3");
 const bar = cva("flex flex-col gap-2");
 const label = cva("text-label uppercase text-ink");
 
 export type StepHeaderProps = {
-  /** The kind of Step, for example "Rewrite". */
   type: string;
   question: string;
-  /**
-   * Where the Step sits in a Lesson, shown as "Rewrite · Step 4 of ~7" with a progress bar.
-   * Lessons adapt, so `total` reads as an estimate. Without it only the type is shown.
-   */
   progress?: { position: number; total: number };
 };
 
-/** The top of every Step: its type (and in a Lesson, its position and progress), then the question. */
+function StepProgress({ type, position, total }: { type: string; position: number; total: number }) {
+  return (
+    <Progress.Root value={position - 1} max={total} className={bar()}>
+      <Progress.Label className={label()}>{`${type} · Step ${position} of ~${total}`}</Progress.Label>
+      <Progress.Track className={labelledBarParts.track()}>
+        <Progress.Indicator className={labelledBarParts.indicator()} />
+      </Progress.Track>
+    </Progress.Root>
+  );
+}
+
 export function StepHeader({ type, question, progress }: StepHeaderProps) {
+  const lead = progress ? (
+    <StepProgress type={type} {...progress} />
+  ) : (
+    <Text size="label" tone="muted">
+      {type}
+    </Text>
+  );
   return (
     <div className={header()}>
-      {progress ? (
-        <Progress.Root value={progress.position - 1} max={progress.total} className={bar()}>
-          <Progress.Label
-            className={label()}
-          >{`${type} · Step ${progress.position} of ~${progress.total}`}</Progress.Label>
-          <Progress.Track className={labelledBarParts.track()}>
-            <Progress.Indicator className={labelledBarParts.indicator()} />
-          </Progress.Track>
-        </Progress.Root>
-      ) : (
-        <Text size="label" tone="muted">
-          {type}
-        </Text>
-      )}
+      {lead}
       <Heading level={2} size="title">
         {question}
       </Heading>
@@ -64,17 +60,12 @@ const form = cva("flex flex-col gap-4");
 const stack = cva("flex flex-col gap-6");
 const quote = cva("rounded-xl bg-subtle px-4 py-3 text-body text-ink");
 
-/** What every Step's answer shares. */
 type Answerable = {
-  /** Called with the Learner's answer, trimmed and never empty. */
   onAnswer: (answer: string) => void;
-  /** While the answer is being sent, so it can't be sent twice. */
   pending?: boolean;
-  /** The Learner's answer once it's been sent. The Step then shows it read-only, without a verdict. */
   answered?: string;
 };
 
-// The answer so far, and a submit handler that sends it trimmed, once, and never empty.
 function useAnswer({ onAnswer, pending }: Answerable) {
   const [answer, setAnswer] = useState("");
   const submit = (event: FormEvent) => {
@@ -96,6 +87,60 @@ function SendButton({ pending, answer }: { pending?: boolean; answer: string }) 
 
 export type FillGapsStepProps = Answerable & { sentence: string; choices?: string[] };
 
+function BlankButton({
+  index,
+  value,
+  active,
+  disabled,
+  onSelect,
+}: {
+  index: number;
+  value: string;
+  active: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={`Blank ${index + 1}: ${value || "empty"}`}
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onSelect}
+      className="mx-1 inline-block min-h-11 min-w-16 rounded-lg border border-dashed border-line-strong bg-subtle px-2 text-ink aria-pressed:border-primary aria-pressed:bg-primary-soft"
+    >
+      {value || <span aria-hidden>…</span>}
+    </button>
+  );
+}
+
+function GapChoices({
+  choices,
+  active,
+  disabled,
+  onPick,
+}: {
+  choices: string[];
+  active: number;
+  disabled?: boolean;
+  onPick: (choice: string) => void;
+}) {
+  return (
+    <>
+      <Text size="caption" tone="muted">
+        Choose words for blank {active + 1}. Select a blank to change it.
+      </Text>
+      <div className="flex flex-wrap gap-3">
+        {choices.map((choice, i) => (
+          <Button key={i} type="button" variant="secondary" disabled={disabled} onClick={() => onPick(choice)}>
+            {choice}
+          </Button>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function FillGapsStep({ sentence, choices, ...props }: FillGapsStepProps) {
   const parts = sentence.split(/_{2,}/);
   const [values, setValues] = useState<string[]>(() =>
@@ -108,6 +153,53 @@ export function FillGapsStep({ sentence, choices, ...props }: FillGapsStepProps)
     if (locked) return;
     setValues((previous) => previous.map((v, n) => (n === index ? value : v)));
   }
+  const sentenceParts = parts.map((part, i) => {
+    const blank =
+      i < parts.length - 1 ? (
+        <BlankButton
+          index={i}
+          value={values[i] ?? ""}
+          active={active === i}
+          disabled={locked}
+          onSelect={() => setActive(i)}
+        />
+      ) : null;
+    return (
+      <span key={i}>
+        {part}
+        {blank}
+      </span>
+    );
+  });
+  const entry = choices?.length ? (
+    <GapChoices
+      choices={choices}
+      active={active}
+      disabled={locked}
+      onPick={(choice) => {
+        fill(active, choice);
+        setActive((active + 1) % values.length);
+      }}
+    />
+  ) : (
+    values.map((value, i) => (
+      <TextField
+        key={i}
+        label={`Blank ${i + 1}`}
+        value={value}
+        onValueChange={(v) => fill(i, v)}
+        disabled={locked}
+        maxLength={200}
+      />
+    ))
+  );
+  const answering =
+    props.answered === undefined ? (
+      <div className="mt-auto flex flex-col gap-4 pt-10">
+        {entry}
+        <SendButton pending={props.pending} answer={complete ? JSON.stringify(values) : ""} />
+      </div>
+    ) : null;
   return (
     <form
       className={form()}
@@ -116,69 +208,82 @@ export function FillGapsStep({ sentence, choices, ...props }: FillGapsStepProps)
         if (!locked && complete) props.onAnswer(JSON.stringify(values.map((v) => v.trim())));
       }}
     >
-      <p className="text-title leading-loose text-ink">
-        {parts.map((part, i) => (
-          <span key={i}>
-            {part}
-            {i < parts.length - 1 && (
-              <button
-                type="button"
-                aria-label={`Blank ${i + 1}: ${values[i] || "empty"}`}
-                aria-pressed={active === i}
-                disabled={locked}
-                onClick={() => setActive(i)}
-                className="mx-1 inline-block min-h-11 min-w-16 rounded-lg border border-dashed border-line-strong bg-subtle px-2 text-ink aria-pressed:border-primary aria-pressed:bg-primary-soft"
-              >
-                {values[i] || <span aria-hidden>…</span>}
-              </button>
-            )}
-          </span>
-        ))}
-      </p>
-      {props.answered === undefined && (
-        <div className="mt-auto flex flex-col gap-4 pt-10">
-          {choices?.length ? (
-            <>
-              <Text size="caption" tone="muted">
-                Choose words for blank {active + 1}. Select a blank to change it.
-              </Text>
-              <div className="flex flex-wrap gap-3">
-                {choices.map((choice, i) => (
-                  <Button
-                    key={i}
-                    type="button"
-                    variant="secondary"
-                    disabled={locked}
-                    onClick={() => {
-                      fill(active, choice);
-                      setActive((active + 1) % values.length);
-                    }}
-                  >
-                    {choice}
-                  </Button>
-                ))}
-              </div>
-            </>
-          ) : (
-            values.map((value, i) => (
-              <TextField
-                key={i}
-                label={`Blank ${i + 1}`}
-                value={value}
-                onValueChange={(v) => fill(i, v)}
-                disabled={locked}
-                maxLength={200}
-              />
-            ))
-          )}
-          <SendButton pending={props.pending} answer={complete ? JSON.stringify(values) : ""} />
-        </div>
-      )}
+      <p className="text-title leading-loose text-ink">{sentenceParts}</p>
+      {answering}
     </form>
   );
 }
 
 export type ReorderStepProps = Answerable & { items: string[] };
+
+type ReorderRowProps = {
+  index: number;
+  count: number;
+  label: string;
+  locked?: boolean;
+  showMoves: boolean;
+  register: (node: HTMLLIElement | null) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDrop: () => void;
+  onMove: (to: number) => void;
+};
+
+function ReorderRow({
+  index,
+  count,
+  label,
+  locked,
+  showMoves,
+  register,
+  onDragStart,
+  onDragEnd,
+  onDrop,
+  onMove,
+}: ReorderRowProps) {
+  const moves = showMoves ? (
+    <div className="flex shrink-0 gap-1">
+      <IconButton
+        icon={ArrowUp}
+        label={`Move ${label} up`}
+        disabled={locked || index === 0}
+        onClick={() => onMove(index - 1)}
+      />
+      <IconButton
+        icon={ArrowDown}
+        label={`Move ${label} down`}
+        disabled={locked || index === count - 1}
+        onClick={() => onMove(index + 1)}
+      />
+    </div>
+  ) : null;
+  return (
+    <li
+      ref={register}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop();
+      }}
+      className="flex items-center gap-3 rounded-xl border border-line-strong bg-paper p-3 text-body text-ink"
+    >
+      <span
+        draggable={!locked}
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/plain", String(index));
+          onDragStart();
+        }}
+        onDragEnd={onDragEnd}
+        className="cursor-grab text-muted"
+      >
+        <DotsSixVertical aria-hidden />
+      </span>
+      <span className="text-caption tabular-nums text-muted">{index + 1}</span>
+      <span className="min-w-0 flex-1">{label}</span>
+      {moves}
+    </li>
+  );
+}
 
 export function ReorderStep({ items, ...props }: ReorderStepProps) {
   const [order, setOrder] = useState<number[]>(() =>
@@ -194,6 +299,7 @@ export function ReorderStep({ items, ...props }: ReorderStepProps) {
     moved.current = undefined;
   }, [order]);
   const locked = props.pending || props.answered !== undefined;
+  const unanswered = props.answered === undefined;
   function move(from: number, to: number) {
     if (locked || to < 0 || to >= order.length || from === to) return;
     moved.current = order[from];
@@ -202,6 +308,27 @@ export function ReorderStep({ items, ...props }: ReorderStepProps) {
     setOrder(next);
     setAnnouncement(`${items[order[from]!]} moved to position ${to + 1}`);
   }
+  const rowList = order.map((item, index) => (
+    <ReorderRow
+      key={item}
+      index={index}
+      count={order.length}
+      label={items[item]!}
+      locked={locked}
+      showMoves={unanswered}
+      register={(node) => {
+        if (node) rows.current.set(item, node);
+        else rows.current.delete(item);
+      }}
+      onDragStart={() => setDragging(index)}
+      onDragEnd={() => setDragging(undefined)}
+      onDrop={() => {
+        if (dragging !== undefined) move(dragging, index);
+        setDragging(undefined);
+      }}
+      onMove={(to) => move(index, to)}
+    />
+  ));
   return (
     <form
       className={form()}
@@ -216,65 +343,16 @@ export function ReorderStep({ items, ...props }: ReorderStepProps) {
       <p role="status" className="sr-only">
         {announcement}
       </p>
-      <ol className="flex flex-col gap-3">
-        {order.map((item, index) => (
-          <li
-            key={item}
-            ref={(node) => {
-              if (node) rows.current.set(item, node);
-              else rows.current.delete(item);
-            }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (dragging !== undefined) move(dragging, index);
-              setDragging(undefined);
-            }}
-            className="flex items-center gap-3 rounded-xl border border-line-strong bg-paper p-3 text-body text-ink"
-          >
-            <span
-              draggable={!locked}
-              onDragStart={(e) => {
-                e.dataTransfer.setData("text/plain", String(index));
-                setDragging(index);
-              }}
-              onDragEnd={() => setDragging(undefined)}
-              className="cursor-grab text-muted"
-            >
-              <DotsSixVertical aria-hidden />
-            </span>
-            <span className="text-caption tabular-nums text-muted">{index + 1}</span>
-            <span className="min-w-0 flex-1">{items[item]}</span>
-            {props.answered === undefined && (
-              <div className="flex shrink-0 gap-1">
-                <IconButton
-                  icon={ArrowUp}
-                  label={`Move ${items[item]} up`}
-                  disabled={locked || index === 0}
-                  onClick={() => move(index, index - 1)}
-                />
-                <IconButton
-                  icon={ArrowDown}
-                  label={`Move ${items[item]} down`}
-                  disabled={locked || index === order.length - 1}
-                  onClick={() => move(index, index + 1)}
-                />
-              </div>
-            )}
-          </li>
-        ))}
-      </ol>
-      {props.answered === undefined && <SendButton pending={props.pending} answer={JSON.stringify(order)} />}
+      <ol className="flex flex-col gap-3">{rowList}</ol>
+      {unanswered && <SendButton pending={props.pending} answer={JSON.stringify(order)} />}
     </form>
   );
 }
 
 export type AnswerBoxProps = Answerable & {
-  /** @default "Your answer" */
   label?: string;
 };
 
-/** A written answer and its send button. Steps use it, and so can any Step answered in text. */
 export function AnswerBox({ label = "Your answer", ...props }: AnswerBoxProps) {
   const { answer, setAnswer, submit } = useAnswer(props);
   if (props.answered !== undefined) return <Text>{props.answered}</Text>;
@@ -287,11 +365,9 @@ export function AnswerBox({ label = "Your answer", ...props }: AnswerBoxProps) {
 }
 
 export type RewriteStepProps = Answerable & {
-  /** The sentence to improve. */
   sentence: string;
 };
 
-/** A rewrite Step: the original sentence quoted, then the Learner's version. Its aim is the StepHeader question. */
 export function RewriteStep({ sentence, onAnswer, pending, answered }: RewriteStepProps) {
   return (
     <div className={stack()}>
@@ -306,16 +382,17 @@ const word = cva("flex flex-col items-start gap-2");
 export type VocabCardStepProps = Answerable & {
   word: string;
   meaning: string;
-  /** An example sentence using the word. */
   example: string;
-  /** Plays the word's Reference Pronunciation. Without it there's no "Hear it" button. */
   onHearIt?: () => void;
-  /** Lets the Learner record their sentence instead of typing it. */
   voice?: VoiceProps;
 };
 
-/** A vocabCard Step: the word on a card with its meaning and an example, then the Learner's own sentence. */
 export function VocabCardStep({ word: w, meaning, example, onHearIt, voice, ...answer }: VocabCardStepProps) {
+  const reply = voice ? (
+    <VoiceAnswer label="Your sentence" prefer="text" {...voice} {...answer} />
+  ) : (
+    <AnswerBox label="Your sentence" {...answer} />
+  );
   return (
     <div className={stack()}>
       <Card>
@@ -328,11 +405,7 @@ export function VocabCardStep({ word: w, meaning, example, onHearIt, voice, ...a
           <Text tone="muted">{example}</Text>
         </div>
       </Card>
-      {voice ? (
-        <VoiceAnswer label="Your sentence" prefer="text" {...voice} {...answer} />
-      ) : (
-        <AnswerBox label="Your sentence" {...answer} />
-      )}
+      {reply}
     </div>
   );
 }
@@ -349,17 +422,31 @@ const sentenceText = cva("text-title text-ink");
 const gap = cva("inline-block min-w-14 rounded-lg border-b-2 border-muted bg-subtle px-2 text-center text-ink");
 
 export type FillGapStepProps = Answerable & {
-  /** The sentence, with the gap written as ___. */
   sentence: string;
-  /** Large chips to pick from. Without them the Learner types the missing words. */
   choices?: string[];
 };
 
-/** A fillGap Step: the sentence with the gap as a slot that shows the Learner's answer. It never shows the answer key. */
 export function FillGapStep({ sentence, choices, ...props }: FillGapStepProps) {
   const { answer, setAnswer, submit } = useAnswer(props);
   const [before, after = ""] = sentence.split(/_{2,}/, 2);
   const filled = (props.answered ?? answer).trim();
+  const entry = choices?.length ? (
+    <ChoiceChips
+      label="Pick the missing words"
+      options={choices.map((c) => ({ value: c, label: c }))}
+      value={answer || null}
+      onValueChange={setAnswer}
+    />
+  ) : (
+    <TextField label="Your answer" value={answer} onValueChange={setAnswer} maxLength={2000} autoComplete="off" />
+  );
+  const answering =
+    props.answered === undefined ? (
+      <>
+        {entry}
+        <SendButton pending={props.pending} answer={answer} />
+      </>
+    ) : null;
   return (
     <form className={form()} onSubmit={submit}>
       <p className={sentenceText()}>
@@ -367,33 +454,13 @@ export function FillGapStep({ sentence, choices, ...props }: FillGapStepProps) {
         <mark className={gap()}>{filled || <span className="sr-only">blank</span>}</mark>
         {after}
       </p>
-      {props.answered === undefined && (
-        <>
-          {choices?.length ? (
-            <ChoiceChips
-              label="Pick the missing words"
-              options={choices.map((c) => ({ value: c, label: c }))}
-              value={answer || null}
-              onValueChange={setAnswer}
-            />
-          ) : (
-            <TextField
-              label="Your answer"
-              value={answer}
-              onValueChange={setAnswer}
-              maxLength={2000}
-              autoComplete="off"
-            />
-          )}
-          <SendButton pending={props.pending} answer={answer} />
-        </>
-      )}
+      {answering}
     </form>
   );
 }
 
 const panel = cva(
-  "sticky bottom-0 z-sticky mt-auto flex flex-col items-stretch gap-5 rounded-2xl border border-line p-6 text-ink shadow-card",
+  "sticky bottom-0 z-sticky mt-auto flex flex-col items-stretch gap-5 rounded-2xl border border-line p-6 text-ink shadow-card transition duration-ui ease-press starting:opacity-0 motion-safe:starting:translate-y-2",
   {
     variants: {
       verdict: { correct: "bg-correct-tint", almost: "bg-almost-tint", incorrect: "bg-incorrect-tint" },
@@ -405,21 +472,15 @@ const actions = cva("flex flex-wrap gap-3 [&>button:last-child]:flex-1");
 
 export type StepFeedbackProps = {
   verdict: VerdictTagProps["verdict"];
-  /** The Learner's answer, to compare with the corrected version. */
   answer?: string;
-  /** The answer was recorded, so it's quoted as what the Learner said. */
   spoken?: boolean;
   corrected: string;
-  /** One sentence on why. Left out when empty. */
   explanation: string;
   onNext: () => void;
-  /** @default "Next step" */
   nextLabel?: string;
-  /** Plays the corrected version's Reference Pronunciation. Without it there's no "Hear it" button. */
   onHearIt?: () => void;
 };
 
-/** The feedback on an answered Step: the verdict as a word on its tint, the corrected version and why. */
 export function StepFeedback({
   verdict,
   answer,
@@ -444,24 +505,18 @@ export function StepFeedback({
   );
 }
 
-/** Where a recorded answer is. The app's recorder reports it; the component only shows it. */
 export type RecordingState =
   | { status: "idle" }
   | { status: "recording"; seconds: number; level: number }
   | { status: "processing" }
-  /** The transcript is back. */
   | { status: "done"; text: string }
-  /** `failed`: the upload or transcription failed, and can be retried. `silent`: nothing could be heard. */
   | { status: "failed"; reason: "failed" | "silent" }
-  /** The Learner answers in text: today's recorded minutes are used up, or there's no microphone to use. */
   | { status: "unavailable"; reason: "capped" | "denied" | "no-microphone" | "unsupported" };
 
-/** A recorder, as a Step takes it. */
 export type VoiceProps = {
   recording: RecordingState;
   onStart: () => void;
   onStop: () => void;
-  /** Sends the last recording again, after it `failed`. */
   onRetry: () => void;
 };
 
@@ -487,20 +542,52 @@ const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.fl
 
 export type VoiceAnswerProps = Answerable &
   VoiceProps & {
-    /** The answer box's label, when the Learner types instead. @default "Your answer" */
     label?: string;
-    /** Start with the answer box rather than the record button. @default "voice" */
     prefer?: "voice" | "text";
-    /** Shown above the record button, for example the target length. */
     hint?: ReactNode;
-    /** The length to aim for, shown against the time so far while recording. */
     targetSeconds?: number;
   };
 
-/**
- * An answer the Learner records, with "Type instead". At the recorded-minutes cap, or without a usable
- * microphone, it explains why and switches to text.
- */
+function RecordingFailed({ reason, onRetry }: { reason: "failed" | "silent"; onRetry: () => void }) {
+  const message =
+    reason === "silent" ? (
+      "We couldn't hear anything in that recording. Check your microphone and record again."
+    ) : (
+      <span className={problem()}>
+        Your recording couldn't be turned into text.
+        <Button variant="secondary" onClick={onRetry}>
+          Try again
+        </Button>
+      </span>
+    );
+  return <Notice tone="error">{message}</Notice>;
+}
+
+function RecordingLive({
+  seconds,
+  level: micLevel,
+  targetSeconds,
+}: {
+  seconds: number;
+  level: number;
+  targetSeconds?: number;
+}) {
+  const time = targetSeconds ? `${clock(seconds)} / ${clock(targetSeconds)}` : clock(seconds);
+  return (
+    <div className={live()}>
+      <p role="status" className={liveLabel()}>
+        Recording
+      </p>
+      <span className={timer()}>{time}</span>
+      <Meter.Root value={Math.round(micLevel * 100)} aria-label="Microphone level" className={level()}>
+        <Meter.Track className={levelTrack()}>
+          <Meter.Indicator className={levelBar()} />
+        </Meter.Track>
+      </Meter.Root>
+    </div>
+  );
+}
+
 export function VoiceAnswer({
   recording,
   onStart,
@@ -544,51 +631,29 @@ export function VoiceAnswer({
     );
 
   const state = recording.status === "recording" || recording.status === "processing" ? recording.status : "idle";
+  const idle = state === "idle";
+  const failure =
+    recording.status === "failed" ? <RecordingFailed reason={recording.reason} onRetry={onRetry} /> : null;
+  const liveBar =
+    recording.status === "recording" ? (
+      <RecordingLive seconds={recording.seconds} level={recording.level} targetSeconds={targetSeconds} />
+    ) : null;
   return (
     <div className={recorder()}>
-      {recording.status === "failed" && (
-        <Notice tone="error">
-          {recording.reason === "silent" ? (
-            "We couldn't hear anything in that recording. Check your microphone and record again."
-          ) : (
-            <span className={problem()}>
-              Your recording couldn't be turned into text.
-              <Button variant="secondary" onClick={onRetry}>
-                Try again
-              </Button>
-            </span>
-          )}
-        </Notice>
-      )}
-      {state === "idle" && hint}
+      {failure}
+      {idle && hint}
       <RecordButton state={state} onStart={onStart} onStop={onStop} />
-      {recording.status === "recording" && (
-        <div className={live()}>
-          <p role="status" className={liveLabel()}>
-            Recording
-          </p>
-          <span className={timer()}>
-            {targetSeconds ? `${clock(recording.seconds)} / ${clock(targetSeconds)}` : clock(recording.seconds)}
-          </span>
-          <Meter.Root value={Math.round(recording.level * 100)} aria-label="Microphone level" className={level()}>
-            <Meter.Track className={levelTrack()}>
-              <Meter.Indicator className={levelBar()} />
-            </Meter.Track>
-          </Meter.Root>
-        </div>
-      )}
+      {liveBar}
       {recording.status === "processing" && <p role="status">Turning your answer into text</p>}
-      {state === "idle" && <TextLink onClick={() => setTyping(true)}>Type instead</TextLink>}
+      {idle && <TextLink onClick={() => setTyping(true)}>Type instead</TextLink>}
     </div>
   );
 }
 
 export type SpeakPromptStepProps = Omit<VoiceAnswerProps, "hint" | "prefer" | "targetSeconds"> & {
-  /** How long to aim for. */
   targetSeconds: number;
 };
 
-/** A speakPrompt Step: the Learner records a long answer to the StepHeader question, or types instead. */
 export function SpeakPromptStep({ targetSeconds, ...props }: SpeakPromptStepProps) {
   return (
     <VoiceAnswer
@@ -608,16 +673,15 @@ const turn = cva("max-w-prose whitespace-pre-wrap text-body text-ink", {
   },
 });
 
+const caret = cva("ml-0.5 inline-block h-5 w-0.5 translate-y-1 rounded-full bg-primary motion-safe:animate-blink");
+
 export type ChatTurnProps = {
   from: "coach" | "learner";
-  /** Who is speaking, for screen readers: the character in a Roleplay, for example "Interviewer". @default "Coach" or "You" */
   name?: string;
-  /** The reply is still streaming: show the typing caret after the text. */
   streaming?: boolean;
   children: ReactNode;
 };
 
-/** One line of a written conversation with the coach. Place turns in a ChatThread; the Learner's sit on the right. */
 export function ChatTurn({
   from,
   name = from === "coach" ? "Coach" : "You",
@@ -628,12 +692,7 @@ export function ChatTurn({
     <p className={turn({ from })} aria-busy={streaming || undefined}>
       <span className="sr-only">{`${name}: `}</span>
       {children}
-      {streaming && (
-        <span
-          aria-hidden
-          className="ml-0.5 inline-block h-5 w-0.5 translate-y-1 rounded-full bg-primary motion-safe:animate-blink"
-        />
-      )}
+      {streaming && <span aria-hidden className={caret()} />}
     </p>
   );
 }

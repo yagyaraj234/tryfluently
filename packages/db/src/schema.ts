@@ -10,6 +10,7 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 const bytea = customType<{ data: Uint8Array }>({ dataType: () => "bytea" });
@@ -123,15 +124,18 @@ export const assessment = pgTable("assessment", {
   emailedAt: timestamp(),
 });
 
-// Durable follow-up work committed with an Assessment's Report.
+// Durable background work: follow-ups committed with an Assessment's Report, and Lesson generation.
+// Assessment jobs set assessmentId; `lesson` jobs set lessonId.
 export const assessmentJob = pgTable(
   "assessment_job",
   {
-    assessmentId: text()
-      .notNull()
-      .references(() => assessment.id, { onDelete: "cascade" }),
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    assessmentId: text().references(() => assessment.id, { onDelete: "cascade" }),
+    lessonId: text().references(() => lesson.id, { onDelete: "cascade" }),
     userId: learner(),
-    kind: text().$type<"report_email" | "practice">().notNull(),
+    kind: text().$type<"report_email" | "practice" | "lesson" | "lesson_analysis">().notNull(),
     status: text().$type<"pending" | "running" | "done" | "failed">().notNull().default("pending"),
     attempts: integer().notNull().default(0),
     availableAt: timestamp().notNull().defaultNow(),
@@ -139,7 +143,8 @@ export const assessmentJob = pgTable(
     token: text(),
   },
   (t) => [
-    primaryKey({ columns: [t.assessmentId, t.kind] }),
+    uniqueIndex("assessment_job_assessment_kind_idx").on(t.assessmentId, t.kind),
+    uniqueIndex("assessment_job_lesson_kind_idx").on(t.lessonId, t.kind),
     index("assessment_job_status_available_idx").on(t.status, t.availableAt),
   ],
 );
@@ -186,7 +191,17 @@ export const unit = pgTable("unit", {
   objective: text().notNull(),
   skills: jsonb().$type<Skill[]>().notNull(),
   lessonOutline: jsonb()
-    .$type<{ title: string; objective: string; skill: Skill; kind: "practice" | "roleplay"; position: number }[]>()
+    .$type<
+      {
+        title: string;
+        objective: string;
+        skill: Skill;
+        kind: "practice" | "roleplay";
+        position: number;
+        estimatedMinutes?: number;
+        pageCount?: number;
+      }[]
+    >()
     .notNull()
     .default([]),
   endsWithRoleplay: boolean().notNull().default(false),
@@ -196,7 +211,15 @@ export const unit = pgTable("unit", {
 
 export const lessonKind = pgEnum("lesson_kind", ["practice", "roleplay"]);
 export const lessonStatus = pgEnum("lesson_status", ["in_progress", "completed", "abandoned"]);
-export const roleplayKind = pgEnum("roleplay_kind", ["mock_interview", "client_call"]);
+export const roleplayKind = pgEnum("roleplay_kind", [
+  "mock_interview",
+  "client_call",
+  "presentation",
+  "team_meeting",
+  "phone_call",
+  "small_talk",
+  "custom",
+]);
 export const tone = pgEnum("tone", ["friendly", "standard", "tough"]);
 
 export const lesson = pgTable("lesson", {
@@ -208,6 +231,8 @@ export const lesson = pgTable("lesson", {
   title: text().notNull(),
   objective: text().notNull(),
   roleplayKind: roleplayKind(),
+  // The Learner's own situation for a custom Roleplay.
+  roleplayScenario: text(),
   tone: tone(),
   status: lessonStatus().notNull().default("in_progress"),
   objectiveProgress: integer(),
@@ -222,6 +247,11 @@ export const lesson = pgTable("lesson", {
   material: jsonb().$type<{ title: string; body: string; example: string | null }[]>(),
   phase: text().$type<"learning" | "assessment">(),
   report: jsonb().$type<Record<string, unknown>>(),
+  // 1 = Lessons prepared before paged Lessons (material + Steps). 2 = Pages generated when the Learner presses Start.
+  contentVersion: integer().notNull().default(1),
+  currentPage: integer().notNull().default(0),
+  // Paged Lessons only: status of each Page and of its question slot, in Page order.
+  pageStatus: jsonb().$type<{ page: "pending" | "ready" | "failed"; question: "pending" | "ready" | "failed" }[]>(),
   startedAt: timestamp(),
   completedAt: timestamp(),
 });
@@ -234,6 +264,8 @@ export const stepType = pgEnum("step_type", [
   "roleplayTurn",
   "fillGaps",
   "reorder",
+  "multipleChoice",
+  "matchPairs",
 ]);
 export const stepMode = pgEnum("step_mode", ["voice", "text"]);
 

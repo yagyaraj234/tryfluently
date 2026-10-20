@@ -4,7 +4,6 @@ import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate } from "./ai";
-import { prepareNext } from "./preparation";
 import type { AppEnv, Deps } from "./app";
 import { skillProfile, skills } from "./scoring";
 
@@ -15,6 +14,8 @@ const outlineItem = z.object({
   objective: z.string().min(1).max(300),
   skill: z.enum(skills),
   kind: z.enum(["practice", "roleplay"]),
+  estimatedMinutes: z.number().int().min(3).max(10),
+  pageCount: z.number().int().min(4).max(6),
 });
 const outline = z.array(outlineItem).min(3).max(6);
 const validOutline = (items: z.infer<typeof outline>, roleplay: boolean) =>
@@ -46,7 +47,8 @@ const outlineInstructions = `Give each Unit 3–5 distinct practice Lesson outli
 Vary the focus to fit the Unit and Learner: useful vocabulary, clearing up a misconception, rewriting, explaining an idea,
 or speaking confidently. Do not repeat generic titles or the same sequence in every Unit.
 Use kind practice, with skill grammar, vocabulary or fluency. If endsWithRoleplay, append exactly one final kind roleplay
-outline with a specific conversation title; otherwise include no roleplay. These are editable outlines, not generated Steps.`;
+outline with a specific conversation title; otherwise include no roleplay. Each Lesson is a short 3–10 minute sitting: give every outline an estimatedMinutes (3–10) and a pageCount (4–6 Pages,
+about 1 minute each plus a recap). These are editable outlines, not generated Steps.`;
 
 function positionedOutline(items: z.infer<typeof outline>, start = 0) {
   return items.map((item) => ({ ...item, position: start++ }));
@@ -142,7 +144,6 @@ export async function buildRoadmap(ctx: Ctx, userId: string) {
       })),
     );
   });
-  await prepareNext(ctx, userId);
   return "built" as const;
 }
 
@@ -169,7 +170,6 @@ export async function finishUnit(ctx: Ctx, id: string, status: "mastered" | "ski
     if (next) await tx.update(unit).set({ status: "active" }).where(eq(unit.id, next.id));
     return true;
   });
-  if (changed) await prepareNext(ctx, owner.userId);
 }
 
 export const roadmap = (deps: Deps) =>
@@ -237,7 +237,6 @@ export const roadmap = (deps: Deps) =>
             .where(and(eq(unit.id, plan.id), eq(unit.userId, userId), sql`${unit.lessonOutline} = '[]'::jsonb`));
         }
       });
-      await prepareNext(deps, userId);
       return c.json({ status: "ready" });
     })
     // Every Unit in order, each with its Lessons (without their chat), so Home, the Roadmap and a Unit share one call.
@@ -254,6 +253,7 @@ export const roadmap = (deps: Deps) =>
             title: lesson.title,
             status: lesson.status,
             preparation: lesson.preparation,
+            contentVersion: lesson.contentVersion,
             startedAt: lesson.startedAt,
             objectiveProgress: lesson.objectiveProgress,
           })

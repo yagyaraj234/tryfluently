@@ -8,8 +8,6 @@ import { Notice } from "./Notice";
 import { skillNames, type Skill } from "./SkillBar";
 import { Text } from "./Text";
 
-// The Debrief after a Roleplay. Props use the API's Debrief names, so apps pass it straight through.
-
 const column = cva("flex flex-col gap-8");
 const group = cva("flex flex-col gap-4");
 const inCard = cva("flex flex-col gap-3");
@@ -23,7 +21,6 @@ const actionRow = cva("flex flex-wrap gap-3");
 
 export type DebriefQuestion = {
   question: string;
-  /** What the Learner said. */
   quote: string;
   strongerPhrasing: string;
   languageIssues: string[];
@@ -32,18 +29,91 @@ export type DebriefQuestion = {
 export type DebriefProps = {
   textMode?: boolean;
   overallImpression: string;
-  /** One per main question, its follow-ups included. */
   questions: DebriefQuestion[];
   phrasesToLearn: string[];
-  /** Only the skills this Roleplay measured. `from` is null for a skill's first score. */
-  skillChanges: Partial<Record<Skill, { from: number | null; to: number }>>;
-  /** Plays a phrase's Reference Pronunciation. Without it there's no Hear it button. */
+  skillChanges: Partial<Record<Skill, SkillChange>>;
   onHear?: (phrase: string) => void;
-  /** What to do next, for example Buttons for the next Lesson and Home. */
   actions?: ReactNode;
 };
 
-/** The feedback at the end of a Roleplay: the overall impression, each question, phrases to learn and skill changes. */
+type SkillChange = { from: number | null; to: number };
+
+function QuestionCard({ q }: { q: DebriefQuestion }) {
+  const issues =
+    q.languageIssues.length > 0 ? (
+      <ul aria-label="Language issues" className={bullets()}>
+        {q.languageIssues.map((issue) => (
+          <li key={issue}>{issue}</li>
+        ))}
+      </ul>
+    ) : null;
+  return (
+    <Card render={<section />}>
+      <div className={inCard()}>
+        <Heading level={3}>{q.question}</Heading>
+        <Text size="label" tone="muted">
+          You said
+        </Text>
+        <blockquote className={quote()}>{q.quote}</blockquote>
+        <Text size="label" tone="muted">
+          Stronger
+        </Text>
+        <p className={stronger()}>{q.strongerPhrasing}</p>
+        {issues}
+      </div>
+    </Card>
+  );
+}
+
+function PhrasesCard({ phrases, onHear }: { phrases: string[]; onHear?: (phrase: string) => void }) {
+  const items = phrases.map((phrase) => {
+    const hear = onHear ? (
+      <Button variant="secondary" icon={SpeakerHigh} onClick={() => onHear(phrase)}>
+        Hear it
+      </Button>
+    ) : null;
+    return (
+      <li key={phrase} className={row()}>
+        <strong>{phrase}</strong>
+        {hear}
+      </li>
+    );
+  });
+  return (
+    <Card>
+      <div className={group()}>
+        <Heading level={2} size="title">
+          Phrases to learn
+        </Heading>
+        <ul aria-label="Phrases to learn" className={rows()}>
+          {items}
+        </ul>
+      </div>
+    </Card>
+  );
+}
+
+function SkillChangesCard({ changes }: { changes: [Skill, SkillChange][] }) {
+  if (changes.length === 0) return null;
+  return (
+    <Card>
+      <div className={group()}>
+        <Heading level={2} size="title">
+          Your skills
+        </Heading>
+        <ul aria-label="Skill changes" className={rows()}>
+          {changes.map(([skill, { from, to }]) => (
+            <li key={skill} className={row()}>
+              <span>{skillNames[skill]}</span>
+              <span className={score()}>{`${from ?? "New"} → ${to}`}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Card>
+  );
+}
+
 export function Debrief({
   textMode,
   overallImpression,
@@ -53,7 +123,7 @@ export function Debrief({
   onHear,
   actions,
 }: DebriefProps) {
-  const changes = Object.entries(skillChanges) as [Skill, { from: number | null; to: number }][];
+  const changes = Object.entries(skillChanges) as [Skill, SkillChange][];
   return (
     <div className={column()}>
       <div className={group()}>
@@ -65,67 +135,12 @@ export function Debrief({
       <div className={group()}>
         <Heading level={2}>Question by question</Heading>
         {questions.map((q) => (
-          <Card key={q.question} render={<section />}>
-            <div className={inCard()}>
-              <Heading level={3}>{q.question}</Heading>
-              <Text size="label" tone="muted">
-                You said
-              </Text>
-              <blockquote className={quote()}>{q.quote}</blockquote>
-              <Text size="label" tone="muted">
-                Stronger
-              </Text>
-              <p className={stronger()}>{q.strongerPhrasing}</p>
-              {q.languageIssues.length > 0 && (
-                <ul aria-label="Language issues" className={bullets()}>
-                  {q.languageIssues.map((issue) => (
-                    <li key={issue}>{issue}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </Card>
+          <QuestionCard key={q.question} q={q} />
         ))}
       </div>
 
-      <Card>
-        <div className={group()}>
-          <Heading level={2} size="title">
-            Phrases to learn
-          </Heading>
-          <ul aria-label="Phrases to learn" className={rows()}>
-            {phrasesToLearn.map((phrase) => (
-              <li key={phrase} className={row()}>
-                <strong>{phrase}</strong>
-                {onHear && (
-                  <Button variant="secondary" icon={SpeakerHigh} onClick={() => onHear(phrase)}>
-                    Hear it
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Card>
-
-      {changes.length > 0 && (
-        <Card>
-          <div className={group()}>
-            <Heading level={2} size="title">
-              Your skills
-            </Heading>
-            <ul aria-label="Skill changes" className={rows()}>
-              {changes.map(([skill, { from, to }]) => (
-                <li key={skill} className={row()}>
-                  <span>{skillNames[skill]}</span>
-                  <span className={score()}>{`${from ?? "New"} → ${to}`}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Card>
-      )}
-
+      <PhrasesCard phrases={phrasesToLearn} onHear={onHear} />
+      <SkillChangesCard changes={changes} />
       {actions && <div className={actionRow()}>{actions}</div>}
     </div>
   );

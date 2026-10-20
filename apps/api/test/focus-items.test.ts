@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { schema } from "@impromptu/db";
+import { eq } from "drizzle-orm";
+import { testDb } from "./setup";
 import { answerStep, fillGap, learnerWithLegacyRoadmap as learnerWithRoadmap, lessonPlan } from "./fixtures";
 import { get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, type TestApp, type Turn } from "./helpers";
 
@@ -131,4 +134,29 @@ describe("focus items in lessons", () => {
     expect(instructions(4)).not.toContain("Past simple vs present perfect");
     expect(instructions(4)).toContain(other.id);
   });
+});
+
+test("repeated Lesson weaknesses retain one open Focus Item and its earned hits", async () => {
+  const turns: Turn[] = [
+    [fillGap()],
+    [usedCorrectly([]), fillGap()],
+    [usedCorrectly([]), fillGap()],
+    [usedCorrectly([]), { tool: "endLesson", input: {} }],
+  ];
+  const reply = judgeReply([{ label: "Third person -s", kind: "grammar" }]);
+  const { app, clock, step } = appWith([...turns, ...turns], [reply, reply]);
+  step.doGenerate = mockModel(lessonPlan(), lessonPlan()).doGenerate;
+  const { cookie } = await learnerWithRoadmap(clock);
+  let firstId: string | undefined;
+  for (let n = 0; n < 2; n++) {
+    const lesson = await startLesson(app, cookie);
+    for (let i = 0; i < 3; i++) await answerStep(app, cookie, lesson.id, { answer: "goes" });
+    if (n === 0) {
+      firstId = (await focusOf(app, cookie)).find((item) => item.label === "Third person -s").id;
+      await testDb.update(schema.focusItem).set({ hits: 2 }).where(eq(schema.focusItem.id, firstId!));
+    }
+  }
+  expect((await focusOf(app, cookie)).filter((item) => item.label === "Third person -s")).toEqual([
+    expect.objectContaining({ id: firstId, hits: 2 }),
+  ]);
 });

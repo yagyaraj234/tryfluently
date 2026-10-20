@@ -192,7 +192,7 @@ test("Home's stat tiles count the Lessons done across the Roadmap and the Units 
 
 test("Home offers to start the next Lesson when none is in progress", async () => {
   const html = await page("/home", "fresh");
-  assert.ok(buttons(html).some((b) => /Start your next Lesson/.test(b)));
+  assert.match(text(linkTo(html, "/roadmap")), /Start your next Lesson/);
   assert.equal(linkTo(html, '/lessons/[^"]+'), undefined);
 });
 
@@ -241,7 +241,7 @@ test("a Unit shows its objective, skills, past Lessons with their objective prog
 
 test("the active Unit resumes its Lesson in progress, or starts its next one; other Units offer neither", async () => {
   assert.match(text(linkTo(await page("/roadmap/3"), "/lessons/l3")), /Resume/);
-  assert.ok(buttons(await page("/roadmap/1", "fresh")).some((b) => /Start your next Lesson/.test(b)));
+  assert.match(text(await page("/roadmap/1", "fresh")), /Start your next Lesson/);
   const planned = await page("/roadmap/4");
   assert.doesNotMatch(text(planned), /Resume|Start your next Lesson/);
 });
@@ -274,5 +274,20 @@ test("Home waits for current Lesson preparation and offers recovery after its le
   assert.match(preparing, /Preparing your Lesson/);
   assert.ok(!buttons(preparing).some((label) => /Start your next Lesson/.test(label)));
   const expired = await page("/home", "expiredCurrent");
-  assert.ok(buttons(expired).some((label) => /Start your next Lesson/.test(label)));
+  assert.match(text(linkTo(expired, "/roadmap")), /Start your next Lesson/);
+});
+
+test("polling a paged Lesson stops once every Page is ready or failed, or the Lesson failed", async () => {
+  const { pagesSettled } = await web.loadModule("/src/lib/lessons.ts");
+  const pages = (...status) => ({ preparation: "preparing", pages: status.map((s) => ({ status: s })) });
+  assert.equal(pagesSettled(undefined), false);
+  assert.equal(pagesSettled(pages("ready", "pending")), false);
+  assert.equal(pagesSettled(pages("ready", "ready")), true);
+  assert.equal(pagesSettled(pages("ready", "failed")), true);
+  assert.equal(pagesSettled({ ...pages("pending"), preparation: "failed" }), true);
+});
+
+test("Home puts learning before the supporting progress summary in reading order", async () => {
+  const html = await page("/home");
+  assert.ok(html.indexOf("Continue learning") < html.indexOf('aria-label="Your profile"'));
 });

@@ -100,6 +100,22 @@ describe("text-mode Roleplay", () => {
     expect(realtimeRows).toEqual([]);
   });
 
+  test("a custom Roleplay uses the Learner's own situation in the character prompt", async () => {
+    const step = mockChat("Hi, what's wrong with the heating?");
+    const app = makeApp({ models: { step } });
+    const { cookie } = await learnerWithRoadmap();
+    const scenario = "I need to ask my landlord to fix the heating and they keep delaying.";
+    const roleplay = await startRoleplay(app, cookie, { textMode: true, scenario });
+    expect(roleplay).toMatchObject({ roleplayKind: "custom", roleplayScenario: scenario });
+
+    const first = await chat(app, cookie, roleplay.id, "Hi, the heating has been broken for a week.");
+    expect(first.res.status).toBe(200);
+
+    const prompt = JSON.stringify(step.doStreamCalls[0]!.prompt);
+    expect(prompt).toContain("landlord");
+    expect(prompt).toContain("other person in this situation the Learner described");
+  });
+
   test("a text-mode Roleplay moves grammar and vocabulary but never fluency", async () => {
     const clock = makeClock();
     const app = makeApp({

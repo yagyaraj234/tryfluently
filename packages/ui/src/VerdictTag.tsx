@@ -16,7 +16,6 @@ export type VerdictTagProps = {
   verdict: keyof typeof verdictWords;
 };
 
-/** The verdict as a coloured word, so it never relies on colour alone. */
 export function VerdictTag({ verdict }: VerdictTagProps) {
   return <span className={verdictTag({ verdict })}>{verdictWords[verdict]}</span>;
 }

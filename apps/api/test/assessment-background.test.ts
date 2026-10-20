@@ -47,7 +47,7 @@ test("Assessment /end returns its saved Report without waiting for email deliver
 import { schema } from "@impromptu/db";
 import type { Mailer } from "../src/app";
 import { and, eq } from "drizzle-orm";
-import { preparedContent, unitsReply } from "./fixtures";
+import { legacyOutlines, preparedContent, unitsReply } from "./fixtures";
 import { testDb } from "./setup";
 
 async function complete({
@@ -75,7 +75,7 @@ async function complete({
 const status = async (app: ReturnType<typeof makeApp>, cookie: string) =>
   (await (await app.request("/api/assessments/preparation", get(cookie))).json()) as any;
 
-test("Report returns with pending durable jobs; worker prepares Lesson and repeated /end returns the same Report", async () => {
+test("Report returns with pending durable jobs; worker builds the Roadmap without preparing a Lesson and repeated /end returns the same Report", async () => {
   const { app, cookie, userId, id, models } = await complete();
   expect(await status(app, cookie)).toEqual({ status: "pending", lesson: null });
   expect(models.roadmap.doGenerateCalls).toHaveLength(0);
@@ -85,12 +85,11 @@ test("Report returns with pending durable jobs; worker prepares Lesson and repea
   expect(((await repeat.json()) as any).report).toEqual(saved.report);
   expect(models.report.doGenerateCalls).toHaveLength(1);
   await Promise.all([app.runJobs(userId), app.runJobs(userId)]);
-  expect(await status(app, cookie)).toMatchObject({
-    status: "ready",
-    lesson: { kind: "practice", title: "Present simple for routines" },
-  });
+  expect(await status(app, cookie)).toEqual({ status: "ready", lesson: null });
   expect(models.roadmap.doGenerateCalls).toHaveLength(1);
-  expect(models.step.doGenerateCalls).toHaveLength(1);
+  // The Learner starts the first Lesson from the Roadmap; nothing is written ahead.
+  expect(models.step.doGenerateCalls).toHaveLength(0);
+  expect(await testDb.select().from(schema.lesson).where(eq(schema.lesson.userId, userId))).toEqual([]);
   const jobs = await testDb.select().from(schema.assessmentJob).where(eq(schema.assessmentJob.assessmentId, id));
   expect(jobs.map((j) => j.status)).toEqual(["done", "done"]);
 });
@@ -108,20 +107,14 @@ test("pending work survives a new app process and expired running leases are rec
   expect(await status(restarted, cookie)).toMatchObject({ status: "ready" });
 });
 
-test("failed first Lesson retries against existing Units without rebuilding the Roadmap", async () => {
-  const { app, cookie, userId, clock, models } = await complete({
-    step: mockModel({ invalid: true }, preparedContent()),
-  });
-  await testDb
-    .insert(schema.lesson)
-    .values({ userId, position: 0, kind: "roleplay", title: "Standalone conversation", objective: "Speak clearly" });
+test("requeued practice work reuses the existing Units without rebuilding the Roadmap", async () => {
+  const { app, cookie, userId, models } = await complete();
   await app.runJobs(userId);
-  expect(await status(app, cookie)).toMatchObject({ status: "pending" });
-  clock.advance({ seconds: 5 });
+  expect((await app.request("/api/assessments/preparation", json({}, cookie))).status).toBe(202);
   await app.runJobs(userId);
-  expect(await status(app, cookie)).toMatchObject({ status: "ready" });
+  expect(await status(app, cookie)).toEqual({ status: "ready", lesson: null });
   expect(models.roadmap.doGenerateCalls).toHaveLength(1);
-  expect(models.step.doGenerateCalls).toHaveLength(2);
+  expect(models.step.doGenerateCalls).toHaveLength(0);
 });
 
 test("three failures expose a terminal failure; explicit retry requeues practice and preserves Report", async () => {
@@ -206,7 +199,8 @@ test("interrupted email jobs retry the same provider idempotency key", async () 
 test("Lesson preparation after the initial job stays pollable, and an expired preparation can be retried", async () => {
   const { app, cookie, userId, clock } = await complete();
   await app.runJobs(userId);
-  const ready = await status(app, cookie);
+  await legacyOutlines(userId);
+  const ready = { lesson: (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any };
   await testDb
     .update(schema.lesson)
     .set({ preparation: "preparing", preparationAt: clock(), preparationToken: "interrupted-next-lesson" })
@@ -215,4 +209,20 @@ test("Lesson preparation after the initial job stays pollable, and an expired pr
   clock.advance({ minutes: 3 });
   expect(await status(app, cookie)).toMatchObject({ status: "failed" });
   expect((await app.request("/api/assessments/preparation", json({}, cookie))).status).toBe(202);
+});
+
+test("worker claims a lesson job; existing Lessons stay on the old format", async () => {
+  const { app, userId, clock } = await complete();
+  const [made] = await testDb
+    .insert(schema.lesson)
+    .values({ userId, position: 0, kind: "roleplay", title: "Paged", objective: "Speak clearly" })
+    .returning();
+  expect(made).toMatchObject({ contentVersion: 1, currentPage: 0, pageStatus: null });
+  await testDb
+    .insert(schema.assessmentJob)
+    .values({ lessonId: made!.id, userId, kind: "lesson", availableAt: clock() });
+  await app.runJobs(userId);
+  const [claimed] = await testDb.select().from(schema.assessmentJob).where(eq(schema.assessmentJob.lessonId, made!.id));
+  // An old-format Lesson has nothing to generate, so the claimed job just finishes.
+  expect(claimed).toMatchObject({ kind: "lesson", status: "done", attempts: 1, assessmentId: null });
 });

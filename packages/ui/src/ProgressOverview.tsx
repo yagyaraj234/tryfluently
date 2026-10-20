@@ -18,7 +18,6 @@ const skillColor = cva("", {
   },
 });
 
-/** Full-width rows keep long Focus Item collections from leaving an empty side column. */
 export function ProgressOverview({
   skills,
   focus,
@@ -41,7 +40,6 @@ export function ProgressOverview({
   );
 }
 
-/** A compact check-in row with supporting copy beside its action. */
 export function ProgressCheckIn({ children, action }: { children: ReactNode; action: ReactNode }) {
   return (
     <Card>
@@ -56,14 +54,111 @@ export function ProgressCheckIn({ children, action }: { children: ReactNode; act
 export type SkillProgressCardProps = {
   skill: Skill;
   current: { score: number; level: CefrLevel } | null;
-  /** Newest first, like the history table. */
   entries: readonly ScoreHistoryEntry[];
   unmeasured: string;
 };
 
+function deltaText(delta: number | null) {
+  if (delta === null) return "Your starting point";
+  if (delta === 0) return "No change since first score";
+  return `${delta > 0 ? "+" : ""}${delta} ${Math.abs(delta) === 1 ? "point" : "points"} since first score`;
+}
+
+function ScoreMeter({ name, skill, score, level }: { name: string; skill: Skill; score: number; level: CefrLevel }) {
+  return (
+    <Meter.Root value={score} max={100} aria-label={name} getAriaValueText={() => `${score}, ${level}`}>
+      <div className="mb-4 flex items-end justify-between gap-2">
+        <div className="flex items-baseline gap-1 tabular-nums">
+          <span className="text-hero">{score}</span>
+          <span className="text-caption text-muted">/ 100</span>
+        </div>
+        <Chip tone="soft">{level}</Chip>
+      </div>
+      <Meter.Track className="h-1.5 overflow-hidden rounded-full bg-subtle">
+        <Meter.Indicator className={`h-full rounded-full bg-current ${skillColor({ skill })}`} />
+      </Meter.Track>
+    </Meter.Root>
+  );
+}
+
+function TrendChart({ name, skill, entries }: { name: string; skill: Skill; entries: readonly ScoreHistoryEntry[] }) {
+  const oldestFirst = [...entries].reverse();
+  const scores = oldestFirst.map((entry) => entry.score).join(", ");
+  const points = oldestFirst
+    .map((entry, index) => `${4 + (index * 232) / (entries.length - 1)},${68 - entry.score * 0.64}`)
+    .join(" ");
+  return (
+    <svg
+      viewBox="0 0 240 72"
+      role="img"
+      aria-label={`${name} scores, oldest to newest: ${scores}. Scale 0 to 100.`}
+      className={`h-20 w-full ${skillColor({ skill })}`}
+    >
+      <path d="M 4 68 H 236" stroke="var(--color-line)" fill="none" />
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="236" cy={68 - entries[0]!.score * 0.64} r="3" fill="currentColor" />
+    </svg>
+  );
+}
+
+function TrendSection({ name, skill, entries }: { name: string; skill: Skill; entries: readonly ScoreHistoryEntry[] }) {
+  const delta = entries.length > 1 ? entries[0]!.score - entries.at(-1)!.score : null;
+  const hasTrend = entries.length > 1;
+  const chart = hasTrend ? (
+    <TrendChart name={name} skill={skill} entries={entries} />
+  ) : (
+    <Text size="caption" tone="muted">
+      Keep practising to see your trend.
+    </Text>
+  );
+  return (
+    <div className="border-t border-line pt-4">
+      <Stack gap={2}>
+        <Text size="caption" tone="muted">
+          {deltaText(delta)}
+        </Text>
+        {chart}
+        {hasTrend && (
+          <Text size="caption" tone="muted">
+            {entries.length} measurements · oldest to newest
+          </Text>
+        )}
+      </Stack>
+    </div>
+  );
+}
+
+function HistoryDetails({ name, entries }: { name: string; entries: readonly ScoreHistoryEntry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <details className="min-w-0 border-t border-line pt-3">
+      <summary className="cursor-pointer rounded-lg text-caption font-semibold text-ink">Score history</summary>
+      <div className="overflow-x-auto pt-3">
+        <ScoreHistory label={`${name} history`} entries={entries} />
+      </div>
+    </details>
+  );
+}
+
 export function SkillProgressCard({ skill, current, entries, unmeasured }: SkillProgressCardProps) {
   const name = skillNames[skill];
-  const delta = entries.length > 1 ? entries[0]!.score - entries.at(-1)!.score : null;
+  const body = current ? (
+    <>
+      <ScoreMeter name={name} skill={skill} score={current.score} level={current.level} />
+      <CefrScale label={`${name} CEFR Level`} level={current.level} />
+      <TrendSection name={name} skill={skill} entries={entries} />
+      <HistoryDetails name={name} entries={entries} />
+    </>
+  ) : (
+    <EmptyState title={`No ${name.toLowerCase()} score yet`} description={unmeasured} />
+  );
   return (
     <Card>
       <Stack gap={5}>
@@ -75,85 +170,7 @@ export function SkillProgressCard({ skill, current, entries, unmeasured }: Skill
             {current ? "Measured" : "Not measured"}
           </Text>
         </Cluster>
-        {current ? (
-          <>
-            <Meter.Root
-              value={current.score}
-              max={100}
-              aria-label={name}
-              getAriaValueText={() => `${current.score}, ${current.level}`}
-            >
-              <div className="mb-4 flex items-end justify-between gap-2">
-                <div className="flex items-baseline gap-1 tabular-nums">
-                  <span className="text-hero">{current.score}</span>
-                  <span className="text-caption text-muted">/ 100</span>
-                </div>
-                <Chip tone="soft">{current.level}</Chip>
-              </div>
-              <Meter.Track className="h-1.5 overflow-hidden rounded-full bg-subtle">
-                <Meter.Indicator className={`h-full rounded-full bg-current ${skillColor({ skill })}`} />
-              </Meter.Track>
-            </Meter.Root>
-            <CefrScale label={`${name} CEFR Level`} level={current.level} />
-            <div className="rounded-2xl bg-subtle p-3">
-              <Stack gap={2}>
-                <Text size="caption" tone="muted">
-                  {delta === null
-                    ? "Your starting point"
-                    : delta === 0
-                      ? "No change since first score"
-                      : `${delta > 0 ? "+" : ""}${delta} ${Math.abs(delta) === 1 ? "point" : "points"} since first score`}
-                </Text>
-                {entries.length > 1 ? (
-                  <svg
-                    viewBox="0 0 240 72"
-                    role="img"
-                    aria-label={`${name} scores, oldest to newest: ${[...entries]
-                      .reverse()
-                      .map((entry) => entry.score)
-                      .join(", ")}. Scale 0 to 100.`}
-                    className={`h-20 w-full ${skillColor({ skill })}`}
-                  >
-                    <path d="M 4 68 H 236" stroke="var(--color-line)" fill="none" />
-                    <polyline
-                      points={[...entries]
-                        .reverse()
-                        .map((entry, index) => `${4 + (index * 232) / (entries.length - 1)},${68 - entry.score * 0.64}`)
-                        .join(" ")}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <circle cx="236" cy={68 - entries[0]!.score * 0.64} r="3" fill="currentColor" />
-                  </svg>
-                ) : (
-                  <Text size="caption" tone="muted">
-                    Keep practising to see your trend.
-                  </Text>
-                )}
-                {entries.length > 1 && (
-                  <Text size="caption" tone="muted">
-                    {entries.length} measurements · oldest to newest
-                  </Text>
-                )}
-              </Stack>
-            </div>
-            {entries.length > 0 && (
-              <details className="min-w-0 border-t border-line pt-3">
-                <summary className="cursor-pointer rounded-lg text-caption font-semibold text-ink">
-                  Score history
-                </summary>
-                <div className="overflow-x-auto pt-3">
-                  <ScoreHistory label={`${name} history`} entries={entries} />
-                </div>
-              </details>
-            )}
-          </>
-        ) : (
-          <EmptyState title={`No ${name.toLowerCase()} score yet`} description={unmeasured} />
-        )}
+        {body}
       </Stack>
     </Card>
   );

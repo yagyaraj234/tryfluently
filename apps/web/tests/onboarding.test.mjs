@@ -30,6 +30,8 @@ test("sign-in asks for email and password and links to sign-up", async () => {
   const html = await page("/sign-in");
   assert.match(html, label("Email"));
   assert.match(html, label("Password"));
+  // A native submit before the scripts load must never put the password in the URL.
+  assert.match(html, /<form\b[^>]*method="post"/);
   const submit = html.match(/<button\b[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
   assert.equal(text(submit), "Sign in");
   assert.match(html, /href="\/sign-up"/);

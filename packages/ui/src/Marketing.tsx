@@ -8,10 +8,6 @@ import { LogoMark } from "./Logo";
 import { Stack } from "./Stack";
 import { Text } from "./Text";
 
-// The public landing page. Server-renderable: no state, no effects, no event handlers, so the HTML is complete.
-// Same tokens and components as the app; `render` takes the app's router link, as everywhere else.
-
-/** Marketing cards rise a little under the pointer. */
 export const liftCardClasses = `${cardClasses} min-w-0 motion-safe:transition motion-safe:duration-ui motion-safe:ease-press hover:-translate-y-0.5 hover:shadow-lift`;
 const wrap = "mx-auto w-full max-w-page";
 const h2 = "mx-auto max-w-[20ch] text-center text-4xl leading-none font-bold tracking-tight text-balance sm:text-5xl";
@@ -24,7 +20,6 @@ const wordmark = (
     <span className="text-ink sm:mr-12">fluently</span>
   </>
 );
-/** The hero fades up one piece after another. */
 const rise = [
   "motion-safe:animate-rise",
   "motion-safe:animate-rise motion-safe:[animation-delay:60ms]",
@@ -33,20 +28,15 @@ const rise = [
 ];
 
 export type MarketingShellProps = {
-  /** In-page anchors shown in the nav. */
   links: { label: string; href: string }[];
-  /** The "Start free" link in the nav, a router link. */
   start: ReactElement;
   startLabel: string;
-  /** Wordmark link, a router link to `/`. */
   home: ReactElement;
   footerText: string;
   children?: ReactNode;
 };
 
-/** The page chrome: a floating pill nav, the main landmark and a footer. */
 export function MarketingShell({ links, start, startLabel, home, footerText, children }: MarketingShellProps) {
-  const homeLink = useRender({ render: home, props: { className: logo, children: wordmark } });
   return (
     <div className="min-h-dvh overflow-x-clip bg-canvas px-4 text-ink">
       <a
@@ -55,51 +45,64 @@ export function MarketingShell({ links, start, startLabel, home, footerText, chi
       >
         Skip to content
       </a>
-      <header className="sticky top-0 z-sticky flex justify-center pt-3.5">
-        <nav
-          className="flex items-center justify-between gap-4 rounded-full border border-line bg-paper/72 py-2 pr-2 pl-5 text-sm shadow-card backdrop-blur-lg backdrop-saturate-180 max-sm:w-full sm:gap-7 reduce-transparency:bg-paper reduce-transparency:backdrop-blur-none"
-          aria-label="Main"
-        >
-          {homeLink}
-          {links.map((l) => (
-            <a
-              key={l.href}
-              className="hidden min-h-8 items-center font-medium text-muted transition-colors hover:text-ink sm:inline-flex"
-              href={l.href}
-            >
-              {l.label}
-            </a>
-          ))}
-          <Button size="sm" render={start}>
-            {startLabel}
-          </Button>
-        </nav>
-      </header>
+      <MarketingNav links={links} start={start} startLabel={startLabel} home={home} />
       <main id="main" className={wrap}>
         {children}
       </main>
-      <footer className={`${wrap} flex flex-wrap justify-between gap-x-6 gap-y-3 pt-8 pb-10 text-sm text-muted`}>
-        <div className="grid max-w-[36ch] gap-1">
-          <span className={logo}>{wordmark}</span>
-          <span>{footerText}</span>
-        </div>
-        <nav className="flex flex-wrap items-start gap-x-4 gap-y-2 sm:gap-x-5.5" aria-label="Footer">
-          {links.map((l) => (
-            <a key={l.href} className="transition-colors hover:text-ink" href={l.href}>
-              {l.label}
-            </a>
-          ))}
-        </nav>
-      </footer>
+      <MarketingFooter links={links} footerText={footerText} />
     </div>
+  );
+}
+
+function MarketingNav({ links, start, startLabel, home }: Omit<MarketingShellProps, "footerText" | "children">) {
+  const homeLink = useRender({ render: home, props: { className: logo, children: wordmark } });
+  const anchors = links.map((l) => (
+    <a
+      key={l.href}
+      className="hidden min-h-8 items-center font-medium text-muted transition-colors hover:text-ink sm:inline-flex"
+      href={l.href}
+    >
+      {l.label}
+    </a>
+  ));
+  return (
+    <header className="sticky top-0 z-sticky flex justify-center pt-3.5">
+      <nav
+        className="flex items-center justify-between gap-4 rounded-full border border-line bg-paper/72 py-2 pr-2 pl-5 text-sm shadow-card backdrop-blur-lg backdrop-saturate-180 max-sm:w-full sm:gap-7 reduce-transparency:bg-paper reduce-transparency:backdrop-blur-none"
+        aria-label="Main"
+      >
+        {homeLink}
+        {anchors}
+        <Button size="sm" render={start}>
+          {startLabel}
+        </Button>
+      </nav>
+    </header>
+  );
+}
+
+function MarketingFooter({ links, footerText }: Pick<MarketingShellProps, "links" | "footerText">) {
+  const anchors = links.map((l) => (
+    <a key={l.href} className="transition-colors hover:text-ink" href={l.href}>
+      {l.label}
+    </a>
+  ));
+  return (
+    <footer className={`${wrap} flex flex-wrap justify-between gap-x-6 gap-y-3 pt-8 pb-10 text-sm text-muted`}>
+      <div className="grid max-w-[36ch] gap-1">
+        <span className={logo}>{wordmark}</span>
+        <span>{footerText}</span>
+      </div>
+      <nav className="flex flex-wrap items-start gap-x-4 gap-y-2 sm:gap-x-5.5" aria-label="Footer">
+        {anchors}
+      </nav>
+    </footer>
   );
 }
 
 export type MarketingHeroProps = {
   badge: string;
-  /** The headline up to its emphasised ending. */
   title: string;
-  /** The underlined end of the headline. */
   emphasis: string;
   description: string;
   cta: ReactElement;
@@ -108,7 +111,52 @@ export type MarketingHeroProps = {
   children?: ReactNode;
 };
 
-/** The one h1, the pitch and the primary call to action, with the product frame beneath. */
+function HeroBackdrop() {
+  return (
+    <>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 -top-20 bottom-0 z-behind bg-[radial-gradient(circle,var(--color-ink)_1px,transparent_1.6px)] bg-size-[22px_22px] opacity-20 [mask-image:radial-gradient(ellipse_55%_60%_at_50%_38%,black,transparent)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-10 left-1/2 z-behind h-75 w-9/10 max-w-160 -translate-x-1/2 rounded-full bg-brand-hi opacity-35 blur-3xl"
+      />
+    </>
+  );
+}
+
+function HeroTitle({ title, emphasis }: { title: string; emphasis: string }) {
+  return (
+    <h1
+      id="hero-title"
+      className={`max-w-[14ch] text-5xl leading-none font-bold tracking-tighter text-balance sm:text-6xl lg:text-7xl ${rise[1]}`}
+    >
+      {title}{" "}
+      <em className="relative inline-block text-primary not-italic">
+        {emphasis}
+        <svg
+          className="absolute -bottom-[0.1em] left-0 h-[0.16em] w-full overflow-visible"
+          viewBox="0 0 300 12"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <path
+            className="stroke-primary motion-safe:animate-draw"
+            fill="none"
+            strokeWidth={4}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            strokeDasharray={1}
+            pathLength={1}
+            d="M2 8 C 40 2, 70 12, 110 6 S 190 2, 298 7"
+          />
+        </svg>
+      </em>
+    </h1>
+  );
+}
+
 export function MarketingHero({
   badge,
   title,
@@ -125,47 +173,14 @@ export function MarketingHero({
         className="relative isolate flex flex-col items-center gap-5.5 pt-16 pb-12 text-center"
         aria-labelledby="hero-title"
       >
-        {/* A dot grid fading out from behind the headline, and a soft sky glow. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-20 bottom-0 z-behind bg-[radial-gradient(circle,var(--color-ink)_1px,transparent_1.6px)] bg-size-[22px_22px] opacity-20 [mask-image:radial-gradient(ellipse_55%_60%_at_50%_38%,black,transparent)]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute top-10 left-1/2 z-behind h-75 w-9/10 max-w-160 -translate-x-1/2 rounded-full bg-brand-hi opacity-35 blur-3xl"
-        />
+        <HeroBackdrop />
         <span
           className={`inline-flex items-center gap-2 rounded-full border border-line bg-paper py-1.25 pr-3 pl-2 text-sm font-semibold ${rise[0]}`}
         >
           <span aria-hidden className="size-2 rounded-full bg-primary ring-3 ring-primary-soft" />
           {badge}
         </span>
-        <h1
-          id="hero-title"
-          className={`max-w-[14ch] text-5xl leading-none font-bold tracking-tighter text-balance sm:text-6xl lg:text-7xl ${rise[1]}`}
-        >
-          {title}{" "}
-          <em className="relative inline-block text-primary not-italic">
-            {emphasis}
-            <svg
-              className="absolute -bottom-[0.1em] left-0 h-[0.16em] w-full overflow-visible"
-              viewBox="0 0 300 12"
-              preserveAspectRatio="none"
-              aria-hidden
-            >
-              <path
-                className="stroke-primary motion-safe:animate-draw"
-                fill="none"
-                strokeWidth={4}
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-                strokeDasharray={1}
-                pathLength={1}
-                d="M2 8 C 40 2, 70 12, 110 6 S 190 2, 298 7"
-              />
-            </svg>
-          </em>
-        </h1>
+        <HeroTitle title={title} emphasis={emphasis} />
         <p className={`max-w-[40ch] text-lg text-balance text-muted sm:text-xl ${rise[2]}`}>{description}</p>
         <div className={`mt-1.5 flex flex-col items-center gap-3.5 ${rise[3]}`}>
           <Button glow render={cta}>
@@ -179,7 +194,6 @@ export function MarketingHero({
   );
 }
 
-/** A pill that floats on the top-right or bottom-left edge of a frame or panel. */
 export function FloatChip({
   place,
   inset = "panel",
@@ -202,7 +216,6 @@ export function FloatChip({
   );
 }
 
-/** The framed product preview under the hero. `chips` float on its corners. */
 export function ProductFrame({
   chips,
   label,
@@ -247,7 +260,6 @@ export function GoalsStrip({ label, goals }: { label: string; goals: string[] })
 
 export type StepItem = { title: string; body: string };
 
-/** A real sequence, so the steps are an ordered list and carry numbers. */
 export function HowItWorks({ id, title, steps }: { id: string; title: string; steps: StepItem[] }) {
   return (
     <section className="grid gap-7 pt-14 pb-4" aria-labelledby={id}>
@@ -277,21 +289,19 @@ export type FeatureProps = {
   title: string;
   description: string;
   points: FeaturePoint[];
-  /** Puts the copy on the right on desktop. */
   flip?: boolean;
-  /** The illustration, normally a MarketingPanel. */
   children?: ReactNode;
 };
 
-/** Copy on one side, an illustration on the other. */
 export function Feature({ id, pill, title, description, points, flip, children }: FeatureProps) {
+  const copyOrder = flip ? "md:order-2" : "";
   return (
     <section
       className="grid items-center gap-6 py-10 sm:gap-12 sm:py-16 md:grid-cols-2 lg:gap-18 lg:py-20"
       id={id}
       aria-labelledby={`${id}-title`}
     >
-      <div className={`grid min-w-0 gap-4.5 ${flip ? "md:order-2" : ""}`}>
+      <div className={`grid min-w-0 gap-4.5 ${copyOrder}`}>
         <span className="justify-self-start rounded-full bg-primary-soft px-2.75 py-1 text-sm font-semibold text-primary">
           {pill}
         </span>
@@ -341,7 +351,24 @@ export function FeatureTrio({ id, title, items }: { id: string; title: string; i
 
 export type FaqItem = { question: string; answer: string };
 
-/** Native <details>: every answer is in the HTML for crawlers, and it opens with no JavaScript. */
+function FaqEntry({ item, open }: { item: FaqItem; open: boolean }) {
+  return (
+    <details
+      open={open}
+      className="group rounded-2xl border border-line bg-paper px-5 shadow-card details-content:h-0 details-content:overflow-hidden open:details-content:h-auto motion-safe:details-content:transition-all motion-safe:details-content:transition-discrete motion-safe:details-content:duration-ui motion-safe:details-content:ease-press"
+    >
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 text-body font-semibold tracking-tight [&::-webkit-details-marker]:hidden">
+        {item.question}
+        <CaretDown
+          aria-hidden
+          className="shrink-0 text-muted motion-safe:transition-transform motion-safe:duration-ui group-open:rotate-180"
+        />
+      </summary>
+      <p className="max-w-[58ch] pb-4.5 text-base text-pretty text-muted">{item.answer}</p>
+    </details>
+  );
+}
+
 export function Faq({ id, title, items }: { id: string; title: string; items: FaqItem[] }) {
   return (
     <section className="grid gap-7 pt-6 pb-12" aria-labelledby={id}>
@@ -350,20 +377,7 @@ export function Faq({ id, title, items }: { id: string; title: string; items: Fa
       </h2>
       <div className="mx-auto grid w-full max-w-180 gap-2">
         {items.map((item, i) => (
-          <details
-            key={item.question}
-            open={i === 0}
-            className="group rounded-2xl border border-line bg-paper px-5 shadow-card details-content:h-0 details-content:overflow-hidden open:details-content:h-auto motion-safe:details-content:transition-all motion-safe:details-content:transition-discrete motion-safe:details-content:duration-ui motion-safe:details-content:ease-press"
-          >
-            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 text-body font-semibold tracking-tight [&::-webkit-details-marker]:hidden">
-              {item.question}
-              <CaretDown
-                aria-hidden
-                className="shrink-0 text-muted motion-safe:transition-transform motion-safe:duration-ui group-open:rotate-180"
-              />
-            </summary>
-            <p className="max-w-[58ch] pb-4.5 text-base text-pretty text-muted">{item.answer}</p>
-          </details>
+          <FaqEntry key={item.question} item={item} open={i === 0} />
         ))}
       </div>
     </section>
@@ -407,31 +421,69 @@ export function FinalCta({
 export type AuthPoint = { icon: Icon; title: string; body: string };
 
 export type AuthLayoutProps = {
-  /** Wordmark link, a router link to `/`. */
   home: ReactElement;
   storyLabel: string;
   badge: string;
   storyTitle: string;
   storyText: string;
-  /** Numbered steps beside the form, for new learners. */
   steps?: AuthPoint[];
-  /** A single note shown instead of steps, for returning learners. */
   note?: AuthPoint;
   title: string;
   subtitle: string;
-  /** The email form. */
   children: ReactNode;
   footer: ReactNode;
-  /** Another way in, such as Google, after an "or" divider. */
   alternative?: ReactNode;
 };
 
 const glass = "rounded-2xl border border-on-brand/24 bg-on-brand/12";
 
-/** Sign-in and sign-up: a cobalt story panel beside the form; on phones, just its headline above the form. */
-export function AuthLayout(props: AuthLayoutProps) {
+function AuthSteps({ steps }: { steps: AuthPoint[] }) {
+  return (
+    <ol className="hidden grid-cols-3 gap-3 md:grid">
+      {steps.map(({ icon: Icon, title, body }, i) => (
+        <li
+          key={title}
+          className={`${glass} group flex h-44 flex-col gap-3 p-4 text-sm leading-tight first:bg-white first:text-black`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="grid size-8 place-items-center rounded-full border border-on-brand/50 group-first:border-0 group-first:bg-brand group-first:text-on-brand">
+              {i + 1}
+            </span>
+            <Icon aria-hidden className="size-6" />
+          </div>
+          <div className="mt-auto grid gap-1.5">
+            <strong>{title}</strong>
+            <small className="text-xs leading-snug opacity-80">{body}</small>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function AuthNote({ note: { icon: Icon, title, body } }: { note: AuthPoint }) {
+  return (
+    <div className={`${glass} hidden items-start gap-4 p-5 md:flex`}>
+      <Icon aria-hidden className="size-7 flex-none" />
+      <div>
+        <strong>{title}</strong>
+        <p className="mt-1 text-on-brand/82">{body}</p>
+      </div>
+    </div>
+  );
+}
+
+function AuthStory({
+  home,
+  storyLabel,
+  badge,
+  storyTitle,
+  storyText,
+  steps,
+  note,
+}: Pick<AuthLayoutProps, "home" | "storyLabel" | "badge" | "storyTitle" | "storyText" | "steps" | "note">) {
   const brand = useRender({
-    render: props.home,
+    render: home,
     props: {
       className: "flex items-center gap-2 self-start text-xl font-bold tracking-tighter text-on-brand",
       children: (
@@ -442,84 +494,72 @@ export function AuthLayout(props: AuthLayoutProps) {
       ),
     },
   });
-  const note = props.note;
+  const stepsNode = steps && <AuthSteps steps={steps} />;
+  const noteNode = note && <AuthNote note={note} />;
+  return (
+    <section
+      className="relative isolate flex min-w-0 flex-col justify-between gap-4 overflow-hidden rounded-3xl bg-linear-160 from-brand-mid to-brand p-5 text-on-brand md:gap-12 md:p-8 lg:p-14"
+      aria-label={storyLabel}
+    >
+      <span aria-hidden className="absolute -top-1/4 right-0 z-behind size-3/5 rounded-full bg-brand-hi/85 blur-3xl" />
+      <span
+        aria-hidden
+        className="absolute -right-1/4 -bottom-1/4 z-behind size-1/2 rounded-full bg-brand-deep/90 blur-3xl"
+      />
+      {brand}
+      <div className="max-w-136">
+        <span className="hidden rounded-full border border-on-brand/25 bg-on-brand/12 px-3.5 py-2 text-sm md:inline-block">
+          {badge}
+        </span>
+        <h2 className="mb-2 text-3xl leading-none font-bold tracking-tight text-balance md:mt-5 md:mb-3 md:text-5xl lg:text-7xl">
+          {storyTitle}
+        </h2>
+        <p className="hidden text-lg text-on-brand/82 md:block">{storyText}</p>
+      </div>
+      {stepsNode}
+      {noteNode}
+    </section>
+  );
+}
+
+function AuthForm({
+  title,
+  subtitle,
+  children,
+  footer,
+  alternative,
+}: Pick<AuthLayoutProps, "title" | "subtitle" | "children" | "footer" | "alternative">) {
+  const alternativeNode = alternative && (
+    <div className="grid gap-5">
+      <p className="flex items-center gap-4 text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
+        or
+      </p>
+      {alternative}
+    </div>
+  );
+  return (
+    <section className="mx-auto grid w-full max-w-136 content-center px-4 py-6 md:p-8 lg:p-14" aria-label={title}>
+      <Stack gap={6}>
+        <div className="grid gap-2 text-center">
+          <Heading level={1}>{title}</Heading>
+          <Text tone="muted">{subtitle}</Text>
+        </div>
+        {children}
+        <div className="text-center">{footer}</div>
+        {alternativeNode}
+      </Stack>
+    </section>
+  );
+}
+
+export function AuthLayout({ children, footer, alternative, title, subtitle, ...story }: AuthLayoutProps) {
   return (
     <main className="grid min-h-dvh place-items-center bg-canvas px-4 py-8 text-ink">
       <div className="grid w-full max-w-136 rounded-4xl border border-line bg-paper p-2 shadow-card md:min-h-184 md:max-w-296 md:grid-cols-2">
-        <section
-          className="relative isolate flex min-w-0 flex-col justify-between gap-4 overflow-hidden rounded-3xl bg-linear-160 from-brand-mid to-brand p-5 text-on-brand md:gap-12 md:p-8 lg:p-14"
-          aria-label={props.storyLabel}
-        >
-          <span
-            aria-hidden
-            className="absolute -top-1/4 right-0 z-behind size-3/5 rounded-full bg-brand-hi/85 blur-3xl"
-          />
-          <span
-            aria-hidden
-            className="absolute -right-1/4 -bottom-1/4 z-behind size-1/2 rounded-full bg-brand-deep/90 blur-3xl"
-          />
-          {brand}
-          <div className="max-w-136">
-            <span className="hidden rounded-full border border-on-brand/25 bg-on-brand/12 px-3.5 py-2 text-sm md:inline-block">
-              {props.badge}
-            </span>
-            <h2 className="mb-2 text-3xl leading-none font-bold tracking-tight text-balance md:mt-5 md:mb-3 md:text-5xl lg:text-7xl">
-              {props.storyTitle}
-            </h2>
-            <p className="hidden text-lg text-on-brand/82 md:block">{props.storyText}</p>
-          </div>
-          {props.steps && (
-            <ol className="hidden grid-cols-3 gap-3 md:grid">
-              {props.steps.map(({ icon: Icon, title, body }, i) => (
-                <li
-                  key={title}
-                  className={`${glass} group flex h-44 flex-col gap-3 p-4 text-sm leading-tight first:bg-white first:text-black`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="grid size-8 place-items-center rounded-full border border-on-brand/50 group-first:border-0 group-first:bg-brand group-first:text-on-brand">
-                      {i + 1}
-                    </span>
-                    <Icon aria-hidden className="size-6" />
-                  </div>
-                  <div className="mt-auto grid gap-1.5">
-                    <strong>{title}</strong>
-                    <small className="text-xs leading-snug opacity-80">{body}</small>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-          {note && (
-            <div className={`${glass} hidden items-start gap-4 p-5 md:flex`}>
-              <note.icon aria-hidden className="size-7 flex-none" />
-              <div>
-                <strong>{note.title}</strong>
-                <p className="mt-1 text-on-brand/82">{note.body}</p>
-              </div>
-            </div>
-          )}
-        </section>
-        <section
-          className="mx-auto grid w-full max-w-136 content-center px-4 py-6 md:p-8 lg:p-14"
-          aria-label={props.title}
-        >
-          <Stack gap={6}>
-            <div className="grid gap-2 text-center">
-              <Heading level={1}>{props.title}</Heading>
-              <Text tone="muted">{props.subtitle}</Text>
-            </div>
-            {props.children}
-            <div className="text-center">{props.footer}</div>
-            {props.alternative && (
-              <div className="grid gap-5">
-                <p className="flex items-center gap-4 text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
-                  or
-                </p>
-                {props.alternative}
-              </div>
-            )}
-          </Stack>
-        </section>
+        <AuthStory {...story} />
+        <AuthForm title={title} subtitle={subtitle} footer={footer} alternative={alternative}>
+          {children}
+        </AuthForm>
       </div>
     </main>
   );

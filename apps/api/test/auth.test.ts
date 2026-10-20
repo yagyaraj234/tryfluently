@@ -5,6 +5,29 @@ import { testDb } from "./setup";
 import { schema } from "@impromptu/db";
 
 describe("auth", () => {
+  test("credential accounts require a valid password even with a fresh session and linked Google account", async () => {
+    const app = makeApp();
+    const { cookie, id } = await signUp(app);
+    await testDb.insert(schema.account).values({
+      id: crypto.randomUUID(),
+      userId: id,
+      accountId: crypto.randomUUID(),
+      providerId: "google",
+    });
+    for (const body of [{}, { password: "" }, { token: "fake" }]) {
+      const response = await app.request("/api/auth/delete-user", json(body, cookie));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "PASSWORD_REQUIRED" });
+    }
+    const wrong = await app.request("/api/auth/delete-user", json({ password: "wrong-password" }, cookie));
+    expect(wrong.status).toBe(400);
+    expect(await wrong.json()).toMatchObject({ code: "INVALID_PASSWORD" });
+    expect((await app.request("/api/me", { headers: { cookie } })).status).toBe(200);
+    expect(
+      (await app.request("/api/auth/delete-user", json({ password: "correct-horse-battery" }, cookie))).status,
+    ).toBe(200);
+    expect((await app.request("/api/me", { headers: { cookie } })).status).toBe(401);
+  });
   test("deleting an account ends its live voice call before cascading its data", async () => {
     const realtime = fakeRealtime();
     const app = makeApp({ realtime });

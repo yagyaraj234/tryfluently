@@ -1,9 +1,10 @@
 import { schema, type Db } from "@impromptu/db";
 import { betterAuth } from "better-auth";
-import { APIError, getOAuthState } from "better-auth/api";
+import { APIError, createAuthMiddleware, getOAuthState, getSessionFromCtx } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { bodyLimit } from "hono/body-limit";
 import { Scalar } from "@scalar/hono-api-reference";
 import { z } from "zod";
 import { reports } from "./reports";
@@ -98,6 +99,20 @@ export function createApp(deps: Deps) {
     socialProviders: env.GOOGLE_CLIENT_ID
       ? { google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET! } }
       : {},
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/delete-user" && ctx.path !== "/delete-user/callback") return;
+        const session = await getSessionFromCtx(ctx);
+        if (!session) return;
+        const account = await ctx.context.internalAdapter.findCredentialAccount(session.user.id);
+        if (account?.password && (ctx.path !== "/delete-user" || !ctx.body?.password)) {
+          throw new APIError("BAD_REQUEST", {
+            code: "PASSWORD_REQUIRED",
+            message: "Enter your password to delete your account.",
+          });
+        }
+      }),
+    },
     databaseHooks: {
       user: {
         create: {
@@ -135,9 +150,20 @@ export function createApp(deps: Deps) {
       });
     })
     .use("/api/*", cors({ origin: env.WEB_ORIGIN, credentials: true }))
+    // Bound the stream before JSON/multipart parsing; recordings allow up to 5 MB plus form overhead.
+    .use("/api/*", bodyLimit({ maxSize: 6_000_000 }))
     // Better Auth has no endpoint for this; sign-in shows the Google button only when it's configured.
     .get("/api/auth/providers", (c) => c.json({ google: Boolean(env.GOOGLE_CLIENT_ID) }))
     .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
+    .use("/api/*", async (c, next) => {
+      // CORS controls response access; reject foreign browser writes before they reach handlers.
+      if (!["GET", "HEAD", "OPTIONS"].includes(c.req.method)) {
+        const origin = c.req.header("origin");
+        if ((origin && origin !== env.WEB_ORIGIN) || (!origin && c.req.header("sec-fetch-site") === "cross-site"))
+          return c.json({ error: "Untrusted request origin" }, 403);
+      }
+      await next();
+    })
     // Registered after the auth handler, so it guards every other /api route.
     .use("/api/*", async (c, next) => {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });

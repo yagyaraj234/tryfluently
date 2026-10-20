@@ -10,7 +10,7 @@ type CommonProps = {
   label: string;
   options: readonly ChoiceOption[];
   name?: string;
-  layout?: "chips" | "cards";
+  layout?: "chips" | "cards" | "segmented";
   disabled?: boolean;
   ref?: Ref<HTMLDivElement>;
 };
@@ -19,7 +19,6 @@ export type ChoiceChipsProps = CommonProps &
   (
     | {
         multiple?: false;
-        /** `null` means nothing is picked yet (still controlled). */
         value?: string | null;
         defaultValue?: string;
         onValueChange?: (value: string) => void;
@@ -33,19 +32,31 @@ export type ChoiceChipsProps = CommonProps &
   );
 
 const chip =
-  "inline-flex cursor-pointer items-center gap-2 rounded-full border border-line-strong bg-paper px-4 py-2 text-body text-ink data-checked:border-primary data-checked:bg-primary-soft data-disabled:cursor-not-allowed";
+  "inline-flex cursor-pointer items-center gap-2 min-h-11 rounded-full border border-line-strong bg-paper px-4 py-2 text-caption text-ink data-checked:border-primary data-checked:bg-primary-soft data-disabled:cursor-not-allowed data-disabled:opacity-50 motion-safe:transition motion-safe:duration-press motion-safe:ease-press motion-safe:not-data-disabled:active:scale-97";
 
-/** Single choice is a radio group (arrow keys move and select); `multiple` is a group of checkboxes. */
+const optionsLayouts = {
+  cards: "grid gap-4",
+  segmented: "inline-flex max-w-full flex-wrap gap-1 self-start rounded-2xl bg-subtle p-1",
+  chips: "flex flex-wrap gap-2",
+};
+
+const optionLayouts = {
+  cards:
+    "flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-2xl border border-line-strong bg-paper p-5 text-left text-body text-ink shadow-card data-checked:border-ink data-checked:bg-primary-soft data-disabled:cursor-not-allowed motion-safe:transition motion-safe:duration-press motion-safe:ease-press motion-safe:not-data-disabled:active:scale-97",
+  segmented:
+    "inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl px-4 py-2 text-caption font-medium whitespace-nowrap text-muted data-checked:bg-paper data-checked:text-ink data-checked:shadow-card data-disabled:cursor-not-allowed data-disabled:opacity-50 motion-safe:transition motion-safe:duration-press motion-safe:ease-press motion-safe:not-data-disabled:active:scale-98",
+  chips: chip,
+};
+
 export function ChoiceChips(props: ChoiceChipsProps) {
   const labelId = useId();
   const { label, options, name, disabled, ref, layout = "chips" } = props;
-  const card = layout === "cards";
-  const optionClasses = card
-    ? "flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-2xl border border-line-strong bg-paper p-5 text-left text-body text-ink shadow-card data-checked:border-ink data-checked:bg-primary-soft data-disabled:cursor-not-allowed"
-    : chip;
+  const segmented = layout === "segmented";
+  const optionsClasses = optionsLayouts[layout];
+  const optionClasses = optionLayouts[layout];
   const content = (option: ChoiceOption) => (
     <span className="flex flex-col gap-1">
-      <span className="font-semibold">{option.label}</span>
+      <span className="font-medium">{option.label}</span>
       {option.description && <span className="text-caption font-normal text-muted">{option.description}</span>}
     </span>
   );
@@ -65,11 +76,11 @@ export function ChoiceChips(props: ChoiceChipsProps) {
         onValueChange={(value) => props.onValueChange?.(value)}
       >
         {heading}
-        <div className={card ? "grid gap-4" : "flex flex-wrap gap-2"}>
+        <div className={optionsClasses}>
           {options.map((option) => (
             // CheckboxGroup has no `name`; each checkbox submits its own value under it.
             <Checkbox.Root key={option.value} name={name} value={option.value} className={optionClasses}>
-              <Checkbox.Indicator render={<Check />} />
+              <Checkbox.Indicator className="shrink-0" render={<Check aria-hidden />} />
               {content(option)}
             </Checkbox.Root>
           ))}
@@ -87,10 +98,10 @@ export function ChoiceChips(props: ChoiceChipsProps) {
       onValueChange={(value) => props.onValueChange?.(value as string)}
     >
       {heading}
-      <div className={card ? "grid gap-4" : "flex flex-wrap gap-2"}>
+      <div className={optionsClasses}>
         {options.map((option) => (
           <Radio.Root key={option.value} value={option.value} className={optionClasses}>
-            <Radio.Indicator render={<Check />} />
+            {!segmented && <Radio.Indicator className="shrink-0" render={<Check aria-hidden />} />}
             {content(option)}
           </Radio.Root>
         ))}

@@ -20,19 +20,19 @@
   --font-sans: "Inter", system-ui, sans-serif;
 
   /* Colours, light. Dark values are below. */
-  --color-canvas: #f5f5f4; /* warm grey page background. Not "page": text-page is a type size */
+  --color-canvas: #f5f6f8; /* neutral grey page background. Not "page": text-page is a type size */
   --color-paper: #ffffff; /* cards, dialogs, menus */
-  --color-subtle: #f5f4f1; /* input fills, tracks, inset panels */
+  --color-subtle: #eff0f3; /* input fills, tracks, inset panels */
   --color-ink: #0e0e0f;
-  --color-muted: #66655f;
+  --color-muted: #626670;
   --color-line: rgb(14 14 15 / 0.09); /* hairlines around cards and panels */
-  --color-line-strong: #8f8e88; /* form control borders: 3:1 against paper */
+  --color-line-strong: #868b95; /* form control borders: 3:1 against paper */
   --color-highlight: color-mix(in oklab, var(--color-paper), #fff 14%);
   --color-shadow: rgb(14 14 15 / 0.05);
   --color-shadow-strong: rgb(14 14 15 / 0.12);
-  --color-primary: #2f3bd6; /* cobalt: actions, links, focus */
+  --color-primary: #0066d4; /* blue: actions, links, focus */
   --color-on-primary: #ffffff;
-  --color-primary-soft: #e3eaff;
+  --color-primary-soft: #e9f2ff;
   /* The cobalt brand panels stay cobalt in both themes, so white text always reads. */
   --color-brand: #2f3bd6;
   --color-brand-mid: #4466e0;
@@ -43,6 +43,8 @@
   --color-black: #0e0e0f;
   --color-live: #ff2e6e;
   --color-live-text: #d1105a;
+  --color-streak: #b45309;
+  --color-streak-soft: #fff2df;
   --color-correct: #08753d;
   --color-almost: #805800;
   --color-incorrect: #be1e55;
@@ -87,8 +89,7 @@
   --text-hero--letter-spacing: -0.045em;
 
   /* Depth: soft, layered shadows. */
-  --shadow-card:
-    0 1px 2px var(--color-shadow), 0 8px 24px -8px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
+  --shadow-card: 0 1px 3px var(--color-shadow), 0 2px 5px -3px var(--color-shadow-strong);
   --shadow-lift:
     0 2px 4px var(--color-shadow), 0 16px 32px -12px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
   --shadow-frame: 0 40px 70px -40px var(--color-shadow-strong), inset 0 1px 0 var(--color-highlight);
@@ -104,8 +105,12 @@
   --animate-pulse: pulse 1.6s ease-in-out infinite;
   --animate-celebrate: celebrate 800ms var(--ease-ui) both;
   --animate-rise: rise 520ms var(--ease-press) backwards;
+  --animate-grow: grow 400ms var(--ease-press) backwards;
   --animate-draw: draw 700ms var(--ease-press) 650ms backwards;
   --animate-bob: bob 5s ease-in-out infinite;
+  --animate-polly-bob: polly-bob 0.6s ease-in-out infinite;
+  --animate-polly-step: polly-step 0.6s ease-in-out infinite;
+  --animate-polly-tail: polly-tail 0.6s ease-in-out infinite;
   --animate-wave: wave 1.1s ease-in-out infinite;
   --animate-blink: blink 1s steps(1) infinite;
   --animate-orb-breathe: orb-breathe 4s ease-in-out infinite;
@@ -124,7 +129,7 @@
   --container-content: 40rem; /* the Lesson column, dialogs, toasts */
   --container-prose: 65ch; /* running text */
   --container-sidebar: 15rem;
-  --container-rail: 22rem; /* Home's right-hand rail */
+  --container-rail: 20rem; /* minimum width of Home's responsive summary */
   --container-page: 67.5rem; /* the landing page */
 
   @keyframes celebrate {
@@ -144,6 +149,11 @@
       transform: translateY(10px);
     }
   }
+  @keyframes grow {
+    from {
+      transform: scaleX(0);
+    }
+  }
   @keyframes draw {
     from {
       stroke-dashoffset: 1;
@@ -152,6 +162,29 @@
   @keyframes bob {
     50% {
       transform: translateY(-4px);
+    }
+  }
+  @keyframes polly-bob {
+    50% {
+      transform: translateY(-2px);
+    }
+  }
+  @keyframes polly-step {
+    0%,
+    100% {
+      transform: rotate(-28deg);
+    }
+    50% {
+      transform: rotate(28deg);
+    }
+  }
+  @keyframes polly-tail {
+    0%,
+    100% {
+      transform: rotate(-3deg);
+    }
+    50% {
+      transform: rotate(3deg);
     }
   }
   @keyframes wave {
@@ -197,6 +230,36 @@
   }
 }
 
+/* App type stays compact without changing the marketing scale. */
+@utility type-app {
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.5;
+  --text-label--font-weight: 500;
+  --text-label--letter-spacing: 0;
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.5;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.4;
+  --text-title--font-weight: 600;
+  --text-title--letter-spacing: -0.01em;
+  --text-heading: 1.5rem;
+  --text-heading--line-height: 1.25;
+  --text-heading--font-weight: 600;
+  --text-heading--letter-spacing: -0.02em;
+  --text-page: 1.75rem;
+  --text-page--line-height: 1.2;
+  --text-page--font-weight: 600;
+  --text-page--letter-spacing: -0.02em;
+  --text-hero: 2.25rem;
+  --text-hero--line-height: 1.1;
+  --text-hero--font-weight: 600;
+  --text-hero--letter-spacing: -0.025em;
+}
+
+@custom-variant app (&:where(.type-app, .type-app *));
+
 /* Dark follows the system unless <html data-theme> says otherwise, in either direction. */
 @custom-variant dark {
   @media (prefers-color-scheme: dark) {
@@ -231,6 +294,8 @@
       --color-primary-soft: #1d2550;
       --color-live: #ff6b98;
       --color-live-text: #ff6b98;
+      --color-streak: #ffb86b;
+      --color-streak-soft: #392414;
       --color-correct: #4fd18a;
       --color-almost: #ffd24d;
       --color-incorrect: #ff7fa3;

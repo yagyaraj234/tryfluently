@@ -12,14 +12,34 @@ export type FocusItemCardProps = {
   label: string;
   kind: keyof typeof kinds;
   status: "open" | "closed";
-  /** Correct uses so far. */
   hits: number;
-  /** Correct uses that close it. */
   hitsToClose: number;
 };
 
-/** A Focus Item: what to practise, and how close the Learner is to closing it. */
+function HitsProgress({ hits, hitsToClose }: { hits: number; hitsToClose: number }) {
+  return (
+    <Progress.Root className={labelledBarParts.root()} value={hits} max={hitsToClose}>
+      <Progress.Label className={labelledBarParts.label()}>
+        {hits} of {hitsToClose} correct uses to close it
+      </Progress.Label>
+      <Progress.Track className={labelledBarParts.track()}>
+        <Progress.Indicator className={labelledBarParts.indicator()} />
+      </Progress.Track>
+    </Progress.Root>
+  );
+}
+
 export function FocusItemCard({ label, kind, status, hits, hitsToClose }: FocusItemCardProps) {
+  const state =
+    status === "closed" ? (
+      <div>
+        <Chip tone="soft" icon={Check}>
+          Closed
+        </Chip>
+      </div>
+    ) : (
+      <HitsProgress hits={hits} hitsToClose={hitsToClose} />
+    );
   return (
     <Card>
       <Stack gap={3}>
@@ -27,22 +47,7 @@ export function FocusItemCard({ label, kind, status, hits, hitsToClose }: FocusI
           {kinds[kind]}
         </Text>
         <Text size="title">{label}</Text>
-        {status === "closed" ? (
-          <div>
-            <Chip tone="soft" icon={Check}>
-              Closed
-            </Chip>
-          </div>
-        ) : (
-          <Progress.Root className={labelledBarParts.root()} value={hits} max={hitsToClose}>
-            <Progress.Label className={labelledBarParts.label()}>
-              {hits} of {hitsToClose} correct uses to close it
-            </Progress.Label>
-            <Progress.Track className={labelledBarParts.track()}>
-              <Progress.Indicator className={labelledBarParts.indicator()} />
-            </Progress.Track>
-          </Progress.Root>
-        )}
+        {state}
       </Stack>
     </Card>
   );

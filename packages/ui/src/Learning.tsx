@@ -1,11 +1,12 @@
 import {
-  BookOpen,
+  BookOpenText,
+  ChatCircleText,
   Check,
   Lock,
   Microphone,
   MicrophoneSlash,
-  PencilSimple,
   PhoneDisconnect,
+  TextAa,
 } from "@phosphor-icons/react";
 import { Button as BaseButton } from "@base-ui/react/button";
 import { useRender } from "@base-ui/react/use-render";
@@ -18,12 +19,19 @@ import { Text } from "./Text";
 
 export type CoachState = "ready" | "listening" | "thinking" | "speaking";
 
-/** An original vector illustration; expression follows actual conversation events. */
+function CoachMouth({ speaking }: { speaking: boolean }) {
+  if (speaking) return <ellipse cx="101" cy="122" rx="9" ry="6" className="fill-ink motion-safe:animate-pulse" />;
+  return <path d="M89 119q12 11 24 0" className="stroke-ink" strokeWidth="3" strokeLinecap="round" />;
+}
+
 export function CoachAvatar({ state = "ready", small = false }: { state?: CoachState; small?: boolean }) {
+  const speaking = state === "speaking";
+  const size = small ? "size-12" : "size-48 sm:size-60";
+  const ring = speaking ? "motion-safe:animate-bob ring-2 ring-primary ring-offset-8 ring-offset-canvas" : "";
   return (
     <div
       data-state={state}
-      className={`${small ? "size-12" : "size-48 sm:size-60"} group relative shrink-0 rounded-full border border-line bg-primary-soft p-2 ${state === "speaking" ? "motion-safe:animate-bob ring-2 ring-primary ring-offset-8 ring-offset-canvas" : ""}`}
+      className={`${size} group relative shrink-0 rounded-full border border-line bg-primary-soft p-2 ${ring}`}
     >
       <svg viewBox="0 0 200 200" fill="none" aria-hidden className="size-full">
         <circle cx="100" cy="100" r="94" className="fill-primary-soft" />
@@ -42,11 +50,7 @@ export function CoachAvatar({ state = "ready", small = false }: { state?: CoachS
         <ellipse cx="80" cy="96" rx="3" ry="4" className="fill-ink" />
         <ellipse cx="121" cy="96" rx="3" ry="4" className="fill-ink" />
         <path d="m100 97-3 13h6" className="stroke-line-strong" strokeWidth="2" strokeLinecap="round" />
-        {state === "speaking" ? (
-          <ellipse cx="101" cy="122" rx="9" ry="6" className="fill-ink motion-safe:animate-pulse" />
-        ) : (
-          <path d="M89 119q12 11 24 0" className="stroke-ink" strokeWidth="3" strokeLinecap="round" />
-        )}
+        <CoachMouth speaking={speaking} />
         <path
           d="M48 86v23m105-23v23M48 85c-3-55 107-55 105 0m0 24q0 19-27 19"
           className="stroke-muted"
@@ -63,11 +67,13 @@ export function StarterShell({
   step,
   title,
   description,
+  action,
   children,
 }: {
   step: number;
   title: string;
   description: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -77,9 +83,12 @@ export function StarterShell({
           <CoachAvatar small />
           <Text size="caption">Your path starts here</Text>
         </div>
-        <Text size="caption" tone="muted">
-          {step} / 3
-        </Text>
+        <div className="flex items-center gap-4">
+          <Text size="caption" tone="muted">
+            {step} / 3
+          </Text>
+          {action}
+        </div>
       </div>
       <ProgressBar label={`Getting to know you: ${step} of 3`} value={step} max={3} />
       <div className="flex flex-col gap-3">
@@ -89,6 +98,19 @@ export function StarterShell({
       {children}
     </div>
   );
+}
+
+const stateLabels: Record<CoachState, string> = {
+  ready: "Your coach is here",
+  listening: "Listening to you",
+  thinking: "Your coach is thinking",
+  speaking: "Your coach is speaking",
+};
+
+function callLabel(connection: "connecting" | "live" | "reconnecting", muted: boolean, state: CoachState) {
+  if (connection === "reconnecting") return "Reconnecting…";
+  if (connection === "connecting") return "Connecting to your coach…";
+  return muted ? "Your microphone is muted" : stateLabels[state];
 }
 
 export function CoachCall({
@@ -110,19 +132,9 @@ export function CoachCall({
   speaker?: "coach" | "learner";
   children?: ReactNode;
 }) {
-  const label =
-    connection !== "live"
-      ? connection === "reconnecting"
-        ? "Reconnecting…"
-        : "Connecting to your coach…"
-      : muted
-        ? "Your microphone is muted"
-        : {
-            ready: "Your coach is here",
-            listening: "Listening to you",
-            thinking: "Your coach is thinking",
-            speaking: "Your coach is speaking",
-          }[state];
+  const label = callLabel(connection, muted, state);
+  const captionOwner = caption ? (speaker === "learner" ? "You" : "Your coach") : "Live captions";
+  const captionText = caption || "Your coach will start. Speak naturally, and interrupt whenever you like.";
   return (
     <section
       aria-label="Voice Assessment with your AI coach"
@@ -149,9 +161,9 @@ export function CoachCall({
         className="min-h-24 w-full max-w-prose rounded-2xl border border-line bg-paper p-5 text-left"
       >
         <Text size="caption" tone="muted">
-          {caption ? (speaker === "learner" ? "You" : "Your coach") : "Live captions"}
+          {captionOwner}
         </Text>
-        <Text>{caption || "Your coach will start. Speak naturally, and interrupt whenever you like."}</Text>
+        <Text>{captionText}</Text>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-4">
         <IconButton
@@ -179,6 +191,9 @@ export function TeachingPage({
   example?: string;
   onNext: () => void;
 }) {
+  const quote = example ? (
+    <blockquote className="rounded-2xl border border-line bg-paper p-6 text-title text-ink">{example}</blockquote>
+  ) : null;
   return (
     <section className="flex min-h-[calc(100dvh-8rem)] flex-col justify-between gap-10 py-6">
       <div className="flex flex-col gap-6">
@@ -190,9 +205,7 @@ export function TeachingPage({
         </div>
         <Heading level={1}>{title}</Heading>
         <p className="whitespace-pre-line text-body leading-relaxed text-ink">{body}</p>
-        {example && (
-          <blockquote className="rounded-2xl border border-line bg-paper p-6 text-title text-ink">{example}</blockquote>
-        )}
+        {quote}
       </div>
       <Button fullWidth onClick={onNext}>
         Check my understanding
@@ -235,10 +248,57 @@ export function RoadmapUnit({
         </div>
         <div className="shrink-0">{detail}</div>
       </div>
-      <ol className="mx-auto flex w-full max-w-sm flex-col gap-6 px-5 py-4 [&>li:nth-child(4n+2)]:translate-x-4 [&>li:nth-child(4n+3)]:translate-x-8">
-        {children}
-      </ol>
+      <ol className="mx-auto flex w-full max-w-xl flex-col px-2 py-4 sm:px-5">{children}</ol>
     </section>
+  );
+}
+
+type NodeState = "complete" | "active" | "locked";
+
+const skillIcons = { vocabulary: BookOpenText, grammar: TextAa, fluency: ChatCircleText };
+const nodeStyles: Record<NodeState, string> = {
+  active:
+    "border-primary bg-primary-soft text-primary shadow-card ring-2 ring-primary ring-offset-4 ring-offset-canvas",
+  complete: "border-correct bg-correct-tint text-correct",
+  locked: "border-line bg-subtle text-muted",
+};
+const statePrefix: Record<NodeState, string> = { locked: "Locked: ", complete: "Completed: ", active: "Available: " };
+
+function LockBadge() {
+  return (
+    <span
+      aria-hidden
+      className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full border border-line bg-canvas text-muted"
+    >
+      <Lock size={12} weight="regular" />
+    </span>
+  );
+}
+
+function NodePath({ state }: { state: NodeState }) {
+  const dash = state === "complete" ? undefined : "4 5";
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 120 100"
+      preserveAspectRatio="none"
+      className={`pointer-events-none absolute top-7 left-0 z-behind h-full w-30 overflow-visible fill-none group-last:hidden ${state === "complete" ? "stroke-correct" : "stroke-line-strong"}`}
+    >
+      <path
+        d="M28 0 C28 50 92 50 92 100"
+        className="hidden group-odd:block"
+        strokeWidth="2"
+        strokeDasharray={dash}
+        vectorEffect="non-scaling-stroke"
+      />
+      <path
+        d="M92 0 C92 50 28 50 28 100"
+        className="hidden group-even:block"
+        strokeWidth="2"
+        strokeDasharray={dash}
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
   );
 }
 
@@ -251,7 +311,7 @@ export function RoadmapNode({
   render,
   onClick,
 }: {
-  state: "complete" | "active" | "locked";
+  state: NodeState;
   title: string;
   description?: string;
   children?: ReactNode;
@@ -259,12 +319,7 @@ export function RoadmapNode({
   render?: ReactElement;
   onClick?: () => void;
 }) {
-  const Icon =
-    state === "complete"
-      ? Check
-      : state === "locked"
-        ? Lock
-        : { vocabulary: BookOpen, grammar: PencilSimple, fluency: Microphone }[skill];
+  const Icon = state === "complete" ? Check : skillIcons[skill];
   const interactive = state !== "locked" && Boolean(render || onClick);
   const circle = useRender({
     render: interactive ? (render ?? <BaseButton />) : <span />,
@@ -272,23 +327,28 @@ export function RoadmapNode({
       onClick: interactive ? onClick : undefined,
       "aria-label": interactive ? `${state === "complete" ? "Review" : "Open"} ${title}` : undefined,
       "aria-hidden": !interactive || undefined,
-      className: `flex size-14 shrink-0 items-center justify-center rounded-full border text-title shadow-card ${state === "active" ? "border-primary bg-primary-soft text-ink ring-2 ring-primary ring-offset-4 ring-offset-canvas" : state === "complete" ? "border-correct bg-correct-tint text-correct" : "border-line-strong bg-subtle text-muted"}`,
-      children: <Icon aria-hidden />,
+      className: `relative flex size-14 shrink-0 items-center justify-center rounded-full border text-title ${nodeStyles[state]}`,
+      children: (
+        <>
+          <Icon aria-hidden size={24} weight="regular" />
+          {state === "locked" && <LockBadge />}
+        </>
+      ),
     },
   });
+  const description_ = description ? (
+    <Text size="caption" tone="muted">
+      {description}
+    </Text>
+  ) : null;
   return (
-    <li className="flex min-w-0 items-start gap-4 pr-8">
+    <li className="group relative isolate flex min-h-28 min-w-0 items-start gap-4 pb-10 even:pl-16 last:min-h-0 last:pb-0">
+      <NodePath state={state} />
       {circle}
       <div className="flex min-w-0 flex-1 flex-col items-start gap-1 pt-2">
-        <span className="sr-only">
-          {state === "locked" ? "Locked: " : state === "complete" ? "Completed: " : "Available: "}
-        </span>
+        <span className="sr-only">{statePrefix[state]}</span>
         <Text>{title}</Text>
-        {description && (
-          <Text size="caption" tone="muted">
-            {description}
-          </Text>
-        )}
+        {description_}
         {children}
       </div>
     </li>

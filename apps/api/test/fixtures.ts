@@ -61,18 +61,24 @@ export const unitsReply = (n = 8, name = "Unit") => ({
         objective: "Use useful words in context",
         skill: "vocabulary",
         kind: "practice",
+        estimatedMinutes: 6,
+        pageCount: 5,
       },
       {
         title: `${name} clearer sentences ${i + 1}`,
         objective: "Make your meaning clear",
         skill: "grammar",
         kind: "practice",
+        estimatedMinutes: 6,
+        pageCount: 5,
       },
       {
         title: `${name} explain your ideas ${i + 1}`,
         objective: "Explain a real example confidently",
         skill: "fluency",
         kind: "practice",
+        estimatedMinutes: 6,
+        pageCount: 5,
       },
       ...(i === n - 1
         ? [
@@ -81,6 +87,8 @@ export const unitsReply = (n = 8, name = "Unit") => ({
               objective: "Use this Unit in a conversation",
               skill: "fluency",
               kind: "roleplay",
+              estimatedMinutes: 6,
+              pageCount: 5,
             },
           ]
         : []),
@@ -95,6 +103,7 @@ export async function learnerWithRoadmap(
   signUpFields: Record<string, unknown> = {},
   // Roleplay tests need a fixed Mock Interview, so the proposed Goal is confirmed as a Job Interview.
   confirmEdits: Record<string, unknown> = { kind: "job_interview" },
+  paged = false,
 ) {
   const setupApp = makeApp({
     now: clock,
@@ -109,8 +118,18 @@ export async function learnerWithRoadmap(
   await takeWrittenAssessment(setupApp, learner.cookie, clock);
   const [goal] = (await (await setupApp.request("/api/goals", get(learner.cookie))).json()) as any[];
   await setupApp.request(`/api/goals/${goal.id}/confirm`, json(confirmEdits, learner.cookie));
+  if (!paged) await legacyOutlines(learner.id);
   const units = (await (await setupApp.request("/api/roadmap", get(learner.cookie))).json()) as any[];
   return { ...learner, units };
+}
+
+// The one-call Lesson path (POST /api/lessons/next) only serves outlines without a page count, as older Roadmaps have.
+export async function legacyOutlines(userId: string) {
+  for (const u of await testDb.select().from(schema.unit).where(eq(schema.unit.userId, userId)))
+    await testDb
+      .update(schema.unit)
+      .set({ lessonOutline: u.lessonOutline.map(({ pageCount: _p, estimatedMinutes: _m, ...rest }) => rest) })
+      .where(eq(schema.unit.id, u.id));
 }
 
 export const lessonPlan = (over: Record<string, unknown> = {}) => ({

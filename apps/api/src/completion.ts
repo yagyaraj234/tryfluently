@@ -4,11 +4,10 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import { remember, advanceUnit } from "./learning-memory";
-import { prepareNext } from "./preparation";
+import { remember, advanceUnit, addFocusItems } from "./learning-memory";
 import { fluencyScore, recordScores, skillProfile, skills, speechSegments } from "./scoring";
 
-const { lesson, step, unit, focusItem } = schema;
+const { lesson, step, unit } = schema;
 type Ctx = Pick<Deps, "db" | "now" | "models"> & { settings: { alphaLesson: number } };
 
 const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
@@ -212,7 +211,9 @@ export async function completeLesson({ db, now, models, settings }: Ctx, id: str
             answeredAt: at,
           })),
         );
-        await tx.insert(focusItem).values(
+        await addFocusItems(
+          tx,
+          userId,
           phrasesToLearn.map((label) => ({
             userId,
             label,
@@ -223,7 +224,9 @@ export async function completeLesson({ db, now, models, settings }: Ctx, id: str
           })),
         );
       } else if (judged.focusItems?.length) {
-        await tx.insert(focusItem).values(
+        await addFocusItems(
+          tx,
+          userId,
           judged.focusItems.map((f) => ({
             userId,
             ...f,
@@ -261,6 +264,5 @@ export async function completeLesson({ db, now, models, settings }: Ctx, id: str
     if (row.unitId) await advanceUnit(tx, row.unitId);
     return { row: saved!, changed: true };
   });
-  if (result.changed && judged) await prepareNext({ db, now, models }, userId);
   return { status: result.row.status, ...(result.row.debrief && { debrief: result.row.debrief }) };
 }

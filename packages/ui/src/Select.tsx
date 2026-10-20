@@ -26,7 +26,7 @@ export function Select({ label, options, onValueChange, ref, ...props }: SelectP
       </div>
       <BaseSelect.Portal>
         <BaseSelect.Positioner className="z-overlay" sideOffset={4}>
-          <BaseSelect.Popup className="max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) overflow-y-auto rounded-xl border border-line bg-paper py-1 text-ink shadow-card data-ending-style:opacity-0 data-starting-style:opacity-0 motion-safe:transition-opacity motion-safe:duration-ui motion-safe:ease-ui">
+          <BaseSelect.Popup className="type-app max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) overflow-y-auto rounded-xl border border-line bg-paper py-1 text-ink shadow-card data-ending-style:opacity-0 data-starting-style:opacity-0 motion-safe:transition-opacity motion-safe:duration-ui motion-safe:ease-ui">
             <BaseSelect.List>
               {options.map((option) => (
                 <BaseSelect.Item

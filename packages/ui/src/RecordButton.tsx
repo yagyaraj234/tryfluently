@@ -3,7 +3,6 @@ import { Microphone, Stop } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
 import { spinner } from "./Spinner";
 
-// A pulsing live ring sits behind the button while it records.
 const wrap = cva("relative inline-flex rounded-full p-1");
 const ring = cva("absolute inset-0 rounded-full bg-live motion-safe:animate-pulse");
 const button = cva(
@@ -25,11 +24,15 @@ export type RecordButtonProps = {
   onStop: () => void;
 };
 
-/** The large round button that starts and stops a recorded answer. It can't be pressed while the recording is processed. */
 export function RecordButton({ state, onStart, onStop }: RecordButtonProps) {
   const label = { idle: "Start recording", recording: "Stop recording", processing: "Processing your recording" }[
     state
   ];
+  const content = {
+    idle: <Microphone aria-hidden />,
+    recording: <Stop aria-hidden />,
+    processing: <span aria-hidden className={spinner()} />,
+  }[state];
   return (
     <span className={wrap()}>
       {state === "recording" && <span aria-hidden className={ring()} />}
@@ -40,13 +43,7 @@ export function RecordButton({ state, onStart, onStop }: RecordButtonProps) {
         focusableWhenDisabled
         onClick={state === "recording" ? onStop : onStart}
       >
-        {state === "processing" ? (
-          <span aria-hidden className={spinner()} />
-        ) : state === "recording" ? (
-          <Stop aria-hidden />
-        ) : (
-          <Microphone aria-hidden />
-        )}
+        {content}
       </BaseButton>
     </span>
   );

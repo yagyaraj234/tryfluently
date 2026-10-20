@@ -8,7 +8,6 @@ const container = cva("mx-auto w-full", {
 });
 
 export type ContainerProps = {
-  /** `page` is for dashboards with a side column, like Home. */
   width?: "content" | "prose" | "page";
   children?: ReactNode;
 };

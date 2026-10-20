@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { buttons, startWeb } from "./helpers.mjs";
+import { buttons, startWeb, text } from "./helpers.mjs";
 
 let web;
 
@@ -10,7 +10,19 @@ before(async () => {
       res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha", timezone: "America/New_York" });
-    if (req.url === "/api/progress") return json(200, { xp: 340, streak: 12 });
+    if (req.url === "/api/progress")
+      return json(200, { xp: 340, streak: 12, week: [{ day: "2026-10-19", today: true, practised: true }] });
+    if (req.url === "/api/skill-profile")
+      return json(200, {
+        fluency: { level: "A1" },
+        grammar: { level: "B1" },
+        vocabulary: { level: "B1" },
+      });
+    if (req.url === "/api/roadmap")
+      return json(200, [
+        { status: "mastered", lessons: [{ status: "completed" }] },
+        { status: "active", lessons: [] },
+      ]);
     json(404, { error: "Not found" });
   });
 });
@@ -18,20 +30,19 @@ before(async () => {
 after(() => web.close());
 
 async function page(cookie = "learner=asha") {
-  const response = await fetch(web.url + "/settings", { headers: { cookie } });
+  const response = await fetch(web.url + "/profile", { headers: { cookie } });
   assert.equal(response.status, 200);
   return response.text();
 }
 
-const text = (html) => html.replace(/<!--.*?-->/g, "").replace(/<[^>]+>/g, "");
 const checkedTheme = (html) =>
   [...html.matchAll(/<[^>]*role="radio"[^>]*>[\s\S]*?(Light|Dark|System)/g)]
     .filter((m) => /aria-checked="true"/.test(m[0].match(/<[^>]*role="radio"[^>]*>/)[0]))
     .map((m) => m[1]);
 
-test("Settings offers Light, Dark and System, with Light picked when no theme is set", async () => {
+test("Profile offers Light, Dark and System, with Light picked when no theme is set", async () => {
   const html = await page();
-  assert.match(html, /<h1[^>]*>Settings<\/h1>/);
+  assert.match(html, /<h1[^>]*>Profile<\/h1>/);
   assert.match(text(html), /Theme/);
   assert.deepEqual(checkedTheme(html), ["Light"]);
 });
@@ -52,4 +63,29 @@ test("the Learner can sign out or delete their account", async () => {
   const html = await page();
   assert.ok(buttons(html).includes("Sign out"));
   assert.ok(buttons(html).includes("Delete your account"));
+});
+
+test("Profile includes the shared learning summary", async () => {
+  const body = text(await page());
+  for (const value of [
+    "Asha",
+    "Fluency A1",
+    "Grammar B1",
+    "Vocabulary B1",
+    "12 Day streak",
+    "340 XP",
+    "1 Unit mastered",
+    "This week",
+    "1/7 days",
+    "1 Lesson done",
+    "1 Unit in progress",
+  ]) {
+    assert.ok(body.includes(value), value);
+  }
+});
+
+test("old Settings links redirect to Profile", async () => {
+  const response = await fetch(web.url + "/settings", { headers: { cookie: "learner=asha" }, redirect: "manual" });
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get("location"), "/profile");
 });

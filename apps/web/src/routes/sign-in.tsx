@@ -13,12 +13,13 @@ export const Route = createFileRoute("/sign-in")({
 function SignIn() {
   const { google } = Route.useLoaderData();
   const { error } = Route.useSearch();
+  const initialError = error && "Google sign-in didn't work. Try again, or use your email.";
   return (
     <AuthScreen
       mode="sign-in"
       title="Welcome back"
       google={google}
-      initialError={error && "Google sign-in didn't work. Try again, or use your email."}
+      initialError={initialError}
       fields={[
         { name: "email", label: "Email", type: "email", autoComplete: "email" },
         { name: "password", label: "Password", type: "password", autoComplete: "current-password" },

@@ -4,6 +4,7 @@ import { safeValidateUIMessages, type UIMessage } from "ai";
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
+import { learnerMessage } from "./steps";
 import { streamChat } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
@@ -12,15 +13,43 @@ import { voiceMinutes, type RealtimeBroker } from "./realtime";
 
 const { lesson, goal } = schema;
 
-type RoleplayKind = "mock_interview" | "client_call";
+export const roleplayKinds = [
+  "mock_interview",
+  "client_call",
+  "presentation",
+  "team_meeting",
+  "phone_call",
+  "small_talk",
+  "custom",
+] as const;
+export type RoleplayKind = (typeof roleplayKinds)[number];
+const roleplayKind = z.enum(roleplayKinds);
+const roleplayScenario = z
+  .string()
+  .trim()
+  .min(3, "Describe the Roleplay in at least 3 characters")
+  .max(500, "Your Roleplay description must be at most 500 characters");
 type Tone = "friendly" | "standard" | "tough";
 type Ctx = { db: Tx; now: Deps["now"] };
 
 // Learner-facing names. "Interview" only ever appears as "Mock Interview".
-const titles: Record<RoleplayKind, string> = { mock_interview: "Mock Interview", client_call: "Client Call" };
+const titles: Record<RoleplayKind, string> = {
+  mock_interview: "Mock Interview",
+  client_call: "Client Call",
+  presentation: "Presentation",
+  team_meeting: "Team Meeting",
+  phone_call: "Phone Call",
+  small_talk: "Small Talk",
+  custom: "Custom Roleplay",
+};
 const objectives: Record<RoleplayKind, string> = {
   mock_interview: "Answer Mock Interview questions in clear, natural English",
   client_call: "Handle a Client Call in clear, natural English",
+  presentation: "Give a Presentation in clear, natural English",
+  team_meeting: "Take part in a Team Meeting in clear, natural English",
+  phone_call: "Handle a Phone Call in clear, natural English",
+  small_talk: "Make Small Talk in clear, natural English",
+  custom: "Handle the situation you described in clear, natural English",
 };
 
 const confirmedGoalTexts = async ({ db }: Pick<Deps, "db">, userId: string) =>
@@ -45,6 +74,7 @@ export async function createRoleplay(
     position = 0,
     textMode = false,
     plan,
+    scenario = null,
   }: {
     plan?: { title: string; objective: string };
     kind: RoleplayKind;
@@ -52,6 +82,7 @@ export async function createRoleplay(
     unitId?: string | null;
     position?: number;
     textMode?: boolean;
+    scenario?: string | null;
   },
 ) {
   const [row] = await db
@@ -62,6 +93,7 @@ export async function createRoleplay(
       position,
       kind: "roleplay",
       roleplayKind: kind,
+      roleplayScenario: scenario,
       tone,
       textMode,
       title: plan?.title ?? titles[kind],
@@ -95,6 +127,15 @@ their CV and experience, behavioural questions they should answer with STAR (sit
 explain a project they worked on, and finish with "Do you have any questions for us?".`,
   client_call: `You are a client on a Client Call with the Learner. Make it realistic for their work: you explain what you need,
 raise a problem or a delay, push back on scope, price or timing, and agree next steps.`,
+  presentation: `You are an audience member at the Learner's Presentation. Listen to their talk, ask about the main point,
+the evidence behind it, the implications and the next steps, and raise one challenging but fair question.`,
+  team_meeting: `You are a teammate in a Team Meeting with the Learner. Discuss progress, blockers, priorities and decisions,
+disagree where it is natural to disagree, and agree concrete next steps.`,
+  phone_call: `You are the person on the other end of a Phone Call with the Learner. Explain why you are calling, ask for
+information, raise a small problem or delay, and agree next steps.`,
+  small_talk: `You are meeting the Learner casually for Small Talk. Chat about the day, work, travel, food or interests,
+and keep the conversation light and natural.`,
+  custom: `You are the other person in a situation the Learner described. Play that person and keep the conversation realistic.`,
 };
 
 const endCallTool = {
@@ -105,8 +146,18 @@ const endCallTool = {
 };
 
 // Instructions for a Roleplay, spoken or in text. Reused by text-mode Roleplays.
-export const roleplayInstructions = (kind: RoleplayKind, tone: Tone, briefs: string[], spoken = false) =>
-  `${scenarios[kind]}
+export const roleplayInstructions = (
+  kind: RoleplayKind,
+  tone: Tone,
+  briefs: string[],
+  scenario: string | null = null,
+  spoken = false,
+) =>
+  `${
+    kind === "custom" && scenario
+      ? `You are the other person in this situation the Learner described:\n${scenario}\nPlay that person and keep the conversation realistic.`
+      : scenarios[kind]
+  }
 Tone — ${toneText[tone]}
 ${briefs.length ? `What you know about the Learner:\n${briefs.join("\n\n")}` : ""}
 Ask exactly one question at a time. After each answer, base the next question or follow-up on details in that last answer;
@@ -139,6 +190,7 @@ export const roleplays = (
               id: lesson.id,
               title: lesson.title,
               roleplayKind: lesson.roleplayKind,
+              roleplayScenario: lesson.roleplayScenario,
               tone: lesson.tone,
               textMode: lesson.textMode,
               status: lesson.status,
@@ -158,28 +210,30 @@ export const roleplays = (
           "json",
           z.object({
             goalId: z.string(),
-            kind: z.enum(["mock_interview", "client_call"]).optional(),
+            kind: roleplayKind.optional(),
+            scenario: roleplayScenario.optional(),
             tone: z.enum(["friendly", "standard", "tough"]).optional(),
             textMode: z.boolean().optional(),
           }),
         ),
         async (c) => {
           const userId = c.var.user.id;
-          const { goalId, kind, tone, textMode } = c.req.valid("json");
+          const { goalId, kind, scenario, tone, textMode } = c.req.valid("json");
           const [g] = await db
             .select({ kind: goal.kind })
             .from(goal)
             .where(and(eq(goal.id, goalId), eq(goal.userId, userId)));
           if (!g) return c.json({ error: "Goal not found" }, 404);
           const fromGoal = { job_interview: "mock_interview", client_communication: "client_call" } as const;
-          const chosen = kind ?? fromGoal[g.kind as keyof typeof fromGoal];
-          if (!chosen) return c.json({ error: "Choose a Mock Interview or a Client Call" }, 400);
-          return c.json(await createRoleplay(deps, userId, { kind: chosen, tone, textMode }), 201);
+          const chosen = scenario ? "custom" : kind ?? fromGoal[g.kind as keyof typeof fromGoal];
+          if (!chosen) return c.json({ error: "Choose a Roleplay or describe your own" }, 400);
+          if (chosen === "custom" && !scenario) return c.json({ error: "Describe your Roleplay" }, 400);
+          return c.json(await createRoleplay(deps, userId, { kind: chosen, scenario, tone, textMode }), 201);
         },
       )
       // The text-mode Roleplay: the same character as a chat, one message at a time, history kept on the server.
       // Chatting before any call switches a Roleplay to text, so one at the end of a Unit can be done in text too.
-      .post("/:id/chat", zValidator("json", z.object({ message: z.unknown() })), async (c) => {
+      .post("/:id/chat", zValidator("json", z.object({ message: learnerMessage })), async (c) => {
         const userId = c.var.user.id;
         const row = await find(c.req.param("id"), userId);
         if (!row) return c.json({ error: "Roleplay not found" }, 404);
@@ -199,7 +253,7 @@ export const roleplays = (
 
         return streamChat(deps, userId, {
           model: deps.models.step,
-          instructions: `${roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedGoalTexts(deps, userId))}
+          instructions: `${roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedGoalTexts(deps, userId), row.roleplayScenario)}
 This Roleplay is a text chat: write your lines as you would say them, without stage directions.`,
           messages: valid.data,
           save: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
@@ -231,6 +285,7 @@ This Roleplay is a text chat: write your lines as you would say them, without st
             row.roleplayKind!,
             row.tone!,
             await confirmedGoalTexts(deps, userId),
+            row.roleplayScenario,
             true,
           ),
           purpose: "roleplay",

@@ -39,7 +39,6 @@ const colors = {
 const spaces = { 1: "w-1", 2: "w-2", 3: "w-3", 4: "w-4", 6: "w-6", 8: "w-8", 10: "w-10", 14: "w-14" };
 const radii = { lg: "rounded-lg", xl: "rounded-xl", "3xl": "rounded-3xl", full: "rounded-full" };
 
-/** Live token samples for the Design System guide. Values resolve from the current theme. */
 export function TokenReference() {
   return (
     <Stack gap={8}>

@@ -4,30 +4,26 @@ import { Heading } from "./Heading";
 import { Mascot } from "./Mascot";
 import { StreakCard } from "./StreakCard";
 
-// The celebration is a brand moment: a card with the soft shadow.
 const panel = cva(
-  "flex flex-col items-center gap-6 rounded-3xl border border-line bg-paper p-8 text-center text-ink shadow-card",
+  "flex flex-col items-center gap-6 rounded-3xl border border-line bg-paper p-8 text-center text-ink shadow-card *:motion-safe:animate-rise *:nth-2:[animation-delay:60ms] *:nth-3:[animation-delay:120ms] *:nth-4:[animation-delay:180ms] *:nth-5:[animation-delay:240ms]",
 );
 const xp = cva("text-hero tabular-nums");
 const actions = cva("flex flex-wrap justify-center gap-3");
 
 export type LessonCompleteProps = {
-  /** XP earned in this Lesson. Left out when it isn't known. */
   xpGained?: number;
   headingLevel?: 1 | 2;
-  /** The Streak in days, after this Lesson. */
   streak: number;
-  /** What to do next, for example Buttons for the next Lesson and Home. */
   actions?: ReactNode;
 };
 
-/** The end of a Lesson: the celebration, the XP gained, the Streak and the next actions. */
 export function LessonComplete({ xpGained, streak, headingLevel = 1, actions: next }: LessonCompleteProps) {
+  const xpLine = xpGained !== undefined ? <p className={xp()}>{`+${xpGained} XP`}</p> : null;
   return (
     <section className={panel()}>
       <Mascot name="pip" size="lg" />
       <Heading level={headingLevel}>Lesson complete</Heading>
-      {xpGained !== undefined && <p className={xp()}>{`+${xpGained} XP`}</p>}
+      {xpLine}
       <StreakCard days={streak} />
       {next && <div className={actions()}>{next}</div>}
     </section>

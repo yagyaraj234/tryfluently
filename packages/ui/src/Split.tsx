@@ -5,7 +5,6 @@ export type SplitProps = {
   side: ReactNode;
 };
 
-// One column on phones; at desktop the main slot takes two thirds and the side slot one.
 // grid-cols-* use minmax(0, 1fr), so long content can't push a column wider than its share.
 export function Split({ main, side }: SplitProps) {
   return (

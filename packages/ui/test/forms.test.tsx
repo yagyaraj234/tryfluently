@@ -110,22 +110,33 @@ const themes = [
 ];
 
 describe("ChoiceChips", () => {
-  test("single mode is a labelled radio group that arrow keys move through", async () => {
-    const changes: string[] = [];
-    render(<ChoiceChips label="Theme" options={themes} defaultValue="light" onValueChange={(v) => changes.push(v)} />);
-    screen.getByRole("radiogroup", { name: "Theme" });
-    const light = screen.getByRole("radio", { name: "Light" });
-    expect(light.getAttribute("aria-checked")).toBe("true");
+  test.each(["chips", "segmented"] as const)(
+    "%s layout keeps radio semantics and arrow-key selection",
+    async (layout) => {
+      const changes: string[] = [];
+      render(
+        <ChoiceChips
+          layout={layout}
+          label="Theme"
+          options={themes}
+          defaultValue="light"
+          onValueChange={(v) => changes.push(v)}
+        />,
+      );
+      screen.getByRole("radiogroup", { name: "Theme" });
+      const light = screen.getByRole("radio", { name: "Light" });
+      expect(light.getAttribute("aria-checked")).toBe("true");
 
-    light.focus();
-    fireEvent.keyDown(light, { key: "ArrowRight" });
-    const dark = screen.getByRole("radio", { name: "Dark" });
-    // Base UI moves focus in a microtask.
-    await waitFor(() => expect(document.activeElement === dark).toBe(true));
-    expect(dark.getAttribute("aria-checked")).toBe("true");
-    expect(light.getAttribute("aria-checked")).toBe("false");
-    expect(changes).toEqual(["dark"]);
-  });
+      light.focus();
+      fireEvent.keyDown(light, { key: "ArrowRight" });
+      const dark = screen.getByRole("radio", { name: "Dark" });
+      // Base UI moves focus in a microtask.
+      await waitFor(() => expect(document.activeElement === dark).toBe(true));
+      expect(dark.getAttribute("aria-checked")).toBe("true");
+      expect(light.getAttribute("aria-checked")).toBe("false");
+      expect(changes).toEqual(["dark"]);
+    },
+  );
 
   test("single mode respects a controlled value", () => {
     const changes: (string | null)[] = [];

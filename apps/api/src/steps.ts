@@ -2,6 +2,11 @@ import { tool, type ToolUIPart, type UIMessage } from "ai";
 import { z } from "zod";
 
 const textAnswer = z.object({ answer: z.string().trim().min(1).max(2000) });
+export const learnerMessage = z.object({
+  id: z.string().min(1).max(200),
+  role: z.literal("user"),
+  parts: z.array(z.object({ type: z.literal("text"), text: z.string().trim().min(1).max(2000) })).length(1),
+});
 type TextAnswer = z.infer<typeof textAnswer>;
 const teaching = z
   .object({
@@ -122,13 +127,16 @@ export function takeAnswer(
   const last = stored.at(-1);
   const pending = last?.role === "assistant" ? last.parts.find((p) => isStep(p, "input-available")) : undefined;
   if (!pending) {
-    if (incoming?.role !== "user") return { error: "Expected a message from the Learner", status: 400 };
-    return { messages: [...stored, incoming] };
+    const parsed = learnerMessage.safeParse(incoming);
+    if (!parsed.success) return { error: "Send a text message of 1–2,000 characters", status: 400 };
+    return { messages: [...stored, parsed.data] };
   }
   if (incoming?.role !== "assistant" || incoming.id !== last!.id)
     return { error: "Answer the current Step first", status: 409 };
 
-  const sent = incoming.parts?.find?.((p: any) => p.toolCallId === pending.toolCallId);
+  const sent = Array.isArray(incoming.parts)
+    ? incoming.parts.find((p: any) => p?.toolCallId === pending.toolCallId)
+    : undefined;
   const output = textAnswer.safeParse(sent?.output);
   if (!output.success) return { error: "That answer isn't valid", status: 400, issues: output.error.issues };
   const type = stepTypeOf(pending);
