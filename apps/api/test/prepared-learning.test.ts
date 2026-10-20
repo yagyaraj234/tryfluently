@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { get, json, makeApp, makeClock, mockChat, mockModel, signUp } from "./helpers";
-import { reportReply, takeWrittenAssessment, unitsReply } from "./fixtures";
+import { legacyOutlines, reportReply, takeWrittenAssessment, unitsReply } from "./fixtures";
 
 const content = {
   material: [{ title: "Daily routines", body: "Use present simple for habits.", example: "I walk to work." }],
@@ -28,10 +28,11 @@ async function preparedLearner() {
 }
 
 test("confirming Goals prepares no Lesson; the first one has fixed material and private question keys", async () => {
-  const { cookie, clock, goal } = await preparedLearner();
+  const { id: learnerId, cookie, clock, goal } = await preparedLearner();
   const step = mockModel(content);
   const app = makeApp({ now: clock, models: { roadmap: mockModel(unitsReply()), step } });
   expect((await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie))).status).toBe(200);
+  await legacyOutlines(learnerId);
   expect(((await (await app.request("/api/roadmap", get(cookie))).json()) as any[]).flatMap((u) => u.lessons)).toEqual(
     [],
   );
@@ -64,12 +65,13 @@ const judgment = {
 };
 
 test("a completed low-score assessment saves its report and prepares the next Lesson without changing outlines", async () => {
-  const { cookie, clock, goal } = await preparedLearner();
+  const { id: learnerId, cookie, clock, goal } = await preparedLearner();
   const app = makeApp({
     now: clock,
     models: { roadmap: mockModel(unitsReply()), step: mockModel(content, content), judge: mockModel(judgment) },
   });
   await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await legacyOutlines(learnerId);
   await app.request("/api/lessons/next", json({}, cookie));
   const before = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
   const id = before[0].lessons[0].id;
@@ -98,12 +100,13 @@ test("a completed low-score assessment saves its report and prepares the next Le
 });
 
 test("failed preparation can be retried concurrently without duplicate Lessons or leaked content", async () => {
-  const { cookie, clock, goal } = await preparedLearner();
+  const { id: learnerId, cookie, clock, goal } = await preparedLearner();
   const failed = makeApp({
     now: clock,
     models: { roadmap: mockModel(unitsReply()), step: mockModel({ invalid: true }) },
   });
   await failed.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await legacyOutlines(learnerId);
   await failed.request("/api/lessons/next", json({}, cookie));
   const units = (await (await failed.request("/api/roadmap", get(cookie))).json()) as any[];
   expect(units[0].lessons[0].preparation).toBe("failed");
@@ -129,13 +132,14 @@ test("failed preparation can be retried concurrently without duplicate Lessons o
 });
 
 test("every outlined Lesson completes before the next Unit opens, carrying performance across Units", async () => {
-  const { cookie, clock, goal } = await preparedLearner();
+  const { id: learnerId, cookie, clock, goal } = await preparedLearner();
   const model = mockModel(content, content, content, content);
   const app = makeApp({
     now: clock,
     models: { roadmap: mockModel(unitsReply()), step: model, judge: mockModel(judgment, judgment, judgment) },
   });
   await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await legacyOutlines(learnerId);
   for (let n = 0; n < 3; n++) {
     const lesson = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
     await app.request(`/api/lessons/${lesson.id}/assessment`, json({}, cookie));
@@ -156,12 +160,13 @@ test("every outlined Lesson completes before the next Unit opens, carrying perfo
 });
 
 test("failed judging preserves answers, retry completes once, and finishing does not prepare another Lesson", async () => {
-  const { cookie, clock, goal } = await preparedLearner();
+  const { id: learnerId, cookie, clock, goal } = await preparedLearner();
   const app = makeApp({
     now: clock,
     models: { roadmap: mockModel(unitsReply()), step: mockModel(content, {}), judge: mockModel({}, judgment) },
   });
   await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await legacyOutlines(learnerId);
   const l = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
   await app.request(`/api/lessons/${l.id}/assessment`, json({}, cookie));
   for (const q of l.questions)
@@ -197,7 +202,7 @@ test("concurrent Goal confirmations build one Roadmap and no Lesson", async () =
 });
 
 test("outlined Roleplay waits for all practice Lessons and its saved Debrief appears in both histories", async () => {
-  const { cookie, clock, goal } = await preparedLearner();
+  const { id: learnerId, cookie, clock, goal } = await preparedLearner();
   const roadmap = unitsReply();
   roadmap.units[0]!.endsWithRoleplay = true;
   roadmap.units[0]!.lessonOutline.push({
@@ -226,6 +231,7 @@ test("outlined Roleplay waits for all practice Lessons and its saved Debrief app
     models: { roadmap: mockModel(roadmap), step, judge: mockModel(judgment, judgment, judgment, debrief) },
   });
   await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await legacyOutlines(learnerId);
   for (let n = 0; n < 3; n++) {
     const l = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
     expect(l.kind).toBe("practice");
@@ -257,7 +263,7 @@ test("outlined Roleplay waits for all practice Lessons and its saved Debrief app
 });
 
 test("retrying the final practice Lesson cannot unlock its Roleplay early", async () => {
-  const { cookie, clock, goal } = await preparedLearner();
+  const { id: learnerId, cookie, clock, goal } = await preparedLearner();
   const roadmap = unitsReply();
   roadmap.units[0]!.endsWithRoleplay = true;
   roadmap.units[0]!.lessonOutline.push({
@@ -277,6 +283,7 @@ test("retrying the final practice Lesson cannot unlock its Roleplay early", asyn
     },
   });
   await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await legacyOutlines(learnerId);
   for (let n = 0; n < 2; n++) {
     const l = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
     await app.request(`/api/lessons/${l.id}/assessment`, json({}, cookie));
@@ -290,13 +297,14 @@ test("retrying the final practice Lesson cannot unlock its Roleplay early", asyn
 });
 
 test("malformed question choices fail preparation instead of publishing an unanswerable assessment", async () => {
-  const { cookie, clock, goal } = await preparedLearner();
+  const { id: learnerId, cookie, clock, goal } = await preparedLearner();
   const invalid = {
     ...content,
     questions: content.questions.map((q) => ({ ...q, input: { ...q.input, choices: ["run", "runs"] } })),
   };
   const app = makeApp({ now: clock, models: { roadmap: mockModel(unitsReply()), step: mockModel(invalid) } });
   await app.request(`/api/goals/${goal.id}/confirm`, json({}, cookie));
+  await legacyOutlines(learnerId);
   await app.request("/api/lessons/next", json({}, cookie));
   const units = (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
   expect(units[0].lessons[0].preparation).toBe("failed");

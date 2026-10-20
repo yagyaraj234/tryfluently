@@ -123,7 +123,8 @@ export function AuthScreen(props: {
       footer={props.footer}
       alternative={alternative}
     >
-      <form onSubmit={submit}>
+      // method="post" keeps credentials out of the URL if the form is submitted before the page has hydrated.
+      <form method="post" onSubmit={submit}>
         <Stack gap={5}>
           {props.fields.map((field) => (
             <TextField key={field.name} {...field} required />

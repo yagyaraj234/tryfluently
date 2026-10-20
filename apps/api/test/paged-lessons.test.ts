@@ -117,7 +117,7 @@ const good = (n: number) => ({
 });
 
 async function learner() {
-  const l = await learnerWithRoadmap();
+  const l = await learnerWithRoadmap(undefined, {}, undefined, true);
   // The Roadmap setup prepares an old-format first Lesson; clear it so Start is the first thing that happens.
   await testDb.delete(schema.lesson).where(eq(schema.lesson.userId, l.id));
   return l;
@@ -346,4 +346,23 @@ test("a question step that keeps failing fails the Lesson, and Retry runs it aga
   expect((await app.request(`/api/lessons/${id}/retry`, json({}, cookie))).status).toBe(202);
   await app.runJobs(userId);
   expect((await pages(app, cookie, id)).pages.map((p: any) => p.question)).toEqual(Array(5).fill("ready"));
+});
+
+test("the one-call next route makes no Lesson and no model call on a paged outline, and leaves a paged Lesson alone", async () => {
+  const { cookie, id: userId } = await learner();
+  const fake = fakeLessonModel();
+  const app = makeApp({ models: { step: fake.model } });
+  const lessons = () => testDb.select().from(schema.lesson).where(eq(schema.lesson.userId, userId));
+  expect((await app.request("/api/lessons/next", json({}, cookie))).status).toBe(409);
+  expect(await lessons()).toHaveLength(0);
+  expect(fake.model.doGenerateCalls).toHaveLength(0);
+
+  const started = (await (await start(app, cookie)).json()) as any;
+  await testDb
+    .update(schema.lesson)
+    .set({ preparation: "failed", preparationToken: null })
+    .where(eq(schema.lesson.id, started.id));
+  await app.request("/api/lessons/next", json({}, cookie));
+  expect(fake.model.doGenerateCalls).toHaveLength(0);
+  expect(await lessons()).toMatchObject([{ id: started.id, contentVersion: 2, preparation: "failed" }]);
 });

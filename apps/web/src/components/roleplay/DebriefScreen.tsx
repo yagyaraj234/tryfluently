@@ -3,7 +3,6 @@ import { Button, ChatTurn, Debrief, EmptyState, Stack, Text } from "@impromptu/u
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { UIMessage } from "ai";
-import { useNextLesson } from "../../lib/lessons";
 import { roadmapQuery } from "../../lib/queries";
 import { hear, type DebriefData, type Roleplay } from "./roleplay";
 
@@ -39,7 +38,6 @@ export function Conversation({ roleplay }: { roleplay: Roleplay }) {
 
 export function DebriefScreen({ roleplay }: { roleplay: Roleplay }) {
   const roadmap = useQuery(roadmapQuery);
-  const next = useNextLesson();
   const debrief = roleplay.debrief as unknown as DebriefData;
   const finished = Boolean(
     roadmap.data?.length && roadmap.data.every((u) => u.status === "mastered" || u.status === "skipped"),
@@ -48,12 +46,7 @@ export function DebriefScreen({ roleplay }: { roleplay: Roleplay }) {
   // A Roleplay that closes a Unit carries on along the Roadmap; one from setup can be played again.
   let nextAction;
   if (roleplay.unitId && finished) nextAction = <Text>Roadmap complete</Text>;
-  else if (roleplay.unitId)
-    nextAction = (
-      <Button onClick={() => next.mutate()} disabled={next.isPending || next.isSuccess}>
-        Next Lesson
-      </Button>
-    );
+  else if (roleplay.unitId) nextAction = <Button render={<Link to="/roadmap" />}>Next Lesson</Button>;
   else nextAction = <Button render={<Link to="/roleplays/new" />}>Another Roleplay</Button>;
 
   const actions = (
@@ -77,7 +70,6 @@ export function DebriefScreen({ roleplay }: { roleplay: Roleplay }) {
       <Button variant="secondary" render={<Link to="/roleplays" />}>
         Back to Roleplays
       </Button>
-      {next.isError && <Text tone="muted">Your next Lesson couldn't be prepared. Try again in a moment.</Text>}
     </Stack>
   );
 }
