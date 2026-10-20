@@ -77,7 +77,9 @@ ${
     ? `During phases 2–4, also give 3–4 structured items, one at a time, using the fillGap and rewrite tools, pitched at the
 level they're showing. Don't tell them whether they got an item right. ${written.items} items answered so far.
 Aim to finish in about ${MAX_ANSWERS} questions; ${written.answers} answered so far.${
-        written.answers >= MAX_ANSWERS ? " That's enough: thank them and close now, with no further questions." : ""
+        written.answers >= MAX_ANSWERS
+          ? " That's enough: thank them and close now, with no further questions."
+          : " Don't thank them or close the conversation yet, even if you have covered every phase: keep asking new questions."
       }\n`
     : `Finish within 10 minutes. When you've closed the conversation, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.\n`
 }`;
