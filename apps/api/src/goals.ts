@@ -80,15 +80,19 @@ export const goals = (deps: Deps) => {
           const statement = edits.statement ?? row.statement;
           const context = edits.context ?? row.contextRaw;
           // A Brief needs the full situation, so it is only written once there is Goal Context to summarise.
-          const brief = context
-            ? (
-                await generate({ db, now }, userId, {
-                  model: models.brief,
-                  instructions: briefInstructions,
-                  prompt: [statement && `Goal: ${statement}`, context].filter(Boolean).join("\n\n"),
-                })
-              ).text
-            : null;
+          // An unchanged Goal keeps its Brief, so reconfirming costs no model call.
+          const unchanged = row.brief && statement === row.statement && context === row.contextRaw;
+          const brief = unchanged
+            ? row.brief
+            : context
+              ? (
+                  await generate({ db, now }, userId, {
+                    model: models.brief,
+                    instructions: briefInstructions,
+                    prompt: [statement && `Goal: ${statement}`, context].filter(Boolean).join("\n\n"),
+                  })
+                ).text
+              : null;
           const [updated] = await db
             .update(goal)
             .set({
