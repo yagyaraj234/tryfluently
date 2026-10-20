@@ -39,6 +39,14 @@ const reportEmails = (mailer: ReturnType<typeof fakeMailer>) =>
   mailer.sent.filter((email) => typeof email.subject === "string" && email.subject.includes("Assessment Report"));
 
 describe("assessment lifecycle", () => {
+  test("concurrent starts leave only one open Assessment", async () => {
+    const { app } = setup();
+    const { cookie } = await signUp(app);
+    const results = await Promise.all(Array.from({ length: 6 }, () => start(app, cookie)));
+    expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+    const all = (await (await app.request("/api/assessments", get(cookie))).json()) as { status: string }[];
+    expect(all.filter((a) => a.status === "in_progress")).toHaveLength(1);
+  });
   test("two requests ending the same Assessment persist one Report and one set of learning results", async () => {
     const { app, clock, mailer } = setup([reportReply(), reportReply()]);
     const { cookie, id: userId } = await signUp(app);
@@ -64,6 +72,24 @@ describe("assessment lifecycle", () => {
     expect(await (await app.request("/api/skill-profile", get(cookie))).json()).toMatchObject({ grammar: null });
 
     expect((await start(app, cookie)).status).toBe(201);
+  });
+
+  test("a Written Assessment answered in full counts even when finished in under 4 minutes", async () => {
+    const clock = makeClock();
+    const app = makeApp({
+      now: clock,
+      models: { step: mockChat(...Array(13).fill("Next question?")), report: mockModel(reportReply()) },
+    });
+    const { cookie } = await signUp(app);
+    const id = await startAndChat(app, cookie);
+    for (let i = 0; i < 12; i++)
+      await (
+        await app.request(`/api/assessments/${id}/chat`, json({ message: userMessage(`Answer ${i}`) }, cookie))
+      ).text();
+
+    clock.advance({ minutes: 2 });
+    const end = await app.request(`/api/assessments/${id}/end`, json({}, cookie));
+    expect(await end.json()).toMatchObject({ status: "completed" });
   });
 
   test("an attempt the Learner leaves at 4 minutes produces a partial Report and counts as completed", async () => {

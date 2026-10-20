@@ -64,13 +64,18 @@ export const questionsOutput = z.object({
   questions: z.array(z.object({ page: z.number().int().min(0), question: questionSchema })),
 });
 
+/** Whether `phrase` appears in `text` as whole words, so `is` isn't found inside `This`. */
+export function hasPhrase(text: string, phrase: string) {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|\\W)${escaped}(\\W|$)`, "i").test(text);
+}
+
 /** Cheap rules on top of the schema. Returns a reason, or undefined when the question is fine. */
 export function questionProblem(q: Question) {
   if (q.block === "multipleChoice" && q.answerIndex >= q.options.length) return "answerIndex out of range";
   if (q.block === "multipleChoice" && new Set(q.options).size !== q.options.length) return "duplicate options";
   if (q.block === "fillGap" && !q.prompt.includes("___")) return "fillGap prompt has no gap";
-  if (q.block === "fillGap" && q.prompt.toLowerCase().includes(q.answer.toLowerCase()))
-    return "answer is in the prompt";
+  if (q.block === "fillGap" && hasPhrase(q.prompt, q.answer)) return "answer is in the prompt";
 }
 
 const sorted = (a: string[]) => [...a].sort((x, y) => x.localeCompare(y));

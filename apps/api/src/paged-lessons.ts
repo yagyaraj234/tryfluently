@@ -4,7 +4,14 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import { publicQuestion, questionBlocks, questionProblem, questionsOutput, type Question } from "./lesson-blocks";
+import {
+  hasPhrase,
+  publicQuestion,
+  questionBlocks,
+  questionProblem,
+  questionsOutput,
+  type Question,
+} from "./lesson-blocks";
 import { waitForAnalysis, type Clock } from "./lesson-analysis";
 import { answeredPages } from "./page-answers";
 import { skillProfile } from "./scoring";
@@ -43,9 +50,7 @@ export function pageProblem(page: PageOutput, block: string) {
   const key = page.answerKey?.trim();
   if (needsKey.has(block) && !key) return "missing answerKey";
   if (key) {
-    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (new RegExp(`(^|\\W)${escaped}(\\W|$)`, "i").test(`${page.title} ${page.body} ${page.example ?? ""}`))
-      return "answerKey appears in the reading";
+    if (hasPhrase(`${page.title} ${page.body} ${page.example ?? ""}`, key)) return "answerKey appears in the reading";
   }
 }
 
@@ -223,8 +228,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
   const [row] = await db.select().from(lesson).where(eq(lesson.id, lessonId));
   if (!row || row.contentVersion !== 2 || !row.preparationToken) return;
   // "ready" with a token means every Page is written but the questions are not: a resumed job goes straight to them.
-  if (row.preparation === "ready") return void (await writeQuestions(ctx, lessonId, row.preparationToken));
-  if (row.preparation !== "preparing") return;
+  if (row.preparation !== "preparing" && row.preparation !== "ready") return;
   const token = row.preparationToken;
   const total = row.pageStatus!.length;
   const mine = and(eq(lesson.id, lessonId), eq(lesson.preparationToken, token));
@@ -242,6 +246,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
         .where(eq(lesson.id, lessonId));
     });
   try {
+    if (row.preparation === "ready") return void (await writeQuestions(ctx, lessonId, token));
     // The last Lesson's analysis feeds this plan; give it a few seconds, then go on with what exists.
     await waitForAnalysis(db, row.userId, { clock: ctx.clock });
     const [[active], goals, focus, memory, profile] = await Promise.all([

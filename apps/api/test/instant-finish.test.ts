@@ -42,7 +42,7 @@ const analysisModel = (focus: { label: string; kind: string }[] = []) => {
   const model = new MockLanguageModelV4({
     doGenerate: async () => {
       calls++;
-      return reply({ summary: "You used goes well.", focusItems: focus });
+      return reply({ summary: "You used goes well.", focusItems: focus, usedFocusItemIds: [] });
     },
   });
   return { model, calls: () => calls };
@@ -129,6 +129,34 @@ test("finishing completes the Lesson, moves scores and queues the analysis even 
   const scores = await lessonScores(t.id);
   expect(scores.map((s) => s.skill).sort()).toEqual(["grammar", "vocabulary"]);
   expect((await jobs(t.id)).map((j) => j.status)).toEqual(["pending"]);
+});
+
+test("a Lesson whose questions aren't written yet can't be finished", async () => {
+  const t = await ready();
+  await testDb.delete(schema.step).where(eq(schema.step.lessonId, t.lessonId));
+  const [row] = await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, t.lessonId));
+  await testDb
+    .update(schema.lesson)
+    .set({
+      pageStatus: row!.pageStatus!.map((s) => ({ ...s, question: "pending" as const })),
+      material: row!.material!.map(({ question, ...page }: any) => page),
+    })
+    .where(eq(schema.lesson.id, t.lessonId));
+  expect((await finish(t)).status).toBe(409);
+  const [after] = await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, t.lessonId));
+  expect(after!.status).toBe("in_progress");
+  expect(await lessonScores(t.id)).toHaveLength(0);
+});
+
+test("finishing an abandoned Lesson reports abandoned, not completed", async () => {
+  const t = await ready();
+  await testDb.update(schema.lesson).set({ status: "abandoned" }).where(eq(schema.lesson.id, t.lessonId));
+  const res = await finish(t);
+  expect(await res.json()).toMatchObject({ status: "abandoned" });
+  expect(res.status).toBe(409);
+  const [row] = await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, t.lessonId));
+  expect(row!.status).toBe("abandoned");
+  expect(await jobs(t.id)).toHaveLength(0);
 });
 
 test("the next Lesson unlocks at once", async () => {

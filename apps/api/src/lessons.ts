@@ -1,10 +1,10 @@
 import { schema } from "@fluently/db";
 import { zValidator } from "@hono/zod-validator";
 import { NoObjectGeneratedError, Output, safeValidateUIMessages, tool, type UIMessage } from "ai";
-import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { generate, streamChat } from "./ai";
+import { generate, streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { answerPage, setCurrentPage, stepsOf } from "./page-answers";
@@ -13,6 +13,7 @@ import { publicPages, retryLesson, startLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
 import { completeLesson } from "./completion";
 import { finishPagedLesson } from "./paged-finish";
+import { countFocusHits } from "./learning-memory";
 import { findRecording, recordedSecondsToday, recordingForm, timingOf, type Timing } from "./recordings";
 import { createRoleplay, roleplayKindFor } from "./roleplays";
 import { readyForRoleplay } from "./roadmap";
@@ -23,7 +24,6 @@ const { lesson, step, unit, goal, focusItem } = schema;
 
 const MIN_STEPS = 3;
 const MAX_STEPS = 10;
-const HITS_TO_CLOSE = 3;
 
 const feedbackInput = z.object({
   verdict: z.enum(["correct", "almost", "incorrect"]),
@@ -97,20 +97,6 @@ export const lessons = ({
       .select({ id: focusItem.id, label: focusItem.label })
       .from(focusItem)
       .where(and(eq(focusItem.userId, userId), eq(focusItem.status, "open")));
-
-  // One hit per Focus Item used correctly; the 3rd closes it. Only the Learner's own open items count.
-  async function countHits(userId: string, ids: string[]) {
-    if (!ids.length) return;
-    const closes = sql`${focusItem.hits} + 1 >= ${HITS_TO_CLOSE}`;
-    await db
-      .update(focusItem)
-      .set({
-        hits: sql`${focusItem.hits} + 1`,
-        status: sql`case when ${closes} then 'closed'::focus_status else 'open'::focus_status end`,
-        closedAt: sql`case when ${closes} then ${now().toISOString()}::timestamp end`,
-      })
-      .where(and(eq(focusItem.userId, userId), eq(focusItem.status, "open"), inArray(focusItem.id, [...new Set(ids)])));
-  }
 
   return (
     new Hono<AppEnv>()
@@ -332,14 +318,17 @@ export const lessons = ({
         const row = await find(c.req.param("id"), c.var.user.id);
         if (!row) return c.json({ error: "Lesson not found" }, 404);
         const paged = row.contentVersion === 2;
+        if (paged) {
+          const result = await finishPagedLesson({ db, now, settings }, row.id, row.userId);
+          if (result.status === "incomplete")
+            return c.json({ error: "Wait for every question and answer it first" }, 409);
+          if (result.status === "abandoned") return c.json({ error: "This Lesson has ended", ...result }, 409);
+          return c.json(result);
+        }
         if (row.preparation !== "ready" || (!paged && row.phase !== "assessment"))
           return c.json({ error: "Start the assessment first" }, 409);
         const rows = await db.select().from(step).where(eq(step.lessonId, row.id));
         if (rows.some((s) => !s.answeredAt)) return c.json({ error: "Answer every question first" }, 409);
-        // A paged Lesson has one Step per question Page; all of them must be answered before it can finish.
-        if (paged && rows.length < (row.material ?? []).filter((p: any) => p.question).length)
-          return c.json({ error: "Answer every question first" }, 409);
-        if (paged) return c.json(await finishPagedLesson({ db, now, settings }, row.id, row.userId));
         const result = await completeLesson({ db, now, models, settings }, row.id, row.userId);
         return result.status === "failed"
           ? c.json({ error: "Your report couldn't be prepared. Try again." }, 502)
@@ -414,7 +403,7 @@ export const lessons = ({
                 .update(step)
                 .set({ feedback: { ...feedback, verdict } })
                 .where(eq(step.id, stepId));
-              await countHits(userId, focusItemIds);
+              await countFocusHits(db, userId, focusItemIds, now());
               return { saved: true, verdict };
             },
           }),
@@ -481,7 +470,12 @@ export const lessons = ({
           tools,
           activeTools,
           toolChoice: answeredCount >= MAX_STEPS ? "required" : "auto",
-          save: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
+          save: (messages) =>
+            db
+              .update(lesson)
+              .set({ messages })
+              .where(and(eq(lesson.id, row.id), unchanged(lesson.messages, (row.messages as unknown[]).length)))
+              .returning({ id: lesson.id }),
         });
       })
   );

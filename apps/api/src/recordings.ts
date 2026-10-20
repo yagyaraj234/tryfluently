@@ -22,6 +22,7 @@ export const openaiTranscriber = (apiKey: string): Transcriber => ({
     form.append("model", "gpt-4o-transcribe");
     const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
+      signal: AbortSignal.timeout(30_000),
       headers: { authorization: `Bearer ${apiKey}` },
       body: form,
     });

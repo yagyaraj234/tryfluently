@@ -5,11 +5,11 @@ import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { learnerMessage } from "./steps";
-import { streamChat } from "./ai";
+import { streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
 import { goalText } from "./goal-text";
-import { voiceMinutes, type RealtimeBroker } from "./realtime";
+import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 
 const { lesson, goal } = schema;
 
@@ -138,13 +138,6 @@ and keep the conversation light and natural.`,
   custom: `You are the other person in a situation the Learner described. Play that person and keep the conversation realistic.`,
 };
 
-const endCallTool = {
-  type: "function",
-  name: "end_call",
-  description: "End the Roleplay after you have spoken a short closing sentence.",
-  parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
-};
-
 // Instructions for a Roleplay, spoken or in text. Reused by text-mode Roleplays.
 export const roleplayInstructions = (
   kind: RoleplayKind,
@@ -169,9 +162,7 @@ never correct them or give feedback during the Roleplay, and never judge whether
       : ""
   }`;
 
-export const roleplays = (
-  deps: Deps & { settings: { alphaLesson: number; realtimeMinutesPerDay: number }; broker: RealtimeBroker },
-) => {
+export const roleplays = (deps: Deps & { settings: { alphaLesson: number }; broker: RealtimeBroker }) => {
   const { db, broker } = deps;
   const find = async (id: string, userId: string) =>
     (
@@ -225,7 +216,7 @@ export const roleplays = (
             .where(and(eq(goal.id, goalId), eq(goal.userId, userId)));
           if (!g) return c.json({ error: "Goal not found" }, 404);
           const fromGoal = { job_interview: "mock_interview", client_communication: "client_call" } as const;
-          const chosen = scenario ? "custom" : kind ?? fromGoal[g.kind as keyof typeof fromGoal];
+          const chosen = scenario ? "custom" : (kind ?? fromGoal[g.kind as keyof typeof fromGoal]);
           if (!chosen) return c.json({ error: "Choose a Roleplay or describe your own" }, 400);
           if (chosen === "custom" && !scenario) return c.json({ error: "Describe your Roleplay" }, 400);
           return c.json(await createRoleplay(deps, userId, { kind: chosen, scenario, tone, textMode }), 201);
@@ -256,7 +247,12 @@ export const roleplays = (
           instructions: `${roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedGoalTexts(deps, userId), row.roleplayScenario)}
 This Roleplay is a text chat: write your lines as you would say them, without stage directions.`,
           messages: valid.data,
-          save: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
+          save: (messages) =>
+            db
+              .update(lesson)
+              .set({ messages })
+              .where(and(eq(lesson.id, row.id), unchanged(lesson.messages, stored.length)))
+              .returning({ id: lesson.id }),
         });
       })
       // The browser posts its SDP offer and gets back only the SDP answer, as for a Voice Assessment.
@@ -269,17 +265,8 @@ This Roleplay is a text chat: write your lines as you would say them, without st
         if (row.status !== "in_progress" || row.textMode)
           return c.json({ error: "Calls are only for a spoken Roleplay in progress" }, 409);
 
-        // The daily cap is enforced here, on the server: the call gets whatever is left of today's minutes.
-        const budget = await voiceMinutes(broker, c.var.user, deps.settings.realtimeMinutesPerDay);
-        if (budget.remainingSeconds <= 0)
-          return c.json(
-            { error: "You've used today's voice minutes. Try text mode, or come back tomorrow.", ...budget },
-            429,
-          );
-
         const call = await broker.start(userId, {
           targetId: row.id,
-          budgetSeconds: budget.remainingSeconds,
           sdp: offer,
           instructions: roleplayInstructions(
             row.roleplayKind!,
@@ -291,8 +278,10 @@ This Roleplay is a text chat: write your lines as you would say them, without st
           purpose: "roleplay",
           tools: [endCallTool],
           endTool: endCallTool.name,
+          prior: row.messages,
           onTranscript: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
         });
+        if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
         if (!row.startedAt) await db.update(lesson).set({ startedAt: deps.now() }).where(eq(lesson.id, row.id));
         return c.body(call.answer, 201, { "content-type": "application/sdp" });

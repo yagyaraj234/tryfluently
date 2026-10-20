@@ -1,9 +1,8 @@
 import { schema } from "@fluently/db";
 import type { UIMessage } from "ai";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AppEnv, Deps, Schedule } from "./app";
-import { localDay } from "./progress";
 
 export type RealtimeEvent = { type: string; [key: string]: any };
 export type RealtimeSession = Record<string, unknown>;
@@ -29,7 +28,12 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
       const body = new FormData();
       body.set("sdp", sdp);
       body.set("session", JSON.stringify({ ...session, model }));
-      const res = await fetch(`${API}/calls`, { method: "POST", headers: { authorization }, body });
+      const res = await fetch(`${API}/calls`, {
+        method: "POST",
+        headers: { authorization },
+        body,
+        signal: AbortSignal.timeout(30_000),
+      });
       if (!res.ok) throw new Error(`OpenAI Realtime ${res.status}: ${await res.text()}`);
       const callId = res.headers.get("location")?.split("/").pop();
       if (!callId) throw new Error("OpenAI Realtime returned no call id");
@@ -54,7 +58,11 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
       return {
         send,
         async hangup() {
-          const res = await fetch(`${API}/calls/${callId}/hangup`, { method: "POST", headers: { authorization } });
+          const res = await fetch(`${API}/calls/${callId}/hangup`, {
+            method: "POST",
+            headers: { authorization },
+            signal: AbortSignal.timeout(30_000),
+          });
           if (!res.ok) throw new Error(`OpenAI Realtime hangup ${res.status}: ${await res.text()}`);
           ws.close();
         },
@@ -73,6 +81,14 @@ export const sessionConfig = {
   audio: { input: { transcription: { model: "gpt-4o-transcribe" }, turn_detection: { type: "semantic_vad" } } },
 };
 
+// Lets the model hang up once it has spoken its closing line.
+export const endCallTool = {
+  type: "function",
+  name: "end_call",
+  description: "End the call after you have spoken a short closing sentence.",
+  parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
+};
+
 export type CallPurpose = "assessment" | "roleplay";
 
 // Starts and tracks Realtime calls: one live call per Learner, transcripts and voice timing collected from the
@@ -86,9 +102,9 @@ type Live = {
   sideband?: Sideband;
   ready: Promise<void>;
   closed: Promise<SaveFailure | undefined>;
-  purpose: CallPurpose;
   targetId?: string;
   startedAt?: Date;
+  endsAt?: Date;
 };
 
 export function realtimeBroker({
@@ -96,32 +112,45 @@ export function realtimeBroker({
   now,
   realtime,
   schedule,
-}: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule }) {
-  // ponytail: live calls are held in memory, so "one call per Learner" holds on a single API instance; move it to a DB lock to scale out.
+  limitMinutes,
+}: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule; limitMinutes: number }) {
+  // shortcut: call slots and timers live in memory; use a durable registry before scaling out or requiring restart recovery.
   const live = new Map<string, Live>();
 
-  // Seconds of Roleplay calls today in the Learner's timezone, a live one included. Voice Assessments don't count.
-  async function roleplaySecondsToday(user: { id: string; timezone: string }) {
+  // Count only the portion of each live call inside this UTC calendar month.
+  async function voiceMinutes(userId: string) {
     const at = now();
+    const monthStart = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1));
+    const monthEnd = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 1));
     const rows = await db
       .select({ startedAt: schema.aiUsage.startedAt, seconds: schema.aiUsage.seconds })
       .from(schema.aiUsage)
       .where(
         and(
-          eq(schema.aiUsage.userId, user.id),
+          eq(schema.aiUsage.userId, userId),
           eq(schema.aiUsage.kind, "realtime"),
-          sql`${schema.aiUsage.usage}->>'purpose' = 'roleplay'`,
-          gte(schema.aiUsage.startedAt, new Date(at.getTime() - 2 * 86_400_000)),
+          lt(schema.aiUsage.startedAt, monthEnd),
+          sql`${schema.aiUsage.startedAt} + ${schema.aiUsage.seconds} * interval '1 second' > ${monthStart.toISOString()}::timestamp`,
         ),
       );
-    const call = live.get(user.id);
-    if (call?.purpose === "roleplay" && call.startedAt)
+    const call = live.get(userId);
+    if (call?.startedAt)
       rows.push({ startedAt: call.startedAt, seconds: (at.getTime() - call.startedAt.getTime()) / 1000 });
-    const today = localDay(at, user.timezone);
-    return rows.filter((r) => localDay(r.startedAt, user.timezone) === today).reduce((sum, r) => sum + r.seconds, 0);
+    const used = rows.reduce((sum, row) => {
+      const start = Math.max(row.startedAt.getTime(), monthStart.getTime());
+      const end = Math.min(row.startedAt.getTime() + row.seconds * 1000, at.getTime(), monthEnd.getTime());
+      return sum + Math.max(0, end - start) / 1000;
+    }, 0);
+    return {
+      limitMinutes,
+      usedSeconds: Math.ceil(used),
+      remainingSeconds: Math.max(0, Math.floor(limitMinutes * 60 - used)),
+      resetsAt: monthEnd.toISOString(),
+      callEndsAt: call?.endsAt?.toISOString() ?? null,
+    };
   }
 
-  // `budgetSeconds` caps the call: the agent is told to wrap up a minute before, then the call is hung up.
+  // Claim the call slot before checking credit, so overlapping starts cannot reuse a stale allowance.
   async function start(
     userId: string,
     opts: {
@@ -132,6 +161,8 @@ export function realtimeBroker({
       endTool?: string;
       targetId?: string;
       budgetSeconds?: number;
+      // What the target already holds from earlier calls; this call's messages are saved after it.
+      prior?: unknown[];
       onTranscript(t: UIMessage[]): Promise<unknown>;
     },
   ) {
@@ -141,13 +172,22 @@ export function realtimeBroker({
     const entry: Live = {
       ready: new Promise((r) => (ready = r)),
       closed: new Promise((r) => (closed = r)),
-      purpose: opts.purpose,
       targetId: opts.targetId,
     };
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
+    const deadline = opts.budgetSeconds === undefined ? undefined : now().getTime() + opts.budgetSeconds * 1000;
 
     let call: { answer: string; callId: string };
+    let budgetSeconds: number;
     try {
+      const budget = await voiceMinutes(userId);
+      budgetSeconds = Math.min(budget.remainingSeconds, opts.budgetSeconds ?? Infinity);
+      if (budgetSeconds <= 0) {
+        live.delete(userId);
+        closed();
+        ready();
+        return { capped: budget };
+      }
       call = await realtime.createCall(opts.sdp, opts.tools ? { ...sessionConfig, tools: opts.tools } : sessionConfig);
     } catch (e) {
       live.delete(userId);
@@ -158,8 +198,11 @@ export function realtimeBroker({
 
     const startedAt = now();
     entry.startedAt = startedAt;
+    entry.endsAt = new Date(Math.min(startedAt.getTime() + budgetSeconds * 1000, deadline ?? Infinity));
     const timers: (() => void)[] = [];
     const transcript: UIMessage[] = [];
+    const prior = (opts.prior ?? []) as UIMessage[];
+    const priorIds = new Set(prior.map((m) => m.id));
     const timing = new Map<string, { speechStartMs?: number; speechEndMs?: number }>();
     const usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
     let saving: Promise<SaveFailure | undefined> = Promise.resolve(undefined);
@@ -179,7 +222,7 @@ export function realtimeBroker({
       transcript.push(message);
       saving = saving.then(async () => {
         try {
-          await opts.onTranscript([...transcript]);
+          await opts.onTranscript([...prior, ...transcript.filter((m) => !priorIds.has(m.id))]);
         } catch (error) {
           console.error("realtime transcript save failed", error);
           return { error };
@@ -249,16 +292,17 @@ export function realtimeBroker({
     });
     ready();
     entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions } });
-    if (opts.budgetSeconds !== undefined) {
+    {
+      const remainingSeconds = Math.max(0, (entry.endsAt.getTime() - now().getTime()) / 1000);
       const sideband = entry.sideband;
       timers.push(
-        schedule(Math.max(0, opts.budgetSeconds - WRAP_UP_SECONDS) * 1000, () =>
+        schedule(Math.max(0, remainingSeconds - WRAP_UP_SECONDS) * 1000, () =>
           sideband.send({
             type: "session.update",
             session: { type: "realtime", instructions: opts.instructions + wrapUp },
           }),
         ),
-        schedule(opts.budgetSeconds * 1000, () =>
+        schedule(remainingSeconds * 1000, () =>
           hangup(userId, opts.targetId).catch((error) => console.error("realtime timed hangup failed", error)),
         ),
       );
@@ -276,23 +320,12 @@ export function realtimeBroker({
     if (failure) throw failure.error;
   }
 
-  return { start, hangup, roleplaySecondsToday };
+  return { start, hangup, voiceMinutes };
 }
 export type RealtimeBroker = ReturnType<typeof realtimeBroker>;
 
-// The day's Roleplay voice budget for a free Learner.
-export async function voiceMinutes(
-  broker: RealtimeBroker,
-  user: { id: string; timezone: string },
-  limitMinutes: number,
-) {
-  const used = await broker.roleplaySecondsToday(user);
-  return {
-    limitMinutes,
-    usedSeconds: Math.round(used),
-    remainingSeconds: Math.max(0, Math.round(limitMinutes * 60 - used)),
-  };
-}
+export const voiceMinutesRoute = (broker: RealtimeBroker) =>
+  new Hono<AppEnv>().get("/", async (c) => c.json(await broker.voiceMinutes(c.var.user.id)));
 
-export const voiceMinutesRoute = (broker: RealtimeBroker, limitMinutes: number) =>
-  new Hono<AppEnv>().get("/", async (c) => c.json(await voiceMinutes(broker, c.var.user, limitMinutes)));
+export const voiceLimitMessage =
+  "You've used this month's voice minutes. We're in beta. Email hey@yagyaraj.com to request more voice credits, or use text mode.";

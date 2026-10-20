@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { Deps } from "./app";
 import { advanceUnit } from "./learning-memory";
 import { recordScores } from "./scoring";
+import { questionBlocks } from "./lesson-blocks";
 
 const { lesson, step, assessmentJob: job } = schema;
 type Ctx = Pick<Deps, "db" | "now"> & { settings: { alphaLesson: number } };
@@ -42,9 +43,20 @@ export async function finishPagedLesson({ db, now, settings }: Ctx, id: string, 
       .where(and(eq(lesson.id, id), eq(lesson.userId, userId), eq(lesson.contentVersion, 2)))
       .for("update");
     if (!row) throw new Error("Lesson not found");
+    if (row.status === "abandoned") return { status: "abandoned" as const };
     const at = now();
     if (row.status === "in_progress") {
       const steps = await tx.select().from(step).where(eq(step.lessonId, id));
+      const questions = (row.material ?? []).flatMap((p: any, position) =>
+        questionBlocks.includes(p.block) ? [{ position, question: p.question }] : [],
+      );
+      if (
+        row.preparation !== "ready" ||
+        row.preparationToken ||
+        !row.pageStatus?.every((s) => s.page === "ready" && s.question === "ready") ||
+        questions.some((q) => !q.question || !steps.some((s) => s.position === q.position && s.answeredAt))
+      )
+        return { status: "incomplete" as const };
       await recordScores(tx, userId, scoresFromVerdicts(steps), {
         alpha: settings.alphaLesson,
         source: "lesson",

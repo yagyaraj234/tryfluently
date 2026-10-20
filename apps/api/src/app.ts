@@ -21,6 +21,7 @@ import { roleplays } from "./roleplays";
 import { progressRoute } from "./progress";
 import { skillProfileRoutes } from "./scoring";
 import { metricsMiddleware, metricsRegistry } from "./metrics";
+import { requestLimits } from "./request-limits";
 
 export type { Mailer, Models, Realtime, Speech, Transcriber };
 
@@ -52,8 +53,8 @@ export const defaultSettings = {
   alphaLesson: 0.15,
   // Recorded answers (speakPrompt etc.) per local day.
   recordingMinutesPerDay: 30,
-  // Roleplay voice calls per local day; the Voice Assessment doesn't count.
-  realtimeMinutesPerDay: 15,
+  // All live voice calls share a free UTC calendar-month allowance.
+  realtimeMinutesPerMonth: 10,
 };
 export type Settings = typeof defaultSettings;
 
@@ -78,12 +79,16 @@ const setTimer: Schedule = (ms, fn) => {
 };
 
 export type User = typeof schema.user.$inferSelect;
-export type AppEnv = { Variables: { user: User } };
+export type AppEnv = { Variables: { user: User; requestStartedAt: Date } };
 
 export function createApp(deps: Deps) {
   const { db, env, mailer } = deps;
   const settings = { ...defaultSettings, ...deps.settings };
-  const broker = realtimeBroker({ ...deps, schedule: deps.schedule ?? setTimer });
+  const broker = realtimeBroker({
+    ...deps,
+    schedule: deps.schedule ?? setTimer,
+    limitMinutes: settings.realtimeMinutesPerMonth,
+  });
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
@@ -156,6 +161,7 @@ export function createApp(deps: Deps) {
     .get("/api/auth/providers", (c) => c.json({ google: Boolean(env.GOOGLE_CLIENT_ID) }))
     .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
     .use("/api/*", async (c, next) => {
+      c.set("requestStartedAt", deps.now());
       // CORS controls response access; reject foreign browser writes before they reach handlers.
       if (!["GET", "HEAD", "OPTIONS"].includes(c.req.method)) {
         const origin = c.req.header("origin");
@@ -172,6 +178,7 @@ export function createApp(deps: Deps) {
       c.set("user", session.user as User);
       await next();
     })
+    .use("/api/*", requestLimits(deps.now))
     .get("/api/me", (c) => c.json(c.var.user))
     .route("/api/reports", reports(deps))
     .route("/api/goals", goals(deps))
@@ -181,7 +188,7 @@ export function createApp(deps: Deps) {
     .route("/api/roleplays", roleplays({ ...deps, settings, broker }))
     .route("/api/pronunciation", pronunciation(deps, env.KENPATH_VOICE))
     .route("/api/skill-profile", skillProfileRoutes(db))
-    .route("/api/voice-minutes", voiceMinutesRoute(broker, settings.realtimeMinutesPerDay))
+    .route("/api/voice-minutes", voiceMinutesRoute(broker))
     .route("/api/progress", progressRoute(deps))
     .route("/api/focus-items", focusItemsRoute(db));
 

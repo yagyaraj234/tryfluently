@@ -1,0 +1,3 @@
+UPDATE "assessment" SET "status" = 'discarded', "ended_at" = "started_at" WHERE "status" = 'in_progress' AND "id" NOT IN (SELECT DISTINCT ON ("user_id") "id" FROM "assessment" WHERE "status" = 'in_progress' ORDER BY "user_id", "started_at" DESC);
+--> statement-breakpoint
+CREATE UNIQUE INDEX "assessment_one_open_per_user_idx" ON "assessment" USING btree ("user_id") WHERE "assessment"."status" = 'in_progress';

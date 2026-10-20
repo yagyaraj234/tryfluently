@@ -100,3 +100,7 @@ The synthetic browser backend used the real test Postgres database and the produ
 | #51         | Close when the guide, screen reconciliation and release review are accepted.                                                                                                  |
 
 GitHub issues were not closed for unmerged local work. Haptics, an OG/share image, native apps, translations, marketing, password reset/email verification, subscriptions, pronunciation scoring and hosting remain out of scope according to the existing v1 specs.
+
+## Voice allowance update (2026-10-20)
+
+Live Voice Assessments and Roleplays now share 10 free minutes per UTC calendar month, replacing the daily Roleplay-only cap. Recorded answers keep their separate daily cap. See [ADR 0001](adr/0001-openai-realtime-voice.md#free-beta-allowance) for current behavior and beta credit requests. Historical evidence above remains dated.

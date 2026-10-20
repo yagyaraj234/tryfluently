@@ -61,7 +61,7 @@ export const assessmentsQuery = queryOptions({
   queryFn: () => json(api().api.assessments.$get(), "Assessments"),
 });
 
-/** Today's Roleplay voice budget: `limitMinutes`, `usedSeconds` and `remainingSeconds` (a live call included). */
+/** Shared monthly live-call allowance, including active usage and the UTC renewal date. */
 export const voiceMinutesQuery = queryOptions({
   queryKey: ["voice-minutes"],
   queryFn: () => json(api().api["voice-minutes"].$get(), "voice minutes"),

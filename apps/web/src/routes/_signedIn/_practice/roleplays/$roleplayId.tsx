@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_signedIn/_practice/roleplays/$roleplayId
     staleReloadMode: "blocking",
     handler: async ({ params, context }) => {
       const roleplay = await fetchRoleplay(params.roleplayId);
-      // A spoken Roleplay shows today's voice minutes from the first paint (and the cap, without asking for the microphone).
+      // A spoken Roleplay shows monthly voice allowance from the first paint (and the cap, without asking for the microphone).
       if (roleplay?.status === "in_progress" && !roleplay.textMode)
         await context.queryClient.prefetchQuery(voiceMinutesQuery);
       return roleplay;

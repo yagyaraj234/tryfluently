@@ -4,12 +4,12 @@ import { NoObjectGeneratedError, Output, safeValidateUIMessages, type UIMessage 
 import { and, asc, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { generate, streamChat } from "./ai";
+import { generate, streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { cefrLevel } from "./goals";
 import { enqueueAssessmentJobs, practicePreparation, retryPracticePreparation } from "./assessment-jobs";
-import type { RealtimeBroker } from "./realtime";
+import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 import { remember, addFocusItems } from "./learning-memory";
 import { fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
@@ -17,6 +17,9 @@ import { answeredSteps, stepTools, takeAnswer } from "./steps";
 const { assessment, goal } = schema;
 
 const MIN_MINUTES = 4;
+const MAX_SECONDS = 10 * 60;
+// A Written Assessment has no clock; it ends once the Learner has answered this many questions.
+const MAX_ANSWERS = 12;
 const RETAKE_DAYS = 7;
 
 const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
@@ -43,7 +46,7 @@ export const reportOutput = z.object({
   firstUnit: z.object({ title: z.string(), objective: z.string() }),
 });
 
-const phases = `Run the Assessment in five phases within 10 minutes:
+const phases = `Run the Assessment in five phases:
 1. Warm-up: easy small talk.
 2. You and your work: {goals}
 3. Goal scenario: a realistic situation from their Goal.
@@ -55,8 +58,12 @@ Make questions easier or harder depending on how they answer. Ask one question a
 const itemTools = { fillGap: stepTools.fillGap, rewrite: stepTools.rewrite };
 const MAX_ITEMS = 4;
 
-// `items` is the count of structured items answered so far; a Voice Assessment has none.
-const instructions = (goalTexts: string[], minutes: number, items?: number) =>
+// Questions the Learner has answered in a Written Assessment: replies (not the opening message) plus answered items.
+const answersOf = (messages: UIMessage[]) =>
+  Math.max(0, messages.filter((m) => m.role === "user").length - 1) + answeredSteps(messages).length;
+
+// A Written Assessment passes `written`; a Voice Assessment has no items and is timed instead.
+const instructions = (goalTexts: string[], written?: { items: number; answers: number }) =>
   `You are Fluently, an English coach, running an Assessment of the Learner's English.
 ${phases.replace(
   "{goals}",
@@ -65,11 +72,14 @@ ${phases.replace(
     : "ask what they want to achieve with English.",
 )}
 ${
-  items === undefined
-    ? ""
-    : `During phases 2–4, also give 3–4 structured items, one at a time, using the fillGap and rewrite tools, pitched at the
-level they're showing. Don't tell them whether they got an item right. ${items} answered so far.\n`
-}${minutes.toFixed(0)} of 10 minutes have passed.`;
+  written
+    ? `During phases 2–4, also give 3–4 structured items, one at a time, using the fillGap and rewrite tools, pitched at the
+level they're showing. Don't tell them whether they got an item right. ${written.items} items answered so far.
+Aim to finish in about ${MAX_ANSWERS} questions; ${written.answers} answered so far.${
+        written.answers >= MAX_ANSWERS ? " That's enough: thank them and close now, with no further questions." : ""
+      }\n`
+    : `Finish within 10 minutes. When you've closed the conversation, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.\n`
+}`;
 
 const reportInstructions = (
   mode: Row["mode"],
@@ -127,6 +137,8 @@ export const assessments = ({
       return text ? [text] : [];
     });
 
+  const secondsLeft = (row: Row) => MAX_SECONDS - (now().getTime() - row.startedAt.getTime()) / 1000;
+
   // Ends an attempt. Under 4 minutes it's discarded; otherwise the Report is written, partial if the Learner left early.
   async function finish(row: Row, user: { id: string; email: string }, { partial }: { partial: boolean }) {
     if (row.mode === "voice") {
@@ -135,8 +147,13 @@ export const assessments = ({
       row = (await find(row.id, user.id))!;
     }
     const at = now();
-    if (at.getTime() - row.startedAt.getTime() < MIN_MINUTES * 60_000) {
-      await db.update(assessment).set({ status: "discarded", endedAt: at }).where(eq(assessment.id, row.id));
+    // A Written Assessment that got through every question counts however quickly it was done.
+    const complete = row.mode === "written" && answersOf(row.transcript as UIMessage[]) >= MAX_ANSWERS;
+    if (!complete && at.getTime() - row.startedAt.getTime() < MIN_MINUTES * 60_000) {
+      await db
+        .update(assessment)
+        .set({ status: "discarded", endedAt: at })
+        .where(and(eq(assessment.id, row.id), eq(assessment.status, "in_progress")));
       return { status: "discarded" as const };
     }
 
@@ -194,17 +211,15 @@ export const assessments = ({
       );
       const hasGoals = (await tx.select({ id: goal.id }).from(goal).where(eq(goal.userId, userId)).limit(1)).length > 0;
       if (!hasGoals && out.proposedGoals.length)
-        await tx
-          .insert(goal)
-          .values(
-            out.proposedGoals.map((g) => ({
-              userId,
-              kind: "general_fluency" as const,
-              statement: g.statement,
-              targetLevels: g.targetLevels,
-              createdAt: at,
-            })),
-          );
+        await tx.insert(goal).values(
+          out.proposedGoals.map((g) => ({
+            userId,
+            kind: "general_fluency" as const,
+            statement: g.statement,
+            targetLevels: g.targetLevels,
+            createdAt: at,
+          })),
+        );
       await remember(
         tx,
         userId,
@@ -248,25 +263,41 @@ export const assessments = ({
           .from(assessment)
           .where(and(eq(assessment.userId, user.id), eq(assessment.status, "in_progress")));
         for (const row of open) {
+          // A start created during this request belongs to the same overlapping attempt.
+          if (row.startedAt >= c.var.requestStartedAt) return c.json(row, 200);
           if ((await finish(row, user, { partial: true })).status === "failed")
             return c.json({ error: "Your previous Assessment couldn't be finished. Try again." }, 502);
         }
 
-        const [last] = await db
-          .select({ endedAt: assessment.endedAt })
-          .from(assessment)
-          .where(and(eq(assessment.userId, user.id), eq(assessment.status, "completed")))
-          .orderBy(desc(assessment.endedAt))
-          .limit(1);
-        const nextAllowedAt = last?.endedAt && new Date(last.endedAt.getTime() + RETAKE_DAYS * 86_400_000);
-        if (nextAllowedAt && now() < nextAllowedAt)
-          return c.json({ error: "You can retake the Assessment once a week.", nextAllowedAt }, 429);
-
-        const [row] = await db
-          .insert(assessment)
-          .values({ userId: user.id, mode: c.req.valid("json").mode, startedAt: now() })
-          .returning();
-        return c.json(row!, 201);
+        // Under the Learner lock so concurrent starts can't each pass the checks.
+        const started = await db.transaction(async (tx) => {
+          await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, user.id)).for("update");
+          const [stillOpen] = await tx
+            .select({ id: assessment.id })
+            .from(assessment)
+            .where(and(eq(assessment.userId, user.id), eq(assessment.status, "in_progress")));
+          if (stillOpen) return { open: true as const };
+          const [last] = await tx
+            .select({ endedAt: assessment.endedAt })
+            .from(assessment)
+            .where(and(eq(assessment.userId, user.id), eq(assessment.status, "completed")))
+            .orderBy(desc(assessment.endedAt))
+            .limit(1);
+          const nextAllowedAt = last?.endedAt && new Date(last.endedAt.getTime() + RETAKE_DAYS * 86_400_000);
+          if (nextAllowedAt && now() < nextAllowedAt) return { nextAllowedAt };
+          const [row] = await tx
+            .insert(assessment)
+            .values({ userId: user.id, mode: c.req.valid("json").mode, startedAt: now() })
+            .returning();
+          return { row: row! };
+        });
+        if ("open" in started) return c.json({ error: "An Assessment is already in progress." }, 409);
+        if ("nextAllowedAt" in started)
+          return c.json(
+            { error: "You can retake the Assessment once a week.", nextAllowedAt: started.nextAllowedAt },
+            429,
+          );
+        return c.json(started.row, 201);
       })
       .get("/:id", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
@@ -285,16 +316,22 @@ export const assessments = ({
         const valid = await safeValidateUIMessages({ messages: taken.messages, tools: itemTools });
         if (!valid.success) return c.json({ error: valid.error.message }, 400);
         const items = answeredSteps(valid.data).length;
-
-        const minutes = (now().getTime() - row.startedAt.getTime()) / 60_000;
+        const answers = answersOf(valid.data);
 
         return streamChat({ db, now }, userId, {
           model: models.step,
-          instructions: instructions(await goalTextsOf(userId), minutes, items),
+          instructions: instructions(await goalTextsOf(userId), { items, answers }),
           messages: valid.data,
           tools: itemTools,
-          activeTools: items < MAX_ITEMS ? ["fillGap", "rewrite"] : [],
-          save: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
+          activeTools: items < MAX_ITEMS && answers < MAX_ANSWERS ? ["fillGap", "rewrite"] : [],
+          save: (transcript) =>
+            db
+              .update(assessment)
+              .set({ transcript })
+              .where(
+                and(eq(assessment.id, row.id), unchanged(assessment.transcript, (row.transcript as unknown[]).length)),
+              )
+              .returning({ id: assessment.id }),
         });
       })
       // The browser posts its SDP offer and gets back only the SDP answer; the OpenAI key never leaves the server.
@@ -307,13 +344,21 @@ export const assessments = ({
         if (row.mode !== "voice" || row.status !== "in_progress")
           return c.json({ error: "Calls are only for a Voice Assessment in progress" }, 409);
 
+        const budgetSeconds = secondsLeft(row);
+        if (budgetSeconds <= 0) return c.json({ error: "This Assessment is out of time" }, 409);
+
         const call = await broker.start(userId, {
           targetId: row.id,
+          budgetSeconds,
           sdp: offer,
-          instructions: instructions(await goalTextsOf(userId), 0),
+          instructions: instructions(await goalTextsOf(userId)),
           purpose: "assessment",
+          tools: [endCallTool],
+          endTool: endCallTool.name,
+          prior: row.transcript,
           onTranscript: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
         });
+        if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
         return c.body(call.answer, 201, { "content-type": "application/sdp" });
       })

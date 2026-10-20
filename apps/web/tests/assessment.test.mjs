@@ -94,6 +94,7 @@ const goals = [
 ];
 
 let web;
+let remainingSeconds = 600;
 let suggestionsAvailable = true;
 let showSuggestions = true;
 let preparation = { status: "ready", lesson: null };
@@ -104,6 +105,14 @@ before(async () => {
       res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
     if (req.url === "/api/assessments/preparation") return json(200, preparation);
+    if (req.url === "/api/voice-minutes")
+      return json(200, {
+        limitMinutes: 10,
+        usedSeconds: 600 - remainingSeconds,
+        remainingSeconds,
+        resetsAt: "2026-11-01T00:00:00.000Z",
+        callEndsAt: null,
+      });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
     if (req.url === "/api/goals")
       return suggestionsAvailable ? json(200, showSuggestions ? goals : []) : json(503, { error: "Unavailable" });
@@ -283,4 +292,32 @@ test("practice polling repeats every three seconds only while work remains unfin
     practicePreparationQuery.refetchInterval({ state: { status: "error", data: { status: "preparing" } } }),
     false,
   );
+});
+
+test("voice quota exhaustion offers Written Assessment without connecting", async () => {
+  remainingSeconds = 0;
+  try {
+    const html = await page("/assessments/voice");
+    assert.match(html, /used this month/);
+    assert.match(html, /Choose Written Assessment/);
+    assert.match(html, /mailto:hey@yagyaraj.com/);
+    assert.doesNotMatch(html, /Connecting/);
+  } finally {
+    remainingSeconds = 600;
+  }
+});
+
+test("Assessment choice warns below four minutes and disables voice when exhausted", async () => {
+  remainingSeconds = 120;
+  try {
+    const html = await page("/assessments/new");
+    assert.match(html, /fewer than 4 voice minutes left/);
+    assert.match(html, /2:00/);
+    remainingSeconds = 0;
+    const capped = await page("/assessments/new");
+    assert.match(capped, /<button[^>]*disabled[^>]*>[\s\S]*?Talk with my coach/);
+    assert.ok(buttons(capped).includes("Type with my coach"));
+  } finally {
+    remainingSeconds = 600;
+  }
 });

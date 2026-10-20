@@ -1,5 +1,19 @@
 import { schema, type Tx } from "@fluently/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
+
+export async function countFocusHits(tx: Tx, userId: string, ids: string[], at: Date) {
+  if (!ids.length) return;
+  const { focusItem } = schema;
+  const closes = sql`${focusItem.hits} + 1 >= 3`;
+  await tx
+    .update(focusItem)
+    .set({
+      hits: sql`${focusItem.hits} + 1`,
+      status: sql`case when ${closes} then 'closed'::focus_status else 'open'::focus_status end`,
+      closedAt: sql`case when ${closes} then ${at.toISOString()}::timestamp end`,
+    })
+    .where(and(eq(focusItem.userId, userId), eq(focusItem.status, "open"), inArray(focusItem.id, [...new Set(ids)])));
+}
 
 // Caller holds the Learner lock, so concurrent completions share the same open practice target.
 export async function addFocusItems(tx: Tx, userId: string, items: (typeof schema.focusItem.$inferInsert)[]) {

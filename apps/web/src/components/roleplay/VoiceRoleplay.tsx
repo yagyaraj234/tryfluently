@@ -1,21 +1,10 @@
-import { MicrophoneSlash } from "@phosphor-icons/react";
-import {
-  Button,
-  Cluster,
-  EmptyState,
-  ErrorState,
-  Heading,
-  LiveBar,
-  Notice,
-  Stack,
-  Text,
-  VoiceOrb,
-} from "@fluently/ui";
+import { Button, Cluster, ErrorState, Heading, LiveBar, Notice, Stack, Text, VoiceOrb } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
+import { BetaVoiceCredits, VoiceAccess, VoiceLimit } from "../voice/VoiceCredits";
 import { useRealtimeCall } from "../../lib/call";
 import { voiceMinutesQuery } from "../../lib/queries";
-import { minutesLeft, resetsIn, useCallClock } from "../../lib/voiceMinutes";
+import { minutesLeft, useCallClock } from "../../lib/voiceMinutes";
 import {
   characters,
   coachIntro,
@@ -44,34 +33,38 @@ const orbLabels = (who: string) => ({
   speaking: `Your ${who} is speaking`,
 });
 
-/** Known before the call: with no minutes left, don't ask for the microphone at all. Checked once, so the call isn't swapped out when its polled minutes reach 0. */
 export function VoiceRoleplay(props: VoiceRoleplayProps) {
-  const minutes = useQuery(voiceMinutesQuery);
-  const [capped] = useState(() => minutes.data?.remainingSeconds === 0);
-  if (!capped) return <VoiceCall {...props} />;
-  if (props.session.ending !== "running") return <RoleplayEnding {...props.session} />;
-  return <Capped limitMinutes={minutes.data?.limitMinutes} {...props} />;
+  return (
+    <VoiceAccess
+      capped={props.session.ending === "running" ? <Capped {...props} /> : <RoleplayEnding {...props.session} />}
+    >
+      <VoiceCall {...props} />
+    </VoiceAccess>
+  );
 }
 
-function Capped({ limitMinutes, session, onTypeInstead }: VoiceRoleplayProps & { limitMinutes?: number }) {
-  // In the browser only: the server's clock may be in another timezone.
-  const [when, setWhen] = useState<string>();
-  useEffect(() => setWhen(resetsIn(new Date())), []);
-  const limit = limitMinutes === undefined ? "" : `Voice Roleplays get ${limitMinutes} minutes a day. `;
-  const next = onTypeInstead
-    ? "You can type this Roleplay instead."
-    : "What you said is saved, so you can get your Debrief now.";
-  const action = onTypeInstead ? (
-    <Button onClick={onTypeInstead}>Type instead</Button>
-  ) : (
-    <Button onClick={() => void session.end()}>Get my Debrief</Button>
-  );
+function Capped({
+  budget,
+  session,
+  onTypeInstead,
+}: VoiceRoleplayProps & {
+  budget?: { limitMinutes?: number; resetsAt?: string };
+}) {
   return (
-    <EmptyState
-      icon={MicrophoneSlash}
-      title="You've used today's voice minutes"
-      description={`${limit}More are available at midnight${when ? `, ${when}` : ""}. ${next}`}
-      action={action}
+    <VoiceLimit
+      budget={budget}
+      description={
+        onTypeInstead
+          ? "You can type this Roleplay instead."
+          : "What you said is saved, so you can get your Debrief now."
+      }
+      action={
+        onTypeInstead ? (
+          <Button onClick={onTypeInstead}>Type instead</Button>
+        ) : (
+          <Button onClick={() => void session.end()}>Get my Debrief</Button>
+        )
+      }
     />
   );
 }
@@ -80,7 +73,10 @@ function CallOver({ over, session }: { over?: "timesUp" | "dropped"; session: Vo
   return (
     <Stack gap={6}>
       {over === "timesUp" && (
-        <Notice tone="info">You've used today's voice minutes, so the Roleplay ended there.</Notice>
+        <>
+          <Notice tone="info">Your voice time ran out, so the Roleplay ended there.</Notice>
+          <BetaVoiceCredits />
+        </>
       )}
       {over === "dropped" && <Notice tone="info">Your call dropped, so the Roleplay ended there.</Notice>}
       <RoleplayEnding {...session} />
@@ -112,8 +108,8 @@ function CallProblem({
       />
     );
   if (status === 429) {
-    const limitMinutes = (response?.body as { limitMinutes?: number } | null)?.limitMinutes;
-    return <Capped limitMinutes={limitMinutes} {...props} />;
+    const budget = response?.body as { limitMinutes?: number; resetsAt?: string } | undefined;
+    return <Capped budget={budget} {...props} />;
   }
   if (status === 409)
     return (
@@ -160,13 +156,13 @@ function LiveCall({
         title={roleplayLabel(roleplay)}
         elapsed={clock.since === undefined ? undefined : clock.now - clock.since}
         left={left}
-        leftLabel="left today"
+        leftLabel="voice time left"
         muted={call.muted}
         onMutedChange={call.mute}
         onEnd={onEnd}
       />
       {wrappingUp && (
-        <Notice tone="info">{`About a minute of voice time is left today. Your ${who} will start to wrap up.`}</Notice>
+        <Notice tone="info">{`About a minute of voice time is left. Your ${who} will start to wrap up.`}</Notice>
       )}
       <Stack gap={3}>
         <Heading level={1} size="title">
@@ -187,7 +183,7 @@ function VoiceCall(props: VoiceRoleplayProps) {
   const [over, setOver] = useState<"timesUp" | "dropped">();
   const running = session.ending === "running";
   const call = useRealtimeCall(`/api/roleplays/${roleplay.id}/call`, {
-    // The API can't rejoin a call, so a dropped one ends the Roleplay with what was said so far. At the cap, the
+    // Finish with what was said so far, distinguishing exhausted credit from a dropped connection.
     onDropped: () => finish(left !== undefined && left <= 5_000 ? "timesUp" : "dropped"),
   });
   const active = running && (call.status === "live" || call.status === "reconnecting");
@@ -195,12 +191,7 @@ function VoiceCall(props: VoiceRoleplayProps) {
   // The server is the judge of the cap; polling keeps the countdown honest between ticks.
   const minutes = useQuery({ ...voiceMinutesQuery, refetchInterval: active ? 15_000 : false });
   const left =
-    minutes.data &&
-    minutesLeft(
-      { remainingSeconds: minutes.data.remainingSeconds, fetchedAt: minutes.dataUpdatedAt },
-      clock.since,
-      clock.now,
-    );
+    minutes.data && minutesLeft({ ...minutes.data, fetchedAt: minutes.dataUpdatedAt }, clock.since, clock.now);
 
   function finish(reason: "timesUp" | "dropped") {
     if (!running) return;
