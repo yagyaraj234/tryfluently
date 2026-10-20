@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 import { schema } from "@impromptu/db";
+import { APICallError } from "ai";
+import { MockLanguageModelV4 } from "ai/test";
 import { eq } from "drizzle-orm";
 import { learnerWithRoadmap } from "./fixtures";
 import { get, json, makeApp, mockModel } from "./helpers";
@@ -226,4 +228,15 @@ test("the current Page is saved so the Learner resumes on it", async () => {
   expect((await patch(questions.length)).status).toBe(200);
   expect((await patch(questions.length + 1)).status).toBe(404);
   expect((await patch(1, (await learnerWithRoadmap()).cookie)).status).toBe(404);
+});
+
+test("a failing rewrite check is tried once, so the Learner is not kept waiting on retries", async () => {
+  const step = new MockLanguageModelV4({
+    doGenerate: async () => {
+      throw new APICallError({ message: "overloaded", url: "http://fake", requestBodyValues: {}, statusCode: 500 });
+    },
+  });
+  const t = await ready({ models: { step } });
+  expect((await answer(t, 6, "I goes to work.")).status).toBe(502);
+  expect(step.doGenerateCalls).toHaveLength(1);
 });

@@ -47,7 +47,7 @@ test("Assessment /end returns its saved Report without waiting for email deliver
 import { schema } from "@impromptu/db";
 import type { Mailer } from "../src/app";
 import { and, eq } from "drizzle-orm";
-import { preparedContent, unitsReply } from "./fixtures";
+import { legacyOutlines, preparedContent, unitsReply } from "./fixtures";
 import { testDb } from "./setup";
 
 async function complete({
@@ -199,6 +199,7 @@ test("interrupted email jobs retry the same provider idempotency key", async () 
 test("Lesson preparation after the initial job stays pollable, and an expired preparation can be retried", async () => {
   const { app, cookie, userId, clock } = await complete();
   await app.runJobs(userId);
+  await legacyOutlines(userId);
   const ready = { lesson: (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any };
   await testDb
     .update(schema.lesson)

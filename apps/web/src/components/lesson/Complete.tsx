@@ -1,13 +1,11 @@
-import { Button, LessonComplete, LoadingState, Stack, Text } from "@impromptu/ui";
+import { Button, LessonComplete, LoadingState, Text } from "@impromptu/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useNextLesson } from "../../lib/lessons";
 import { progressQuery, roadmapQuery } from "../../lib/queries";
 
 export function Complete({ xpGained, headingLevel = 1 }: { xpGained: number; headingLevel?: 1 | 2 }) {
   const progress = useQuery(progressQuery);
   const roadmap = useQuery(roadmapQuery);
-  const next = useNextLesson();
   const finished = Boolean(
     roadmap.data?.length && roadmap.data.every((u) => u.status === "mastered" || u.status === "skipped"),
   );
@@ -16,9 +14,7 @@ export function Complete({ xpGained, headingLevel = 1 }: { xpGained: number; hea
   const nextAction = finished ? (
     <Text>Roadmap complete</Text>
   ) : (
-    <Button onClick={() => next.mutate()} disabled={next.isPending || next.isSuccess}>
-      Next Lesson
-    </Button>
+    <Button render={<Link to="/roadmap" />}>Next Lesson</Button>
   );
   const actions = (
     <>
@@ -29,14 +25,11 @@ export function Complete({ xpGained, headingLevel = 1 }: { xpGained: number; hea
     </>
   );
   return (
-    <Stack gap={4}>
-      <LessonComplete
-        headingLevel={headingLevel}
-        xpGained={xpGained}
-        streak={progress.data?.streak ?? 0}
-        actions={actions}
-      />
-      {next.isError && <Text tone="muted">Your next Lesson couldn't be prepared. Try again in a moment.</Text>}
-    </Stack>
+    <LessonComplete
+      headingLevel={headingLevel}
+      xpGained={xpGained}
+      streak={progress.data?.streak ?? 0}
+      actions={actions}
+    />
   );
 }

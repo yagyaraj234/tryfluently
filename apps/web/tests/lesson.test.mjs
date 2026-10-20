@@ -188,7 +188,8 @@ test("a finished Lesson shows Lesson complete with the Streak and the next actio
   assert.match(t, /Lesson complete/);
   assert.match(t, /12 day streak/);
   assert.match(t, /\+40 XP/);
-  assert.match(t, /Next Lesson/);
+  // Next Lesson goes to the Roadmap, where the Learner picks it and presses Start; nothing is generated ahead.
+  assert.match(text(linkTo(html, "/roadmap")), /Next Lesson/);
   assert.match(text(linkTo(html, "/home")), /Home/);
 });
 
