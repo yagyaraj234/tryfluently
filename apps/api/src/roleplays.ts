@@ -9,7 +9,7 @@ import { streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
 import { goalText } from "./goal-text";
-import { voiceMinutes, type RealtimeBroker } from "./realtime";
+import { voiceLimitMessage, type RealtimeBroker } from "./realtime";
 
 const { lesson, goal } = schema;
 
@@ -169,9 +169,7 @@ never correct them or give feedback during the Roleplay, and never judge whether
       : ""
   }`;
 
-export const roleplays = (
-  deps: Deps & { settings: { alphaLesson: number; realtimeMinutesPerDay: number }; broker: RealtimeBroker },
-) => {
+export const roleplays = (deps: Deps & { settings: { alphaLesson: number }; broker: RealtimeBroker }) => {
   const { db, broker } = deps;
   const find = async (id: string, userId: string) =>
     (
@@ -274,17 +272,8 @@ This Roleplay is a text chat: write your lines as you would say them, without st
         if (row.status !== "in_progress" || row.textMode)
           return c.json({ error: "Calls are only for a spoken Roleplay in progress" }, 409);
 
-        // The daily cap is enforced here, on the server: the call gets whatever is left of today's minutes.
-        const budget = await voiceMinutes(broker, c.var.user, deps.settings.realtimeMinutesPerDay);
-        if (budget.remainingSeconds <= 0)
-          return c.json(
-            { error: "You've used today's voice minutes. Try text mode, or come back tomorrow.", ...budget },
-            429,
-          );
-
         const call = await broker.start(userId, {
           targetId: row.id,
-          budgetSeconds: budget.remainingSeconds,
           sdp: offer,
           instructions: roleplayInstructions(
             row.roleplayKind!,
@@ -299,6 +288,7 @@ This Roleplay is a text chat: write your lines as you would say them, without st
           prior: row.messages,
           onTranscript: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
         });
+        if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
         if (!row.startedAt) await db.update(lesson).set({ startedAt: deps.now() }).where(eq(lesson.id, row.id));
         return c.body(call.answer, 201, { "content-type": "application/sdp" });

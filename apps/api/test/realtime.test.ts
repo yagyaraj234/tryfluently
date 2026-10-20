@@ -10,7 +10,13 @@ async function setup() {
   const { id: userId } = await signUp(makeApp());
   const realtime = fakeRealtime();
   const timers = fakeTimers();
-  const broker = realtimeBroker({ db: testDb, now: makeClock(), realtime, schedule: timers.schedule });
+  const broker = realtimeBroker({
+    limitMinutes: 10,
+    db: testDb,
+    now: makeClock(),
+    realtime,
+    schedule: timers.schedule,
+  });
   return { userId, realtime, timers, broker };
 }
 
@@ -18,7 +24,6 @@ const opts = (onTranscript: (t: UIMessage[]) => Promise<unknown>) => ({
   sdp: "v=0",
   instructions: "Speak English",
   purpose: "roleplay" as const,
-  budgetSeconds: 900,
   onTranscript,
 });
 const utterance = (id: string) => ({
@@ -33,6 +38,7 @@ describe("Realtime close failures", () => {
     const realtime = fakeRealtime();
     const connected = Promise.withResolvers<void>();
     const broker = realtimeBroker({
+      limitMinutes: 10,
       db: testDb,
       now: makeClock(),
       schedule: fakeTimers().schedule,

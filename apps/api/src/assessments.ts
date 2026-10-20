@@ -9,7 +9,7 @@ import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { cefrLevel } from "./goals";
 import { enqueueAssessmentJobs, practicePreparation, retryPracticePreparation } from "./assessment-jobs";
-import type { RealtimeBroker } from "./realtime";
+import { voiceLimitMessage, type RealtimeBroker } from "./realtime";
 import { remember, addFocusItems } from "./learning-memory";
 import { fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
@@ -343,6 +343,7 @@ export const assessments = ({
           prior: row.transcript,
           onTranscript: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
         });
+        if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
         return c.body(call.answer, 201, { "content-type": "application/sdp" });
       })

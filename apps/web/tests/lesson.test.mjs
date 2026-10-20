@@ -104,6 +104,14 @@ before(async () => {
     const json = (status, body) =>
       res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
+    if (req.url === "/api/voice-minutes")
+      return json(200, {
+        limitMinutes: 10,
+        usedSeconds: 0,
+        remainingSeconds: 600,
+        resetsAt: "2026-11-01T00:00:00.000Z",
+        callEndsAt: null,
+      });
     if (req.url === "/api/me") return json(200, { id: "1", name: "Asha" });
     if (req.url === "/api/progress") return json(200, { xp: 340, streak: 12 });
     if (req.url === "/api/roadmap")

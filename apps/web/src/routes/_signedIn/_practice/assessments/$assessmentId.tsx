@@ -4,17 +4,20 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Discarded } from "../../../../components/assessment/assessment";
 import { VoiceAssessment } from "../../../../components/assessment/VoiceAssessment";
 import { WrittenAssessment } from "../../../../components/assessment/WrittenAssessment";
+import { voiceMinutesQuery } from "../../../../lib/queries";
 import { api } from "../../../../lib/api";
 
 export const Route = createFileRoute("/_signedIn/_practice/assessments/$assessmentId")({
   loader: {
     staleReloadMode: "blocking",
-    handler: async ({ params }) => {
+    handler: async ({ params, context }) => {
       const response = await api().api.assessments[":id"].$get({ param: { id: params.assessmentId } });
       if (response.status === 404) return null;
       if (!response.ok) throw new Error(`Couldn't load your Assessment (${response.status})`);
       const assessment = await response.json();
       if (assessment.status === "completed") throw redirect({ to: "/assessments/$assessmentId/report", params });
+      if (assessment.mode === "voice" && assessment.status === "in_progress")
+        await context.queryClient.prefetchQuery(voiceMinutesQuery);
       return assessment;
     },
   },
