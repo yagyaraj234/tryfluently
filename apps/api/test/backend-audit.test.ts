@@ -212,7 +212,7 @@ test("a final question-generation timeout fails the Lesson and permits retry", a
   expect((await app.request(`/api/lessons/${row.id}/retry`, json({}, learner.cookie))).status).toBe(202);
 });
 
-test("Assessment deadlines survive reconnects and reject expired written turns", async () => {
+test("Voice Assessment deadlines survive reconnects", async () => {
   const clock = makeClock();
   const timers = fakeTimers();
   const realtime = fakeRealtime();
@@ -232,19 +232,6 @@ test("Assessment deadlines survive reconnects and reject expired written turns",
   await timers.fire(120_000);
   expect(realtime.sideband().hungUp).toBe(true);
   expect((await app.request(`/api/assessments/${voice!.id}/call`, sdp(learner.cookie))).status).toBe(409);
-  await testDb.update(schema.assessment).set({ status: "discarded" }).where(eq(schema.assessment.id, voice!.id));
-  const [written] = await testDb
-    .insert(schema.assessment)
-    .values({ userId: learner.id, mode: "written", startedAt: new Date(clock().getTime() - 600_000) })
-    .returning();
-  expect(
-    (
-      await app.request(
-        `/api/assessments/${written!.id}/chat`,
-        json({ message: userMessage("Too late") }, learner.cookie),
-      )
-    ).status,
-  ).toBe(409);
 });
 
 test("overlapping Assessment starts leave one open attempt", async () => {

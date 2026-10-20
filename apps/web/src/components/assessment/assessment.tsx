@@ -12,6 +12,8 @@ export type Report = Extract<InferResponseType<Client["end"]["$post"], 200>, { s
 
 export const LIMIT_MS = 10 * 60_000;
 const MIN_MS = 4 * 60_000;
+/** A Written Assessment has no clock; it ends after this many answers (the API asks the coach to close then). */
+export const MAX_ANSWERS = 12;
 
 export const clock = (ms: number) => {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -31,10 +33,12 @@ function useTimeLeft(startedAt: string) {
 
 export type Ending = "running" | "ending" | "failed" | "discarded";
 
-export function useAssessmentSession(assessment: Assessment) {
+/** `timed` is false for a Written Assessment: no countdown and no time-up. */
+export function useAssessmentSession(assessment: Assessment, timed = true) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const left = useTimeLeft(assessment.startedAt);
+  const remaining = useTimeLeft(assessment.startedAt);
+  const left = timed ? remaining : undefined;
   const [ending, setEnding] = useState<Ending>("running");
   const leftEarly = useRef(false);
   // A ref, not state, so the blocker lets the navigation to the Report through straight away.
@@ -79,7 +83,7 @@ export function useAssessmentSession(assessment: Assessment) {
     retry: end,
     leaving: {
       open: blocker.status === "blocked",
-      short: left !== undefined && LIMIT_MS - left < MIN_MS,
+      short: remaining !== undefined && LIMIT_MS - remaining < MIN_MS,
       stay: () => blocker.reset?.(),
       leave: () => {
         blocker.reset?.();

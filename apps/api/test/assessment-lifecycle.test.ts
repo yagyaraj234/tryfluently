@@ -74,6 +74,24 @@ describe("assessment lifecycle", () => {
     expect((await start(app, cookie)).status).toBe(201);
   });
 
+  test("a Written Assessment answered in full counts even when finished in under 4 minutes", async () => {
+    const clock = makeClock();
+    const app = makeApp({
+      now: clock,
+      models: { step: mockChat(...Array(13).fill("Next question?")), report: mockModel(reportReply()) },
+    });
+    const { cookie } = await signUp(app);
+    const id = await startAndChat(app, cookie);
+    for (let i = 0; i < 12; i++)
+      await (
+        await app.request(`/api/assessments/${id}/chat`, json({ message: userMessage(`Answer ${i}`) }, cookie))
+      ).text();
+
+    clock.advance({ minutes: 2 });
+    const end = await app.request(`/api/assessments/${id}/end`, json({}, cookie));
+    expect(await end.json()).toMatchObject({ status: "completed" });
+  });
+
   test("an attempt the Learner leaves at 4 minutes produces a partial Report and counts as completed", async () => {
     const { app, clock } = setup([reportReply()]);
     const { cookie } = await signUp(app);

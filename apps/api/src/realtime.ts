@@ -81,6 +81,14 @@ export const sessionConfig = {
   audio: { input: { transcription: { model: "gpt-4o-transcribe" }, turn_detection: { type: "semantic_vad" } } },
 };
 
+// Lets the model hang up once it has spoken its closing line.
+export const endCallTool = {
+  type: "function",
+  name: "end_call",
+  description: "End the call after you have spoken a short closing sentence.",
+  parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
+};
+
 export type CallPurpose = "assessment" | "roleplay";
 
 // Starts and tracks Realtime calls: one live call per Learner, transcripts and voice timing collected from the

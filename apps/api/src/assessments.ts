@@ -9,7 +9,7 @@ import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { cefrLevel } from "./goals";
 import { enqueueAssessmentJobs, practicePreparation, retryPracticePreparation } from "./assessment-jobs";
-import { voiceLimitMessage, type RealtimeBroker } from "./realtime";
+import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 import { remember, addFocusItems } from "./learning-memory";
 import { fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
@@ -18,6 +18,8 @@ const { assessment, goal } = schema;
 
 const MIN_MINUTES = 4;
 const MAX_SECONDS = 10 * 60;
+// A Written Assessment has no clock; it ends once the Learner has answered this many questions.
+const MAX_ANSWERS = 12;
 const RETAKE_DAYS = 7;
 
 const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
@@ -44,7 +46,7 @@ export const reportOutput = z.object({
   firstUnit: z.object({ title: z.string(), objective: z.string() }),
 });
 
-const phases = `Run the Assessment in five phases within 10 minutes:
+const phases = `Run the Assessment in five phases:
 1. Warm-up: easy small talk.
 2. You and your work: {goals}
 3. Goal scenario: a realistic situation from their Goal.
@@ -56,8 +58,12 @@ Make questions easier or harder depending on how they answer. Ask one question a
 const itemTools = { fillGap: stepTools.fillGap, rewrite: stepTools.rewrite };
 const MAX_ITEMS = 4;
 
-// `items` is the count of structured items answered so far; a Voice Assessment has none.
-const instructions = (goalTexts: string[], minutes: number, items?: number) =>
+// Questions the Learner has answered in a Written Assessment: replies (not the opening message) plus answered items.
+const answersOf = (messages: UIMessage[]) =>
+  Math.max(0, messages.filter((m) => m.role === "user").length - 1) + answeredSteps(messages).length;
+
+// A Written Assessment passes `written`; a Voice Assessment has no items and is timed instead.
+const instructions = (goalTexts: string[], written?: { items: number; answers: number }) =>
   `You are Fluently, an English coach, running an Assessment of the Learner's English.
 ${phases.replace(
   "{goals}",
@@ -66,11 +72,14 @@ ${phases.replace(
     : "ask what they want to achieve with English.",
 )}
 ${
-  items === undefined
-    ? ""
-    : `During phases 2–4, also give 3–4 structured items, one at a time, using the fillGap and rewrite tools, pitched at the
-level they're showing. Don't tell them whether they got an item right. ${items} answered so far.\n`
-}${minutes.toFixed(0)} of 10 minutes have passed.`;
+  written
+    ? `During phases 2–4, also give 3–4 structured items, one at a time, using the fillGap and rewrite tools, pitched at the
+level they're showing. Don't tell them whether they got an item right. ${written.items} items answered so far.
+Aim to finish in about ${MAX_ANSWERS} questions; ${written.answers} answered so far.${
+        written.answers >= MAX_ANSWERS ? " That's enough: thank them and close now, with no further questions." : ""
+      }\n`
+    : `Finish within 10 minutes. When you've closed the conversation, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.\n`
+}`;
 
 const reportInstructions = (
   mode: Row["mode"],
@@ -138,7 +147,9 @@ export const assessments = ({
       row = (await find(row.id, user.id))!;
     }
     const at = now();
-    if (at.getTime() - row.startedAt.getTime() < MIN_MINUTES * 60_000) {
+    // A Written Assessment that got through every question counts however quickly it was done.
+    const complete = row.mode === "written" && answersOf(row.transcript as UIMessage[]) >= MAX_ANSWERS;
+    if (!complete && at.getTime() - row.startedAt.getTime() < MIN_MINUTES * 60_000) {
       await db
         .update(assessment)
         .set({ status: "discarded", endedAt: at })
@@ -300,22 +311,19 @@ export const assessments = ({
         if (row.mode !== "written")
           return c.json({ error: "A Voice Assessment runs over its call, not the chat" }, 409);
 
-        if (secondsLeft(row) <= 0) return c.json({ error: "This Assessment is out of time" }, 409);
-
         const taken = takeAnswer(row.transcript as UIMessage[], c.req.valid("json").message);
         if ("error" in taken) return c.json({ error: taken.error, issues: taken.issues }, taken.status);
         const valid = await safeValidateUIMessages({ messages: taken.messages, tools: itemTools });
         if (!valid.success) return c.json({ error: valid.error.message }, 400);
         const items = answeredSteps(valid.data).length;
-
-        const minutes = (now().getTime() - row.startedAt.getTime()) / 60_000;
+        const answers = answersOf(valid.data);
 
         return streamChat({ db, now }, userId, {
           model: models.step,
-          instructions: instructions(await goalTextsOf(userId), minutes, items),
+          instructions: instructions(await goalTextsOf(userId), { items, answers }),
           messages: valid.data,
           tools: itemTools,
-          activeTools: items < MAX_ITEMS ? ["fillGap", "rewrite"] : [],
+          activeTools: items < MAX_ITEMS && answers < MAX_ANSWERS ? ["fillGap", "rewrite"] : [],
           save: (transcript) =>
             db
               .update(assessment)
@@ -343,8 +351,10 @@ export const assessments = ({
           targetId: row.id,
           budgetSeconds,
           sdp: offer,
-          instructions: instructions(await goalTextsOf(userId), 0),
+          instructions: instructions(await goalTextsOf(userId)),
           purpose: "assessment",
+          tools: [endCallTool],
+          endTool: endCallTool.name,
           prior: row.transcript,
           onTranscript: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
         });
