@@ -1,4 +1,4 @@
-import { Card, Heading, Stack, Text } from "@fluently/ui";
+import { Button, Card, Heading, Stack, Text } from "@fluently/ui";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { Complete } from "./Complete";
@@ -28,17 +28,24 @@ export function PagedComplete({
   xpGained,
   correct,
   graded,
+  onReview,
 }: {
   lessonId: string;
   xpGained: number;
   correct: number;
   graded: number;
+  onReview?: () => void;
 }) {
   const { data } = useQuery(analysisQuery(lessonId));
   return (
     <Stack gap={4}>
       <Complete xpGained={xpGained} />
       {graded > 0 && <Text>{`You got ${correct} of ${graded} checked questions right.`}</Text>}
+      {onReview && (
+        <Button variant="secondary" onClick={onReview}>
+          Review this Lesson
+        </Button>
+      )}
       {data?.status === "done" && data.summary && (
         <Card>
           <Stack gap={2}>
