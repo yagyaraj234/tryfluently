@@ -9,11 +9,13 @@ export const lessonRoute = (l: { id: string; kind: "practice" | "roleplay" }) =>
     ? ({ to: "/roleplays/$roleplayId", params: { roleplayId: l.id } } as const)
     : ({ to: "/lessons/$lessonId", params: { lessonId: l.id } } as const);
 
-type Pages = { preparation: string | null; pages: { status: "pending" | "ready" | "failed" }[] };
+type Pages = { preparation: string | null; pages: { status: "pending" | "ready" | "failed"; question?: string }[] };
 
-/** Nothing more will arrive once the Lesson failed or every Page is ready or failed. */
+/** Nothing more will arrive once the Lesson failed or every Page and question is ready or failed. */
 export const pagesSettled = (d?: Pages) =>
-  Boolean(d && (d.preparation === "failed" || d.pages.every((p) => p.status !== "pending")));
+  Boolean(
+    d && (d.preparation === "failed" || d.pages.every((p) => p.status !== "pending" && p.question !== "pending")),
+  );
 
 /** Polls a paged Lesson's Pages every 1.5 seconds until they have all settled. */
 export const lessonPagesQuery = (id: string) =>

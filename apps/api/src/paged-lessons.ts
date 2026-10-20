@@ -5,6 +5,7 @@ import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
 import { publicQuestion, questionBlocks, questionProblem, questionsOutput, type Question } from "./lesson-blocks";
+import { answeredPages } from "./page-answers";
 import { skillProfile } from "./scoring";
 
 const { lesson, unit, goal, focusItem, learnerMemory, assessmentJob: job } = schema;
@@ -51,13 +52,15 @@ type Stored = PageOutput & { block: string; question?: Question };
 const blank = { title: "", body: "", example: null };
 
 /** What a Learner may see: no answer keys. Pending Pages are listed without content. */
-export function publicPages(l: typeof lesson.$inferSelect) {
+export function publicPages(l: typeof lesson.$inferSelect, steps: (typeof schema.step.$inferSelect)[] = []) {
+  const answered = answeredPages(l, steps);
   return (l.pageStatus ?? []).map((s, i) => {
     const page = l.material?.[i] as Stored | undefined;
     return {
       page: i,
       status: s.page,
       question: s.question,
+      ...(answered.has(i) && { result: answered.get(i) }),
       ...(s.question === "ready" && page?.question && { questionData: publicQuestion(page.question) }),
       ...(s.page === "ready" &&
         page && { title: page.title, body: page.body, example: page.example, block: page.block }),
