@@ -327,7 +327,8 @@ export function RoadmapNode({
       onClick: interactive ? onClick : undefined,
       "aria-label": interactive ? `${state === "complete" ? "Review" : "Open"} ${title}` : undefined,
       "aria-hidden": !interactive || undefined,
-      className: `relative flex size-14 shrink-0 items-center justify-center rounded-full border text-title ${nodeStyles[state]}`,
+      // A live node's overlay stretches its click area over the whole row (the <li> is the positioned parent).
+      className: `${interactive ? "after:absolute after:inset-0 after:content-['']" : "relative"} flex size-14 shrink-0 items-center justify-center rounded-full border text-title ${nodeStyles[state]}`,
       children: (
         <>
           <Icon aria-hidden size={24} weight="regular" />
