@@ -10,6 +10,7 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 const bytea = customType<{ data: Uint8Array }>({ dataType: () => "bytea" });
@@ -123,15 +124,18 @@ export const assessment = pgTable("assessment", {
   emailedAt: timestamp(),
 });
 
-// Durable follow-up work committed with an Assessment's Report.
+// Durable background work: follow-ups committed with an Assessment's Report, and Lesson generation.
+// Assessment jobs set assessmentId; `lesson` jobs set lessonId.
 export const assessmentJob = pgTable(
   "assessment_job",
   {
-    assessmentId: text()
-      .notNull()
-      .references(() => assessment.id, { onDelete: "cascade" }),
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    assessmentId: text().references(() => assessment.id, { onDelete: "cascade" }),
+    lessonId: text().references(() => lesson.id, { onDelete: "cascade" }),
     userId: learner(),
-    kind: text().$type<"report_email" | "practice">().notNull(),
+    kind: text().$type<"report_email" | "practice" | "lesson">().notNull(),
     status: text().$type<"pending" | "running" | "done" | "failed">().notNull().default("pending"),
     attempts: integer().notNull().default(0),
     availableAt: timestamp().notNull().defaultNow(),
@@ -139,7 +143,8 @@ export const assessmentJob = pgTable(
     token: text(),
   },
   (t) => [
-    primaryKey({ columns: [t.assessmentId, t.kind] }),
+    uniqueIndex("assessment_job_assessment_kind_idx").on(t.assessmentId, t.kind),
+    uniqueIndex("assessment_job_lesson_kind_idx").on(t.lessonId, t.kind),
     index("assessment_job_status_available_idx").on(t.status, t.availableAt),
   ],
 );
@@ -242,6 +247,11 @@ export const lesson = pgTable("lesson", {
   material: jsonb().$type<{ title: string; body: string; example: string | null }[]>(),
   phase: text().$type<"learning" | "assessment">(),
   report: jsonb().$type<Record<string, unknown>>(),
+  // 1 = Lessons prepared before paged Lessons (material + Steps). 2 = Pages generated when the Learner presses Start.
+  contentVersion: integer().notNull().default(1),
+  currentPage: integer().notNull().default(0),
+  // Paged Lessons only: status of each Page and of its question slot, in Page order.
+  pageStatus: jsonb().$type<{ page: "pending" | "ready" | "failed"; question: "pending" | "ready" | "failed" }[]>(),
   startedAt: timestamp(),
   completedAt: timestamp(),
 });

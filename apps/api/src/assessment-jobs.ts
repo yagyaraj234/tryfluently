@@ -70,7 +70,7 @@ export async function runAssessmentJobs(deps: Deps, userId?: string) {
         const [claimed] = await tx
           .update(job)
           .set({ status: "running", attempts: row.attempts + 1, lockedAt: now(), token: crypto.randomUUID() })
-          .where(and(eq(job.assessmentId, row.assessmentId), eq(job.kind, row.kind)))
+          .where(eq(job.id, row.id))
           .returning();
         return claimed!;
       }),
@@ -78,7 +78,7 @@ export async function runAssessmentJobs(deps: Deps, userId?: string) {
   });
   await Promise.all(
     claimed.map(async (row) => {
-      const mine = and(eq(job.assessmentId, row.assessmentId), eq(job.kind, row.kind), eq(job.token, row.token!));
+      const mine = and(eq(job.id, row.id), eq(job.token, row.token!));
       const heartbeat = setInterval(() => {
         void db
           .update(job)
@@ -88,7 +88,10 @@ export async function runAssessmentJobs(deps: Deps, userId?: string) {
       }, 15_000);
       heartbeat.unref();
       try {
-        if (row.kind === "report_email") await emailReport(deps, row.assessmentId, row.userId);
+        if (row.kind === "lesson") {
+          // Generation arrives with paged Lessons (ticket #129); until then a claimed Lesson job fails and retries.
+          throw new Error("Lesson generation is not implemented yet");
+        } else if (row.kind === "report_email") await emailReport(deps, row.assessmentId!, row.userId);
         else {
           const ctx = { ...deps, signal: AbortSignal.timeout(90_000) };
           const result = await buildRoadmap(ctx, row.userId);

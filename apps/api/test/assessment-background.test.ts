@@ -216,3 +216,19 @@ test("Lesson preparation after the initial job stays pollable, and an expired pr
   expect(await status(app, cookie)).toMatchObject({ status: "failed" });
   expect((await app.request("/api/assessments/preparation", json({}, cookie))).status).toBe(202);
 });
+
+test("worker claims a lesson job; existing Lessons stay on the old format", async () => {
+  const { app, userId, clock } = await complete();
+  const [made] = await testDb
+    .insert(schema.lesson)
+    .values({ userId, position: 0, kind: "roleplay", title: "Paged", objective: "Speak clearly" })
+    .returning();
+  expect(made).toMatchObject({ contentVersion: 1, currentPage: 0, pageStatus: null });
+  await testDb
+    .insert(schema.assessmentJob)
+    .values({ lessonId: made!.id, userId, kind: "lesson", availableAt: clock() });
+  await app.runJobs(userId);
+  const [claimed] = await testDb.select().from(schema.assessmentJob).where(eq(schema.assessmentJob.lessonId, made!.id));
+  // Generation is not built yet, so the claimed job goes back to pending with one attempt recorded.
+  expect(claimed).toMatchObject({ kind: "lesson", status: "pending", attempts: 1, assessmentId: null });
+});
