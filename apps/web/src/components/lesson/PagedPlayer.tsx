@@ -92,9 +92,11 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   }, []);
 
   // Move focus to the new Page, but not on the first render so the browser keeps its own starting point.
+  // Scroll to the top ourselves: letting focus scroll leaves the new Page's title under the sticky header.
   useEffect(() => {
-    if (first.current) first.current = false;
-    else heading.current?.focus();
+    if (first.current) return void (first.current = false);
+    heading.current?.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
   }, [index]);
 
   const go = (to: number) => {
