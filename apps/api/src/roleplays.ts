@@ -5,7 +5,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { learnerMessage } from "./steps";
-import { streamChat } from "./ai";
+import { streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
 import { goalText } from "./goal-text";
@@ -225,7 +225,7 @@ export const roleplays = (
             .where(and(eq(goal.id, goalId), eq(goal.userId, userId)));
           if (!g) return c.json({ error: "Goal not found" }, 404);
           const fromGoal = { job_interview: "mock_interview", client_communication: "client_call" } as const;
-          const chosen = scenario ? "custom" : kind ?? fromGoal[g.kind as keyof typeof fromGoal];
+          const chosen = scenario ? "custom" : (kind ?? fromGoal[g.kind as keyof typeof fromGoal]);
           if (!chosen) return c.json({ error: "Choose a Roleplay or describe your own" }, 400);
           if (chosen === "custom" && !scenario) return c.json({ error: "Describe your Roleplay" }, 400);
           return c.json(await createRoleplay(deps, userId, { kind: chosen, scenario, tone, textMode }), 201);
@@ -256,7 +256,12 @@ export const roleplays = (
           instructions: `${roleplayInstructions(row.roleplayKind!, row.tone!, await confirmedGoalTexts(deps, userId), row.roleplayScenario)}
 This Roleplay is a text chat: write your lines as you would say them, without stage directions.`,
           messages: valid.data,
-          save: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
+          save: (messages) =>
+            db
+              .update(lesson)
+              .set({ messages })
+              .where(and(eq(lesson.id, row.id), unchanged(lesson.messages, stored.length)))
+              .returning({ id: lesson.id }),
         });
       })
       // The browser posts its SDP offer and gets back only the SDP answer, as for a Voice Assessment.
@@ -291,6 +296,7 @@ This Roleplay is a text chat: write your lines as you would say them, without st
           purpose: "roleplay",
           tools: [endCallTool],
           endTool: endCallTool.name,
+          prior: row.messages,
           onTranscript: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
         });
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);

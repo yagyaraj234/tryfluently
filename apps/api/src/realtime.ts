@@ -132,6 +132,8 @@ export function realtimeBroker({
       endTool?: string;
       targetId?: string;
       budgetSeconds?: number;
+      // What the target already holds from earlier calls; this call's messages are saved after it.
+      prior?: unknown[];
       onTranscript(t: UIMessage[]): Promise<unknown>;
     },
   ) {
@@ -160,6 +162,8 @@ export function realtimeBroker({
     entry.startedAt = startedAt;
     const timers: (() => void)[] = [];
     const transcript: UIMessage[] = [];
+    const prior = (opts.prior ?? []) as UIMessage[];
+    const priorIds = new Set(prior.map((m) => m.id));
     const timing = new Map<string, { speechStartMs?: number; speechEndMs?: number }>();
     const usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
     let saving: Promise<SaveFailure | undefined> = Promise.resolve(undefined);
@@ -179,7 +183,7 @@ export function realtimeBroker({
       transcript.push(message);
       saving = saving.then(async () => {
         try {
-          await opts.onTranscript([...transcript]);
+          await opts.onTranscript([...prior, ...transcript.filter((m) => !priorIds.has(m.id))]);
         } catch (error) {
           console.error("realtime transcript save failed", error);
           return { error };

@@ -4,7 +4,7 @@ import { NoObjectGeneratedError, Output, safeValidateUIMessages, tool, type UIMe
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { generate, streamChat } from "./ai";
+import { generate, streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { answerPage, setCurrentPage, stepsOf } from "./page-answers";
@@ -485,7 +485,12 @@ export const lessons = ({
           tools,
           activeTools,
           toolChoice: answeredCount >= MAX_STEPS ? "required" : "auto",
-          save: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
+          save: (messages) =>
+            db
+              .update(lesson)
+              .set({ messages })
+              .where(and(eq(lesson.id, row.id), unchanged(lesson.messages, (row.messages as unknown[]).length)))
+              .returning({ id: lesson.id }),
         });
       })
   );
