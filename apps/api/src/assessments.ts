@@ -17,6 +17,7 @@ import { answeredSteps, stepTools, takeAnswer } from "./steps";
 const { assessment, goal } = schema;
 
 const MIN_MINUTES = 4;
+const MAX_SECONDS = 10 * 60;
 const RETAKE_DAYS = 7;
 
 const skillResult = z.object({ score: z.number().min(0).max(100), evidence: z.array(z.string()) });
@@ -126,6 +127,8 @@ export const assessments = ({
       const text = goalText(g);
       return text ? [text] : [];
     });
+
+  const secondsLeft = (row: Row) => MAX_SECONDS - (now().getTime() - row.startedAt.getTime()) / 1000;
 
   // Ends an attempt. Under 4 minutes it's discarded; otherwise the Report is written, partial if the Learner left early.
   async function finish(row: Row, user: { id: string; email: string }, { partial }: { partial: boolean }) {
@@ -292,6 +295,8 @@ export const assessments = ({
         if (row.mode !== "written")
           return c.json({ error: "A Voice Assessment runs over its call, not the chat" }, 409);
 
+        if (secondsLeft(row) <= 0) return c.json({ error: "This Assessment is out of time" }, 409);
+
         const taken = takeAnswer(row.transcript as UIMessage[], c.req.valid("json").message);
         if ("error" in taken) return c.json({ error: taken.error, issues: taken.issues }, taken.status);
         const valid = await safeValidateUIMessages({ messages: taken.messages, tools: itemTools });
@@ -326,8 +331,12 @@ export const assessments = ({
         if (row.mode !== "voice" || row.status !== "in_progress")
           return c.json({ error: "Calls are only for a Voice Assessment in progress" }, 409);
 
+        const budgetSeconds = secondsLeft(row);
+        if (budgetSeconds <= 0) return c.json({ error: "This Assessment is out of time" }, 409);
+
         const call = await broker.start(userId, {
           targetId: row.id,
+          budgetSeconds,
           sdp: offer,
           instructions: instructions(await goalTextsOf(userId), 0),
           purpose: "assessment",
