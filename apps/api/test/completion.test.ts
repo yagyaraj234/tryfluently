@@ -150,3 +150,13 @@ describe("Lesson completion", () => {
     expect(await completeLesson(ctx, row.id, row.userId)).toMatchObject({ status: "completed" });
   });
 });
+
+describe("Score write order", () => {
+  test("the last score written is the latest, even if its timestamp is older", async () => {
+    const { id: userId } = await signUp(makeApp());
+    const base = { alpha: 0.5, source: "lesson" as const, sourceId: "x" };
+    await recordScores(testDb, userId, { grammar: 75 }, { ...base, at: new Date("2026-01-02") });
+    await recordScores(testDb, userId, { grammar: 37.5 }, { ...base, at: new Date("2026-01-01") });
+    expect((await skillProfile(testDb, userId)).grammar?.score).toBe(56);
+  });
+});

@@ -23,7 +23,7 @@ async function latestScores(db: Db, userId: string) {
     .selectDistinctOn([schema.skillScore.skill], { skill: schema.skillScore.skill, score: schema.skillScore.score })
     .from(schema.skillScore)
     .where(eq(schema.skillScore.userId, userId))
-    .orderBy(schema.skillScore.skill, desc(schema.skillScore.createdAt));
+    .orderBy(schema.skillScore.skill, desc(schema.skillScore.seq));
   return Object.fromEntries(rows.map((r) => [r.skill, r.score])) as Partial<Record<Skill, number>>;
 }
 
@@ -47,7 +47,7 @@ export const skillHistory = (db: Db, userId: string) =>
     })
     .from(schema.skillScore)
     .where(eq(schema.skillScore.userId, userId))
-    .orderBy(asc(schema.skillScore.createdAt), asc(schema.skillScore.skill))
+    .orderBy(asc(schema.skillScore.seq))
     .then((rows) => rows.map((row) => ({ ...row, ...scoreView(row.score) })));
 
 export const skillProfileRoutes = (db: Db) =>
