@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { learnerWithRoadmap, reportReply, takeWrittenAssessment } from "./fixtures";
+import { learnerWithRoadmap, preparedContent, reportReply, takeWrittenAssessment } from "./fixtures";
 import { get, json, makeApp, makeClock, mockChat, mockModel } from "./helpers";
 
 const roadmapOf = async (app: ReturnType<typeof makeApp>, cookie: string) =>
@@ -24,7 +24,8 @@ test("Assessment retakes preserve Unit and Lesson outlines", async () => {
 
 test("skipping a Unit preserves outlines and abandons its open Lesson", async () => {
   const { cookie, units } = await learnerWithRoadmap();
-  const app = makeApp();
+  const app = makeApp({ models: { step: mockModel(preparedContent()) } });
+  await app.request("/api/lessons/next", json({}, cookie));
   const before = await roadmapOf(app, cookie);
   expect((await app.request(`/api/roadmap/units/${units[0].id}/skip`, json({}, cookie))).status).toBe(200);
   const after = await roadmapOf(app, cookie);

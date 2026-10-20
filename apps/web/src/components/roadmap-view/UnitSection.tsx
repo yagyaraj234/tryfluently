@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { lessonRoute } from "../../lib/lessons";
 import type { Unit } from "../../lib/queries";
 import type { Selected } from "./StartLessonDialog";
+import type { Starting } from "./StartingLesson";
 
 type Lesson = Unit["lessons"][number];
 
@@ -15,12 +16,14 @@ function lessonDescription(lesson: Lesson) {
   return "In progress";
 }
 
-function KnownLessonNode({ unit, lesson, onRetry }: { unit: Unit; lesson: Lesson; onRetry: () => void }) {
+type NodeProps = { unit: Unit; lesson: Lesson; onRetry: () => void; onResume: (lesson: Starting) => void };
+
+function KnownLessonNode({ unit, lesson, onRetry, onResume }: NodeProps) {
   const retry = lesson.preparation === "failed" || lesson.preparation === "preparing";
-  const skill =
-    lesson.kind === "roleplay"
-      ? "fluency"
-      : (unit.lessonOutline?.find((l) => l.title === lesson.title)?.skill ?? unit.skills[0]);
+  const planned = unit.lessonOutline?.find((l) => l.title === lesson.title);
+  const skill = lesson.kind === "roleplay" ? "fluency" : (planned?.skill ?? unit.skills[0]);
+  // A paged Lesson that is still being written (or failed) reopens its loading screen, which can retry it.
+  const paged = lesson.contentVersion === 2 && retry;
   return (
     <RoadmapNode
       state={lesson.status === "completed" ? "complete" : "active"}
@@ -28,14 +31,25 @@ function KnownLessonNode({ unit, lesson, onRetry }: { unit: Unit; lesson: Lesson
       skill={skill}
       description={lessonDescription(lesson)}
       render={retry ? undefined : <Link {...lessonRoute(lesson)} />}
-      onClick={retry ? onRetry : undefined}
+      onClick={
+        paged
+          ? () => onResume({ id: lesson.id, title: lesson.title, objective: planned?.objective ?? "" })
+          : retry
+            ? onRetry
+            : undefined
+      }
     />
   );
 }
 
-type Props = { unit: Unit; onSelect: (lesson: Selected) => void; onRetry: () => void };
+type Props = {
+  unit: Unit;
+  onSelect: (lesson: Selected) => void;
+  onRetry: () => void;
+  onResume: (lesson: Starting) => void;
+};
 
-export function UnitSection({ unit, onSelect, onRetry }: Props) {
+export function UnitSection({ unit, onSelect, onRetry, onResume }: Props) {
   const known = unit.lessons.filter((l) => l.status === "completed" || l.status === "in_progress");
   const current = known.some((l) => l.status === "in_progress");
   const count = unit.lessons.filter((l) => l.kind === "practice").length;
@@ -90,7 +104,7 @@ export function UnitSection({ unit, onSelect, onRetry }: Props) {
       }
     >
       {known.map((lesson) => (
-        <KnownLessonNode key={lesson.id} unit={unit} lesson={lesson} onRetry={onRetry} />
+        <KnownLessonNode key={lesson.id} unit={unit} lesson={lesson} onRetry={onRetry} onResume={onResume} />
       ))}
       {futureNodes}
       {roleplayNode}

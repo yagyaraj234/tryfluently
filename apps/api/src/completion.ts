@@ -5,7 +5,6 @@ import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
 import { remember, advanceUnit, addFocusItems } from "./learning-memory";
-import { prepareNext } from "./preparation";
 import { fluencyScore, recordScores, skillProfile, skills, speechSegments } from "./scoring";
 
 const { lesson, step, unit } = schema;
@@ -265,6 +264,5 @@ export async function completeLesson({ db, now, models, settings }: Ctx, id: str
     if (row.unitId) await advanceUnit(tx, row.unitId);
     return { row: saved!, changed: true };
   });
-  if (result.changed && judged) await prepareNext({ db, now, models }, userId);
   return { status: result.row.status, ...(result.row.debrief && { debrief: result.row.debrief }) };
 }
