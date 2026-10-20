@@ -103,17 +103,48 @@ describe("daily Realtime voice cap", () => {
     expect(await res.json()).toMatchObject({ remainingSeconds: 0 });
   });
 
-  test("Voice Assessment minutes don't count toward the cap and its call has no budget timers", async () => {
+  test("Voice Assessment minutes don't count toward the cap and its call is capped at ten minutes", async () => {
     const { app, clock, realtime, timers } = setup();
     const { cookie } = await signUp(app);
     const { id } = (await (await app.request("/api/assessments", json({ mode: "voice" }, cookie))).json()) as any;
     expect((await app.request(`/api/assessments/${id}/call`, sdp(cookie))).status).toBe(201);
-    expect(timers.waiting()).toEqual([]);
+    // Wrap-up nudge at 9 minutes, hang-up at 10.
+    expect(timers.waiting()).toEqual([540_000, 600_000]);
 
     clock.advance({ minutes: 9 });
     expect(await minutesOf(app, cookie)).toMatchObject({ usedSeconds: 0, remainingSeconds: 900 });
     await realtime.sideband().close();
     expect(await minutesOf(app, cookie)).toMatchObject({ usedSeconds: 0, remainingSeconds: 900 });
+  });
+
+  test("a Voice Assessment call only gets what's left of its ten minutes, and none once they are gone", async () => {
+    const { app, clock, timers } = setup();
+    const { cookie } = await signUp(app);
+    const { id } = (await (await app.request("/api/assessments", json({ mode: "voice" }, cookie))).json()) as any;
+    clock.advance({ minutes: 4 });
+    expect((await app.request(`/api/assessments/${id}/call`, sdp(cookie))).status).toBe(201);
+    expect(timers.waiting()).toEqual([300_000, 360_000]);
+  });
+
+  test("a Voice Assessment refuses a call once its ten minutes are up", async () => {
+    const { app, clock, realtime } = setup();
+    const { cookie } = await signUp(app);
+    const { id } = (await (await app.request("/api/assessments", json({ mode: "voice" }, cookie))).json()) as any;
+    clock.advance({ minutes: 11 });
+    expect((await app.request(`/api/assessments/${id}/call`, sdp(cookie))).status).toBe(409);
+    expect(realtime.calls).toHaveLength(0);
+  });
+
+  test("a Written Assessment refuses chat once its ten minutes are up", async () => {
+    const { app, clock } = setup();
+    const { cookie } = await signUp(app);
+    const { id } = (await (await app.request("/api/assessments", json({ mode: "written" }, cookie))).json()) as any;
+    clock.advance({ minutes: 11 });
+    const res = await app.request(
+      `/api/assessments/${id}/chat`,
+      json({ message: { id: "m1", role: "user", parts: [{ type: "text", text: "Hi" }] } }, cookie),
+    );
+    expect(res.status).toBe(409);
   });
 
   test("the budget resets at the Learner's local midnight", async () => {

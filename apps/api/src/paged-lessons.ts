@@ -4,7 +4,14 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import { publicQuestion, questionBlocks, questionProblem, questionsOutput, type Question } from "./lesson-blocks";
+import {
+  hasPhrase,
+  publicQuestion,
+  questionBlocks,
+  questionProblem,
+  questionsOutput,
+  type Question,
+} from "./lesson-blocks";
 import { waitForAnalysis, type Clock } from "./lesson-analysis";
 import { answeredPages } from "./page-answers";
 import { skillProfile } from "./scoring";
@@ -43,9 +50,7 @@ export function pageProblem(page: PageOutput, block: string) {
   const key = page.answerKey?.trim();
   if (needsKey.has(block) && !key) return "missing answerKey";
   if (key) {
-    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (new RegExp(`(^|\\W)${escaped}(\\W|$)`, "i").test(`${page.title} ${page.body} ${page.example ?? ""}`))
-      return "answerKey appears in the reading";
+    if (hasPhrase(`${page.title} ${page.body} ${page.example ?? ""}`, key)) return "answerKey appears in the reading";
   }
 }
 
