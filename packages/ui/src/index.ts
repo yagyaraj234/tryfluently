@@ -60,6 +60,7 @@ export { Heading, type HeadingProps } from "./Heading";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { LiveBar, type LiveBarProps } from "./LiveBar";
 export { VoiceOrb, type VoiceOrbProps, type VoicePhase } from "./VoiceOrb";
+export { PollyWalking, type PollyWalkingProps } from "./PollyWalking";
 export { Mascot, type MascotName, type MascotProps } from "./Mascot";
 export { LessonComplete, type LessonCompleteProps } from "./LessonComplete";
 export {
