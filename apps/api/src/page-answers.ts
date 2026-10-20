@@ -3,11 +3,12 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Deps } from "./app";
 import { questionBlocks, questionSchema, type Question } from "./lesson-blocks";
+import { judgeRewrite } from "./rewrite-judge";
 import { speakResult, startAnalysis } from "./speech-answers";
 
 const { lesson, step } = schema;
 
-/** Blocks the server grades on submit, with the pre-written explanation. Rewrite and speakPrompt are only saved for now. */
+/** Blocks the server grades on submit, with the pre-written explanation. Rewrite is judged by a model call (rewrite-judge.ts); speakPrompt is only saved for now. */
 const graded = new Set(["vocabCard", "fillGap", "multipleChoice", "matchPairs", "reorder"]);
 const norm = (s: string) =>
   s
@@ -15,6 +16,8 @@ const norm = (s: string) =>
     .replace(/[.!?,;:]+$/g, "")
     .replace(/\s+/g, " ")
     .trim();
+/** How long a check in progress blocks another one for the same Page (a crashed request frees it after this). */
+const CLAIM_MS = 30_000;
 const short = z.string().trim().min(1).max(500);
 
 /** What the Learner sends for each Block type (as `answer`). To add a Block, add it here and in `grade`. */
@@ -66,7 +69,10 @@ function grade(q: Question, a: any) {
 }
 
 /** What the Learner sees back. The same function builds a first submit and every later look, so they always match. */
-export function pageResult(q: Question, answer: unknown, verdict: "correct" | "incorrect" | null) {
+export function pageResult(q: Question, answer: unknown, verdict: Verdict | null, fb?: StepRow["feedback"]) {
+  // A rewrite without feedback yet (verdict null) is saved but still waiting to be checked.
+  if (q.block === "rewrite" && fb)
+    return { block: q.block, answer, verdict: fb.verdict, correctAnswer: fb.corrected, explanation: fb.explanation };
   return graded.has(q.block)
     ? {
         block: q.block,
@@ -79,6 +85,7 @@ export function pageResult(q: Question, answer: unknown, verdict: "correct" | "i
 }
 export type PageResult = ReturnType<typeof pageResult>;
 
+type Verdict = "correct" | "almost" | "incorrect";
 type Stored = { question?: Question };
 type StepRow = typeof step.$inferSelect;
 
@@ -89,10 +96,7 @@ export function answeredPages(l: typeof lesson.$inferSelect, rows: StepRow[]) {
     const q = (l.material?.[s.position] as Stored | undefined)?.question;
     if (q?.block === "speakPrompt" && s.answeredAt) out.set(s.position, speakResult(s.output?.answer, s));
     else if (q && s.answeredAt)
-      out.set(
-        s.position,
-        pageResult(q, s.output?.answer, s.feedback ? (s.feedback.verdict as "correct" | "incorrect") : null),
-      );
+      out.set(s.position, pageResult(q, s.output?.answer, s.feedback?.verdict ?? null, s.feedback));
   }
   return out;
 }
@@ -115,13 +119,13 @@ export async function answerPage(
 }
 
 async function save(
-  { db, now }: Pick<Deps, "db" | "now">,
+  { db, now, models }: Pick<Deps, "db" | "now" | "models">,
   userId: string,
   lessonId: string,
   index: number,
   answer: unknown,
 ) {
-  return db.transaction(async (tx) => {
+  const saved = await db.transaction(async (tx) => {
     const [l] = await tx
       .select()
       .from(lesson)
@@ -131,14 +135,48 @@ async function save(
     const q = (l.material?.[index] as Stored | undefined)?.question;
     if (!q || l.pageStatus?.[index]?.question !== "ready" || !questionBlocks.includes(q.block))
       return { status: 409 as const, error: "This Page has no question yet" };
-    const [saved] = await tx
+    const [prev] = await tx
       .select()
       .from(step)
       .where(and(eq(step.lessonId, l.id), eq(step.position, index)));
-    if (saved) return { status: 200 as const, result: answeredPages(l, [saved]).get(index)! };
-    if (l.status !== "in_progress") return { status: 409 as const, error: "This Lesson has ended" };
-    const parsed = answerShape[q.block].safeParse(answer);
+    // A rewrite saved but never checked is checked now, from the answer already saved, unless another request is on it.
+    const unchecked = Boolean(prev) && q.block === "rewrite" && !prev!.feedback;
+    if (prev && !unchecked) return { status: 200 as const, result: answeredPages(l, [prev]).get(index)! };
+    if (prev && Date.now() - Number((prev.timing as any)?.judgingSince ?? 0) < CLAIM_MS)
+      return { status: 409 as const, error: "We're still checking that answer. Try again in a moment." };
+    if (!prev && l.status !== "in_progress") return { status: 409 as const, error: "This Lesson has ended" };
+    const parsed = prev
+      ? { success: true as const, data: prev.output!.answer }
+      : answerShape[q.block].safeParse(answer);
     if (!parsed.success) return { status: 400 as const, error: "That answer isn't valid for this question" };
+    if (q.block === "rewrite") {
+      // The answer is saved and the check claimed here, so the slow model call below runs with no lock held.
+      const timing = { judgingSince: Date.now() };
+      const stepId = prev
+        ? prev.id
+        : (
+            await tx
+              .insert(step)
+              .values({
+                userId,
+                lessonId: l.id,
+                position: index,
+                type: q.block,
+                input: { page: index, prompt: q.prompt },
+                output: { answer: parsed.data },
+                answeredAt: now(),
+              })
+              .returning({ id: step.id })
+          )[0]!.id;
+      await tx.update(step).set({ timing }).where(eq(step.id, stepId));
+      return {
+        judge: {
+          stepId,
+          q: questionSchema.parse(q) as Extract<Question, { block: "rewrite" }>,
+          text: parsed.data as string,
+        },
+      };
+    }
     const ok = grade(questionSchema.parse(q), parsed.data);
     const verdict = ok === null ? null : ok ? ("correct" as const) : ("incorrect" as const);
     const speak = q.block === "speakPrompt";
@@ -162,6 +200,19 @@ async function save(
     });
     return { status: 201 as const, result };
   });
+  if (!("judge" in saved)) return saved;
+  const { stepId, q, text } = saved.judge!;
+  try {
+    const feedback = await judgeRewrite({ db, now, models }, userId, q, text);
+    await db.update(step).set({ feedback, timing: null }).where(eq(step.id, stepId));
+    return { status: 201 as const, result: pageResult(q, text, feedback.verdict, feedback) };
+  } catch {
+    await db.update(step).set({ timing: null }).where(eq(step.id, stepId));
+    return {
+      status: 502 as const,
+      error: "We couldn't check your answer just now. It's saved, so you can try again.",
+    };
+  }
 }
 
 /** Where the Learner is now. Pages are 0-based; `pages.length` is the recap. */
