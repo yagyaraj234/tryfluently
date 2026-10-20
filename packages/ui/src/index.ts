@@ -106,6 +106,7 @@ export { RecordButton, type RecordButtonProps } from "./RecordButton";
 export { ReportStrengths, ReportWeakness, type ReportStrengthsProps, type ReportWeaknessProps } from "./Report";
 export { ScoreHistory, type ScoreHistoryEntry, type ScoreHistoryProps } from "./ScoreHistory";
 export { Screen, type ScreenProps } from "./Screen";
+export { type SpeechControl } from "./SpeakAnswer";
 export { PageBlock, PageDots, QuestionSkeleton, ReadingCard, type PageQuestion, type PageResult } from "./PagedLesson";
 export { Select, type SelectProps } from "./Select";
 export { Sheet, type SheetProps } from "./Sheet";
