@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { faqs, site } from "../content/landing";
+import { siteOrigin } from "../lib/site";
 
 // A plain-text summary for AI assistants (llmstxt.org), built from the same words as the landing page.
 export const Route = createFileRoute("/llms.txt")({
   server: {
     handlers: {
       GET: () => {
-        const origin = (process.env.WEB_ORIGIN ?? "http://localhost:3001").replace(/\/$/, "");
+        const origin = siteOrigin();
         const body = [
           `# ${site.name}`,
           "",

@@ -8,12 +8,12 @@ export function RoadmapSection() {
       flip
       pill="Roadmap"
       title="A Roadmap that changes as you improve"
-      description="Your Roadmap is a list of Units, each made of short Lessons. Your coach builds each Lesson from how you did in the last one, so you skip what you already know."
+      description="Your Roadmap is a list of Units, each made of short Lessons. Your coach builds each Lesson from your Goals and how you did in earlier Lessons."
       points={[
         {
           icon: Path,
-          title: "Mastered after two Lessons",
-          body: "A Unit is mastered when you hit its goal in two Lessons in a row.",
+          title: "Progress through each Unit",
+          body: "Complete all the outlined Lessons to finish a Unit. Your next Lesson adapts to what needs practice.",
         },
         {
           icon: ChatCircle,
@@ -24,7 +24,7 @@ export function RoadmapSection() {
     >
       <MarketingPanel
         road
-        label="A Roadmap with one mastered Unit, one in progress and one up next"
+        label="A Roadmap with one completed Unit, one in progress and one up next"
         top={
           <>
             <Sparkle aria-hidden weight="fill" />
@@ -32,7 +32,13 @@ export function RoadmapSection() {
           </>
         }
       >
-        <UnitRow state="done" index={1} title="Introducing yourself" detail="Mastered in 2 Lessons" status="Mastered" />
+        <UnitRow
+          state="done"
+          index={1}
+          title="Introducing yourself"
+          detail="All Lessons completed"
+          status="Completed"
+        />
         <UnitRow
           state="now"
           index={2}

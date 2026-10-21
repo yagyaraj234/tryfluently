@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { siteOrigin } from "../lib/site";
 
 // Search and AI crawlers are welcome on the public pages; the signed-in app and the API are not for them.
 const aiCrawlers = [
@@ -18,15 +19,15 @@ export const Route = createFileRoute("/robots.txt")({
   server: {
     handlers: {
       GET: () => {
-        const origin = (process.env.WEB_ORIGIN ?? "http://localhost:3001").replace(/\/$/, "");
+        const origin = siteOrigin();
         const body = [
-          "User-agent: *",
-          "Allow: /$",
-          "Allow: /sign-up",
+          ...["*", ...aiCrawlers].map((bot) => `User-agent: ${bot}`),
+          "Allow: /",
           "Disallow: /api/",
           "Disallow: /home",
           "Disallow: /roadmap",
           "Disallow: /progress",
+          "Disallow: /profile",
           "Disallow: /settings",
           "Disallow: /goals",
           "Disallow: /assessments",
@@ -34,13 +35,6 @@ export const Route = createFileRoute("/robots.txt")({
           "Disallow: /lessons",
           "Disallow: /design-system",
           "",
-          ...aiCrawlers.flatMap((bot) => [
-            `User-agent: ${bot}`,
-            "Allow: /$",
-            "Allow: /llms.txt",
-            "Disallow: /api/",
-            "",
-          ]),
           `Sitemap: ${origin}/sitemap.xml`,
           "",
         ].join("\n");
