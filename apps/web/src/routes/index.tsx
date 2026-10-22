@@ -19,7 +19,7 @@ import { RoadmapSection } from "../components/landing/RoadmapSection";
 import { RoleplaySection } from "../components/landing/RoleplaySection";
 import { faqs, site } from "../content/landing";
 import { api } from "../lib/api";
-import { siteOrigin } from "../lib/site";
+import { publicPageHead, siteOrigin } from "../lib/site";
 
 const nav = [
   { label: "How it works", href: "#how" },
@@ -33,21 +33,47 @@ function structuredData(origin: string) {
   return {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "Organization", "@id": `${origin}/#org`, name: site.name, url: origin },
+      {
+        "@type": "Organization",
+        "@id": `${origin}/#org`,
+        name: site.name,
+        url: `${origin}/`,
+        logo: `${origin}/favicon.svg`,
+      },
       {
         "@type": "WebSite",
         "@id": `${origin}/#site`,
         name: site.name,
-        url: origin,
+        url: `${origin}/`,
         description: site.description,
         publisher: { "@id": `${origin}/#org` },
         inLanguage: "en",
       },
       {
+        "@type": "WebPage",
+        "@id": `${origin}/#page`,
+        url: `${origin}/`,
+        name: site.title,
+        description: site.description,
+        isPartOf: { "@id": `${origin}/#site` },
+        mainEntity: { "@id": `${origin}/#app` },
+        inLanguage: "en",
+        primaryImageOfPage: {
+          "@type": "ImageObject",
+          url: `${origin}${site.image}`,
+          width: 1200,
+          height: 630,
+          caption: site.imageAlt,
+        },
+      },
+      {
         "@type": "SoftwareApplication",
+        "@id": `${origin}/#app`,
         name: site.name,
-        url: origin,
+        url: `${origin}/`,
         description: site.summary,
+        publisher: { "@id": `${origin}/#org` },
+        image: `${origin}${site.image}`,
         applicationCategory: "EducationalApplication",
         operatingSystem: "Web",
         inLanguage: "en",
@@ -57,7 +83,7 @@ function structuredData(origin: string) {
         },
         featureList: [
           "Voice or written English assessment of up to 10 minutes",
-          "CEFR level (A1 to C2) for fluency, grammar and vocabulary",
+          "CEFR levels (A1 to C2) for grammar and vocabulary, plus fluency in Voice Assessments",
           "Adaptive Roadmap of Units and Lessons",
           "Roleplays that stay in character, with a Debrief",
           "Reference pronunciation for words and corrections",
@@ -65,6 +91,8 @@ function structuredData(origin: string) {
       },
       {
         "@type": "FAQPage",
+        "@id": `${origin}/#faq`,
+        isPartOf: { "@id": `${origin}/#page` },
         mainEntity: faqs.map((f) => ({
           "@type": "Question",
           name: f.question,
@@ -87,21 +115,10 @@ export const Route = createFileRoute("/")({
   head: () => {
     const origin = siteOrigin();
     return {
-      meta: [
-        { title: site.title },
-        { name: "description", content: site.description },
-        { name: "robots", content: "index, follow, max-image-preview:large" },
-        { property: "og:type", content: "website" },
-        { property: "og:site_name", content: site.name },
-        { property: "og:title", content: site.title },
-        { property: "og:description", content: site.description },
-        { property: "og:url", content: `${origin}/` },
-        { name: "twitter:card", content: "summary" },
-        { name: "twitter:title", content: site.title },
-        { name: "twitter:description", content: site.description },
+      ...publicPageHead("/", site.title, site.description),
+      scripts: [
+        { type: "application/ld+json", children: JSON.stringify(structuredData(origin)).replace(/</g, "\\u003c") },
       ],
-      links: [{ rel: "canonical", href: `${origin}/` }],
-      scripts: [{ type: "application/ld+json", children: JSON.stringify(structuredData(origin)) }],
     };
   },
   component: Landing,
@@ -121,7 +138,7 @@ function Landing() {
         badge="AI language coach"
         title="Lessons that change"
         emphasis="as you do."
-        description="Say exactly what you mean, in English. Talk or type, and get feedback on every answer."
+        description={site.summary}
         cta={start}
         ctaLabel="Start your free assessment"
         note="Voice or written. No card needed."
@@ -150,7 +167,7 @@ function Landing() {
           },
           {
             title: "Take the Assessment",
-            body: "Talk or type for up to 10 minutes. Your coach scores fluency, grammar and vocabulary.",
+            body: "Talk or type for up to 10 minutes. Get grammar and vocabulary feedback, plus fluency when you speak.",
           },
           { title: "Follow your Roadmap", body: "Short Lessons and Roleplays. Each one uses how you did in the last." },
         ]}

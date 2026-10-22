@@ -1,8 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { signUp } from "../lib/auth";
 import { AuthFooter, AuthScreen, loadProviders } from "../components/auth/AuthScreen";
+import { publicPageHead } from "../lib/site";
 
-export const Route = createFileRoute("/sign-up")({ loader: loadProviders, component: SignUp });
+export const Route = createFileRoute("/sign-up")({
+  head: () =>
+    publicPageHead(
+      "/sign-up",
+      "Start Your Free English Assessment | Fluently",
+      "Create a free Fluently account to assess your English speaking or writing. Set a Goal and start adaptive Lessons and Roleplays with your AI coach.",
+    ),
+  loader: loadProviders,
+  component: SignUp,
+});
 
 function SignUp() {
   const { google } = Route.useLoaderData();

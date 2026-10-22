@@ -5,15 +5,18 @@ export const site = {
   name: "Fluently",
   title: "Fluently | AI English Coach for Speaking and Writing",
   description:
-    "Practise English speaking and writing with an AI coach. Take a 10-minute assessment, then follow a Roadmap of short Lessons and conversation practice.",
+    "Practise English speaking and writing with an AI coach. Start a free assessment, then follow adaptive Lessons and Roleplays for real conversations.",
   summary:
-    "Fluently is an AI coach that helps people speak and write English. It assesses how a learner speaks and writes, then builds a Roadmap of Lessons and Roleplays that changes with their answers. English today, with more languages planned.",
+    "Fluently is an AI English coach for speaking and writing. Practise with voice or text, get feedback, and follow Lessons and Roleplays that adapt to your answers.",
+  image: "/og-image.png",
+  imageAlt: "Fluently: Your English. Your pace. An AI coach for speaking, writing and real conversations.",
 };
 
 export const faqs = [
+  { question: "What is Fluently?", answer: site.summary },
   {
     question: "How long is the assessment?",
-    answer: "Up to 10 minutes. It is a conversation, not an exam, and your report is ready when you finish.",
+    answer: "Up to 10 minutes. It is a conversation, not an exam. Your Assessment Report is prepared after you finish.",
   },
   {
     question: "Do I have to speak?",
@@ -33,7 +36,12 @@ export const faqs = [
   {
     question: "What happens after the assessment?",
     answer:
-      "You get an Assessment Report with a score and CEFR level for fluency, grammar and vocabulary, plus a Roadmap of Units built from it. Your coach then builds each Lesson from how you did in the one before.",
+      "You get an Assessment Report with scores and CEFR levels for grammar and vocabulary, plus fluency when you take a Voice Assessment. Your Roadmap is built from the Report, and each Lesson adapts to how you did in the one before.",
+  },
+  {
+    question: "What do the CEFR levels mean?",
+    answer:
+      "CEFR is the Common European Framework of Reference for Languages. It describes language ability from A1 (beginner) to C2 (proficient). Fluently uses AI to estimate your level for practice guidance; this is not an official language certificate.",
   },
   {
     question: "What is a Roleplay?",
