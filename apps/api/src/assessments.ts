@@ -271,7 +271,11 @@ export const assessments = ({
         for (const row of open) {
           // A start created during this request belongs to the same overlapping attempt.
           if (row.startedAt >= c.var.requestStartedAt) return c.json(row, 200);
-          if ((await finish(row, user, { partial: true })).status === "failed")
+          if (!c.var.claimConversation(row.id))
+            return c.json({ error: "A turn is still in progress. Try again when it finishes." }, 409);
+          const current = await find(row.id, user.id);
+          if (!current || current.status !== "in_progress") continue;
+          if ((await finish(current, user, { partial: true })).status === "failed")
             return c.json({ error: "Your previous Assessment couldn't be finished. Try again." }, 502);
         }
 
@@ -335,7 +339,11 @@ export const assessments = ({
               .update(assessment)
               .set({ transcript })
               .where(
-                and(eq(assessment.id, row.id), unchanged(assessment.transcript, (row.transcript as unknown[]).length)),
+                and(
+                  eq(assessment.id, row.id),
+                  eq(assessment.status, "in_progress"),
+                  unchanged(assessment.transcript, (row.transcript as unknown[]).length),
+                ),
               )
               .returning({ id: assessment.id }),
         });
@@ -362,7 +370,11 @@ export const assessments = ({
           tools: [endCallTool],
           endTool: endCallTool.name,
           prior: row.transcript,
-          onTranscript: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
+          onTranscript: (transcript) =>
+            db
+              .update(assessment)
+              .set({ transcript })
+              .where(and(eq(assessment.id, row.id), eq(assessment.status, "in_progress"))),
         });
         if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);

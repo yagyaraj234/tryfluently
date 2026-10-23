@@ -49,6 +49,16 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
       active.set(userId, (active.get(userId) ?? 0) + 1);
     }
     if (key) conversations.set(key, { count: (previous?.count ?? 0) + 1, exclusive });
+    const held = new Set(key ? [key] : []);
+    c.set("claimConversation", (id) => {
+      const key = `${userId}:${id}`;
+      if (held.has(key)) return true;
+      const previous = conversations.get(key);
+      if (previous?.exclusive) return false;
+      conversations.set(key, { count: (previous?.count ?? 0) + 1, exclusive: false });
+      held.add(key);
+      return true;
+    });
     let released = false;
     let responseDone = false;
     let tasks = 0;
@@ -60,7 +70,7 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
         if (left) active.set(userId, left);
         else active.delete(userId);
       }
-      if (key) {
+      for (const key of held) {
         const state = conversations.get(key)!;
         if (--state.count === 0) conversations.delete(key);
       }

@@ -84,6 +84,7 @@ export type AppEnv = {
     user: User;
     requestStartedAt: Date;
     retainAiTask: (task: Promise<unknown>) => void;
+    claimConversation: (id: string) => boolean;
   };
 };
 
