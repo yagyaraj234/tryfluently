@@ -112,6 +112,11 @@ Overlapping conversation turns return 409; rate limits return 429 with `Retry-Af
 These guards, like live voice calls, run in one API instance. Shared claims are required before adding API replicas.
 Assessments have a server-enforced ten-minute deadline, including reconnects.
 
+The API exposes `/health/live` for process liveness and `/health/ready` for database readiness.
+Readiness shares a two-second probe deadline and returns 503 when unavailable; later checks can recover after a timeout.
+Probe statements have a 1.5-second database deadline inside a transaction, without changing other queries' settings.
+The production API container uses readiness; `/api/auth/providers` only reports sign-in configuration.
+
 For local API metrics, keep `METRICS_ENABLED=true` in the root `.env` and run
 `docker compose -f docker-compose.monitoring.yml up -d`. See
 [infra/monitoring/README.md](infra/monitoring/README.md) for Grafana access and
