@@ -37,7 +37,9 @@ export const lessonPagesQuery = (id: string) =>
       if (!response.ok) throw new Error("We couldn't check on your Lesson.");
       return response.json();
     },
-    refetchInterval: (query) => (query.state.status === "error" || pagesSettled(query.state.data) ? false : 1_500),
+    // A failed check (the API restarting, a dropped connection) slows the polling down instead of stopping it for good.
+    refetchInterval: (query) =>
+      pagesSettled(query.state.data) ? false : query.state.status === "error" ? 5_000 : 1_500,
   });
 
 /** Reserves the outlined Lesson at this position and queues its Pages. Pressing it twice returns the same Lesson. */
