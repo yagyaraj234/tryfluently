@@ -111,10 +111,14 @@ export async function answerPage(
   lessonId: string,
   index: number,
   answer: unknown,
+  retainAiTask?: (task: Promise<unknown>) => void,
 ) {
   const r = await save(ctx, userId, lessonId, index, answer);
   // A spoken answer's transcript is analysed in the background, once it is safely saved.
-  if (r.status === 201 && r.result.block === "speakPrompt") startAnalysis(ctx, userId, lessonId, index);
+  if (r.status === 201 && r.result.block === "speakPrompt") {
+    const task = startAnalysis(ctx, userId, lessonId, index);
+    retainAiTask?.(task);
+  }
   return r;
 }
 

@@ -79,7 +79,13 @@ const setTimer: Schedule = (ms, fn) => {
 };
 
 export type User = typeof schema.user.$inferSelect;
-export type AppEnv = { Variables: { user: User; requestStartedAt: Date } };
+export type AppEnv = {
+  Variables: {
+    user: User;
+    requestStartedAt: Date;
+    retainAiTask: (task: Promise<unknown>) => void;
+  };
+};
 
 export function createApp(deps: Deps) {
   const { db, env, mailer } = deps;
