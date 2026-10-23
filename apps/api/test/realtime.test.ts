@@ -10,14 +10,15 @@ async function setup() {
   const { id: userId } = await signUp(makeApp());
   const realtime = fakeRealtime();
   const timers = fakeTimers();
+  const clock = makeClock();
   const broker = realtimeBroker({
     limitMinutes: 10,
     db: testDb,
-    now: makeClock(),
+    now: clock,
     realtime,
     schedule: timers.schedule,
   });
-  return { userId, realtime, timers, broker };
+  return { userId, realtime, timers, clock, broker };
 }
 
 const opts = (onTranscript: (t: UIMessage[]) => Promise<unknown>) => ({
@@ -33,6 +34,90 @@ const utterance = (id: string) => ({
 });
 
 describe("Realtime close failures", () => {
+  test("a sideband disconnect hangs up the provider before releasing the call or writing usage", async () => {
+    const { userId, realtime, broker, clock } = await setup();
+    const attach = realtime.attach;
+    const requested = Promise.withResolvers<void>();
+    const terminated = Promise.withResolvers<void>();
+    let requests = 0;
+    realtime.attach = (...args) => {
+      const sideband = attach(...args);
+      return {
+        ...sideband,
+        hangup: async () => {
+          requests++;
+          requested.resolve();
+          await terminated.promise;
+          await sideband.hangup();
+        },
+      };
+    };
+    await broker.start(
+      userId,
+      opts(async () => {}),
+    );
+    clock.advance({ seconds: 10 });
+    const closing = realtime.sideband().close();
+    await requested.promise;
+    const ending = broker.hangup(userId);
+    clock.advance({ seconds: 5 });
+    expect(
+      await broker.start(
+        userId,
+        opts(async () => {}),
+      ),
+    ).toEqual({ busy: true });
+    expect((await broker.voiceMinutes(userId)).usedSeconds).toBe(15);
+    expect(await testDb.select().from(schema.aiUsage).where(eq(schema.aiUsage.userId, userId))).toHaveLength(0);
+    terminated.resolve();
+    await Promise.all([closing, ending]);
+    expect(requests).toBe(1);
+    expect(realtime.sideband().hungUp).toBe(true);
+    const rows = await testDb.select().from(schema.aiUsage).where(eq(schema.aiUsage.userId, userId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.seconds).toBe(15);
+    expect((await broker.voiceMinutes(userId)).callEndsAt).toBeNull();
+  });
+
+  test("failed disconnect cleanup retains the slot and allowance until its scheduled retry succeeds", async () => {
+    const { userId, realtime, broker, timers, clock } = await setup();
+    const attach = realtime.attach;
+    let requests = 0;
+    realtime.attach = (...args) => {
+      const sideband = attach(...args);
+      return {
+        ...sideband,
+        hangup: async () => {
+          if (++requests === 1) throw new Error("provider unavailable");
+          await sideband.hangup();
+        },
+      };
+    };
+    await broker.start(
+      userId,
+      opts(async () => {}),
+    );
+    clock.advance({ seconds: 10 });
+    await expect(realtime.sideband().close()).rejects.toThrow("provider unavailable");
+    expect(
+      await broker.start(
+        userId,
+        opts(async () => {}),
+      ),
+    ).toEqual({ busy: true });
+    expect(timers.waiting()).toContain(1_000);
+    expect(await testDb.select().from(schema.aiUsage).where(eq(schema.aiUsage.userId, userId))).toHaveLength(0);
+    clock.advance({ seconds: 5 });
+    await timers.fire(1_000);
+    expect(requests).toBe(2);
+    expect(realtime.sideband().hungUp).toBe(true);
+    expect(timers.waiting()).toEqual([]);
+    expect((await broker.voiceMinutes(userId)).usedSeconds).toBe(15);
+    await realtime.sideband().close();
+    expect(requests).toBe(2);
+    expect(await testDb.select().from(schema.aiUsage).where(eq(schema.aiUsage.userId, userId))).toHaveLength(1);
+  });
+
   test.each([120, 900, undefined])(
     "slow setup preserves the earlier attempt or monthly deadline (%s)",
     async (budgetSeconds) => {
