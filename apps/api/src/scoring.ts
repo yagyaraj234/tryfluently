@@ -1,6 +1,6 @@
 import { schema, type CefrLevel, type Skill, type Tx as Db } from "@fluently/db";
 import type { UIMessage } from "ai";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AppEnv } from "./app";
 
@@ -71,12 +71,52 @@ export async function recordScores(
       userId,
       skill,
       score: prev === undefined ? result : prev + alpha * (result - prev),
+      result,
+      alpha,
       source,
       sourceId,
       createdAt: at,
     };
   });
   if (rows.length) await db.insert(schema.skillScore).values(rows);
+}
+
+/** Revises a Lesson measurement, then replays later averages. Caller holds the Learner lock. */
+export async function reconcileLessonScores(
+  db: Db,
+  userId: string,
+  sourceId: string,
+  results: Partial<Record<Skill, number>>,
+  alpha: number,
+  at: Date,
+) {
+  for (const [skill, result] of Object.entries(results) as [Skill, number][]) {
+    const rows = await db
+      .select()
+      .from(schema.skillScore)
+      .where(and(eq(schema.skillScore.userId, userId), eq(schema.skillScore.skill, skill)))
+      .orderBy(asc(schema.skillScore.sequence));
+    const index = rows.findIndex((r) => r.source === "lesson" && r.sourceId === sourceId);
+    if (index === -1) {
+      await recordScores(db, userId, { [skill]: result }, { alpha, source: "lesson", sourceId, at });
+      continue;
+    }
+    const existing = rows[index]!;
+    // Historical rows have no original input or weight; keep them as fixed checkpoints.
+    if (existing.result === null || existing.alpha === null || existing.result === result) continue;
+    let previous = rows[index - 1]?.score;
+    for (const [offset, row] of rows.slice(index).entries()) {
+      const input = offset === 0 ? result : row.result;
+      if (input === null || row.alpha === null) break;
+      const score = previous === undefined ? input : previous + row.alpha * (input - previous);
+      const [saved] = await db
+        .update(schema.skillScore)
+        .set({ result: input, score })
+        .where(eq(schema.skillScore.id, row.id))
+        .returning({ score: schema.skillScore.score });
+      previous = saved!.score;
+    }
+  }
 }
 
 export type SpeechSegment = { words: number; startMs: number; endMs: number };

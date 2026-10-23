@@ -2,6 +2,7 @@ import {
   boolean,
   bigserial,
   customType,
+  doublePrecision,
   integer,
   index,
   jsonb,
@@ -184,7 +185,7 @@ export const assessmentJob = pgTable(
 export const skill = pgEnum("skill", ["fluency", "grammar", "vocabulary"]);
 export const scoreSource = pgEnum("score_source", ["assessment", "lesson"]);
 
-// Append-only. The Skill Profile is the latest row per skill.
+// One row per measurement, in write order. Late feedback can revise a measurement and its later averages.
 export const skillScore = pgTable(
   "skill_score",
   {
@@ -193,6 +194,8 @@ export const skillScore = pgTable(
     userId: learner(),
     skill: skill().notNull(),
     score: real().notNull(),
+    result: doublePrecision(),
+    alpha: doublePrecision(),
     source: scoreSource().notNull(),
     sourceId: text().notNull(),
     createdAt: timestamp().notNull(),
