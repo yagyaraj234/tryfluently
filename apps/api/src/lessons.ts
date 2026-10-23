@@ -347,27 +347,42 @@ export const lessons = ({
         const row = await find(c.req.param("id"), user.id);
         if (!row) return c.json({ error: "Lesson not found" }, 404);
         if (row.status !== "in_progress") return c.json({ error: "This Lesson has ended" }, 409);
-        if ((await recordedSecondsToday(db, user, now())) >= settings.recordingMinutesPerDay * 60)
-          return c.json({ error: "You've used today's recorded minutes. Answer in text, or come back tomorrow." }, 429);
-
         const { audio, seconds } = c.req.valid("form");
+        const recordingId = crypto.randomUUID();
+        const reserved = await db.transaction(async (tx) => {
+          await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, user.id)).for("update");
+          const at = now();
+          if ((await recordedSecondsToday(tx, user, at)) + seconds > settings.recordingMinutesPerDay * 60) return false;
+          await tx.insert(schema.aiUsage).values({
+            userId: user.id,
+            kind: "recording",
+            callId: recordingId,
+            startedAt: at,
+            seconds,
+            usage: { lessonId: row.id },
+          });
+          return true;
+        });
+        if (!reserved)
+          return c.json(
+            { error: "This clip exceeds today's remaining recorded minutes. Answer in text, or come back tomorrow." },
+            429,
+          );
         let text: string;
         try {
           ({ text } = await transcriber.transcribe(audio));
         } catch (e) {
+          await db
+            .delete(schema.aiUsage)
+            .where(and(eq(schema.aiUsage.userId, user.id), eq(schema.aiUsage.callId, recordingId)));
           console.error("transcription failed", e);
           return c.json({ error: "The recording couldn't be transcribed. Try again." }, 502);
         }
-        const recordingId = crypto.randomUUID();
         const timing = timingOf(text, seconds);
-        await db.insert(schema.aiUsage).values({
-          userId: user.id,
-          kind: "recording",
-          callId: recordingId,
-          startedAt: now(),
-          seconds,
-          usage: { lessonId: row.id, text, timing },
-        });
+        await db
+          .update(schema.aiUsage)
+          .set({ usage: { lessonId: row.id, text, timing } })
+          .where(and(eq(schema.aiUsage.userId, user.id), eq(schema.aiUsage.callId, recordingId)));
         return c.json({ recordingId, text, timing }, 201);
       })
       // One turn. The body carries the newest message: a user message, or the last assistant message with the Step answered.
