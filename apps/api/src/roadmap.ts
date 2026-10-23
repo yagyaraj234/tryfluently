@@ -1,13 +1,13 @@
 import { schema } from "@fluently/db";
 import { NoObjectGeneratedError, Output } from "ai";
-import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { skillProfile, skills } from "./scoring";
 
-const { unit, goal, focusItem, lesson } = schema;
+const { unit, goal, focusItem, lesson, assessment } = schema;
 
 const outlineItem = z.object({
   title: z.string().min(1).max(100),
@@ -114,6 +114,15 @@ export async function buildRoadmap(ctx: Ctx, userId: string) {
   if (!statuses.has("confirmed") || statuses.has("proposed") || Object.values(profile).every((s) => s === null))
     return "not_ready" as const;
 
+  // The Report promised the Learner a first Unit; Unit 1 has to be that one.
+  const [latest] = await db
+    .select({ report: assessment.report })
+    .from(assessment)
+    .where(and(eq(assessment.userId, userId), eq(assessment.status, "completed")))
+    .orderBy(desc(assessment.endedAt))
+    .limit(1);
+  const previewed = (latest?.report as { firstUnit?: { title: string; objective: string } } | null)?.firstUnit;
+
   let units: z.infer<typeof unitOutput>[];
   try {
     ({
@@ -122,7 +131,11 @@ export async function buildRoadmap(ctx: Ctx, userId: string) {
       model: models.roadmap,
       abortSignal: ctx.signal,
       instructions: roadmapInstructions,
-      prompt: await learnerSituation({ db }, userId),
+      prompt:
+        (await learnerSituation({ db }, userId)) +
+        (previewed
+          ? `\n\nThe Assessment Report already showed the Learner this first Unit. Make it Unit 1, keeping its title and objective: ${JSON.stringify(previewed)}`
+          : ""),
       output: Output.object({ schema: roadmapOutput }),
     }));
   } catch (e) {
