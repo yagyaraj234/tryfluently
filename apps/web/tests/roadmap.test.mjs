@@ -287,6 +287,16 @@ test("polling a paged Lesson stops once every Page is ready or failed, or the Le
   assert.equal(pagesSettled({ ...pages("pending"), preparation: "failed" }), true);
 });
 
+test("a failed check on a paged Lesson slows the polling down instead of stopping it", async () => {
+  const { lessonPagesQuery } = await web.loadModule("/src/lib/lessons.ts");
+  const { refetchInterval } = lessonPagesQuery("lesson-1");
+  const pending = { preparation: "preparing", pages: [{ status: "pending" }] };
+  assert.equal(refetchInterval({ state: { status: "success", data: pending } }), 1500);
+  assert.equal(refetchInterval({ state: { status: "error", data: pending } }), 5000);
+  assert.equal(refetchInterval({ state: { status: "error", data: undefined } }), 5000);
+  assert.equal(refetchInterval({ state: { status: "success", data: { ...pending, preparation: "failed" } } }), false);
+});
+
 test("Home puts learning before the supporting progress summary in reading order", async () => {
   const html = await page("/home");
   assert.ok(html.indexOf("Continue learning") < html.indexOf('aria-label="Your profile"'));
