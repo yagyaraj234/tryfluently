@@ -209,6 +209,7 @@ export const lessons = ({
           c.req.param("id"),
           Number(c.req.param("index")),
           c.req.valid("json").answer,
+          c.var.retainAiTask,
         );
         return "error" in r ? c.json({ error: r.error }, r.status) : c.json(r.result, r.status);
       })
@@ -217,7 +218,13 @@ export const lessons = ({
         const l = await find(c.req.param("id"), c.var.user.id);
         const r =
           l?.contentVersion === 2
-            ? await retryAnalysis({ db, now, models }, c.var.user.id, l.id, Number(c.req.param("index")))
+            ? await retryAnalysis(
+                { db, now, models },
+                c.var.user.id,
+                l.id,
+                Number(c.req.param("index")),
+                c.var.retainAiTask,
+              )
             : undefined;
         return r ? c.json(r, 202) : c.json({ error: "Nothing to analyse on this Page" }, 404);
       })
