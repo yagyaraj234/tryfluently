@@ -38,7 +38,7 @@ const text = z.string().trim().min(1).max(2000);
 // focus is the one thing the Learner can do by the end; keyExample is one shared scenario so Pages do not clash.
 export const planOutput = z.object({
   focus: text,
-  keyExample: text.nullish(),
+  keyExample: text.nullable(),
   pages: z.array(z.object({ idea: text, block: z.enum(blockTypes) })).min(1),
 });
 // answerKey is what the later question for this Page is graded on; it is never sent to the Learner.
@@ -176,7 +176,7 @@ async function writeQuestions(ctx: Ctx, lessonId: string, token: string) {
           model: models.step,
           reasoning: "low",
           abortSignal: ctx.signal,
-          instructions: `Write the questions for an English Lesson, one per Page whose block is not "reading" (pages ${wanted.join(", ")}, 0-based). Each question's "block" must match the Page's block and test only that Page's idea, using its answerKey when given. Give the exact answer and a one or two sentence explanation so answers can be graded with no AI later. For rewrite and speakPrompt give the prompt, an expectedAnswer and a short rubric instead.`,
+          instructions: `Write the questions for an English Lesson, one per Page whose block is not "reading" (pages ${wanted.join(", ")}, 0-based). Each question's "block" must match the Page's block and test only that Page's idea, using its answerKey when given. Give the exact answer and a one or two sentence explanation so answers can be graded with no AI later. A fillGap prompt has exactly one "___". A vocabCard answer is the term's meaning in plain English, never the term itself. For rewrite and speakPrompt give the prompt, an expectedAnswer and a short rubric instead. Plain text only: no markdown or asterisks.`,
           prompt: JSON.stringify({ lesson: row.title, pages: plan }),
           output: Output.object({ schema: questionsOutput }),
         });
@@ -221,17 +221,33 @@ async function writeQuestions(ctx: Ctx, lessonId: string, token: string) {
 }
 
 /**
- * A failed Lesson runs again, but only the Pages that are not ready. Ready Pages keep their content, question and
- * saved answers. If nothing is ready (or a failed Page lost its plan slice) the whole Lesson starts over.
+ * Failed Lessons and unfinished Lessons without runnable work retry only Pages that are not ready.
+ * Ready Pages keep their content, question and saved answers. Without a usable plan the whole Lesson starts over.
  */
 export async function retryLesson({ db, now }: Pick<Deps, "db" | "now">, userId: string, lessonId: string) {
   return db.transaction(async (tx) => {
     const [l] = await tx
       .select()
       .from(lesson)
-      .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), eq(lesson.contentVersion, 2)))
+      .where(
+        and(
+          eq(lesson.id, lessonId),
+          eq(lesson.userId, userId),
+          eq(lesson.contentVersion, 2),
+          eq(lesson.status, "in_progress"),
+        ),
+      )
       .for("update");
-    if (!l || l.preparation !== "failed") return;
+    if (!l) return;
+    if (l.preparation !== "failed") {
+      if (l.preparation !== "preparing") return;
+      const [work] = await tx
+        .select({ status: job.status })
+        .from(job)
+        .where(and(eq(job.lessonId, l.id), eq(job.kind, "lesson")))
+        .for("update");
+      if (work?.status === "pending" || work?.status === "running") return;
+    }
     const old = l.material as Stored[];
     const redo = l.pageStatus!.flatMap((s, i) => (s.page === "ready" ? [] : [i]));
     const all = redo.length === l.pageStatus!.length || redo.some((i) => !old[i]?.idea || !old[i]?.block);
@@ -367,7 +383,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
         try {
           const { output } = await generate(ctx, row.userId, {
             ...base,
-            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} You write Page ${i + 1} of ${total}. Cover only your idea, for this Block type: ${slice.block}. The other Pages cover the rest, so do not repeat them. Stay on the Lesson focus and reuse the keyExample. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).`,
+            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} You write Page ${i + 1} of ${total}. Cover only your idea, for this Block type: ${slice.block}. The other Pages cover the rest, so do not repeat them. Stay on the Lesson focus and reuse the keyExample. Plain text only: no markdown, asterisks or underscores for emphasis. The "example" is a model sentence to read, never an exercise or instruction. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).`,
             prompt: JSON.stringify({
               lesson: row.title,
               focus: lessonFocus,

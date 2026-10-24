@@ -3,7 +3,7 @@ import { schema } from "@fluently/db";
 import { eq } from "drizzle-orm";
 import { MockLanguageModelV4 } from "ai/test";
 import { learnerWithRoadmap } from "./fixtures";
-import { get, json, makeApp } from "./helpers";
+import { get, json, makeApp, makeClock, signUp } from "./helpers";
 import { generateLesson } from "../src/paged-lessons";
 import { testDb } from "./setup";
 
@@ -422,6 +422,88 @@ async function readyLessonWithFailedPage(i: number) {
 }
 const stepsAt = async (id: string) =>
   (await testDb.select().from(schema.step).where(eq(schema.step.lessonId, id))).map((s) => s.position).sort();
+
+const preparation = async (app: ReturnType<typeof makeApp>, cookie: string) =>
+  (await (await app.request("/api/assessments/preparation", get(cookie))).json()) as any;
+
+test("practice preparation follows the Lesson job across queue delays, heartbeats and worker restart", async () => {
+  const { cookie, id: userId } = await learner();
+  const clock = makeClock();
+  const fake = fakeLessonModel();
+  const app = makeApp({ now: clock, models: { step: fake.model } });
+  const { id } = (await (await start(app, cookie)).json()) as any;
+  clock.advance({ minutes: 3 });
+  expect(await preparation(app, cookie)).toEqual({ status: "pending", lesson: null });
+  await testDb
+    .update(schema.assessmentJob)
+    .set({ status: "running", attempts: 1, lockedAt: clock(), token: "healthy-lesson-worker" })
+    .where(eq(schema.assessmentJob.lessonId, id));
+  expect(await preparation(app, cookie)).toEqual({ status: "preparing", lesson: null });
+  const jobs = () => testDb.select().from(schema.assessmentJob).where(eq(schema.assessmentJob.userId, userId));
+  const before = await jobs();
+  expect((await app.request("/api/assessments/preparation", json({}, cookie))).status).toBe(202);
+  const other = await signUp(app);
+  expect((await app.request("/api/assessments/preparation", json({}, other.cookie))).status).toBe(409);
+  expect(await jobs()).toEqual(before);
+  // The expired lease stays pollable until the restarted worker reclaims it.
+  clock.advance({ minutes: 3 });
+  expect(await preparation(app, cookie)).toEqual({ status: "preparing", lesson: null });
+  await app.runJobs(userId);
+  expect(await preparation(app, cookie)).toMatchObject({ status: "ready", lesson: { id } });
+  expect(fake.calls.planner).toBe(1);
+});
+
+test("Retry preparation repairs the failed Lesson job without rebuilding the Roadmap or losing saved answers", async () => {
+  const { app, cookie, userId, id, fake, before } = await readyLessonWithFailedPage(3);
+  const roadmapJobs = () => testDb.select().from(schema.assessmentJob).where(eq(schema.assessmentJob.userId, userId));
+  const previous = (await roadmapJobs()).filter((j) => j.kind !== "lesson");
+  expect(await preparation(app, cookie)).toEqual({ status: "failed", lesson: null });
+  const retry = () => app.request("/api/assessments/preparation", json({}, cookie));
+  expect((await retry()).status).toBe(202);
+  expect(await preparation(app, cookie)).toEqual({ status: "pending", lesson: null });
+  const [queued] = await testDb.select().from(schema.assessmentJob).where(eq(schema.assessmentJob.lessonId, id));
+  expect(queued).toMatchObject({ kind: "lesson", status: "pending", attempts: 0 });
+  const [reserved] = await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, id));
+  expect((await retry()).status).toBe(202);
+  const [same] = await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, id));
+  expect(same!.preparationToken).toBe(reserved!.preparationToken);
+  await app.runJobs(userId);
+  expect(await preparation(app, cookie)).toMatchObject({ status: "ready", lesson: { id } });
+  const [ready] = await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, id));
+  for (const i of [0, 1, 2, 4]) expect(ready!.material![i]).toEqual(before.material![i]);
+  expect(await stepsAt(id)).toEqual([1, 2]);
+  expect(fake.calls.planner).toBe(1);
+  expect((await roadmapJobs()).filter((j) => j.kind !== "lesson")).toEqual(previous);
+});
+
+test.each(["done", "failed", "missing"] as const)(
+  "Retry preparation recovers unfinished Lesson content with a %s job",
+  async (state) => {
+    const { cookie, id: userId } = await learner();
+    const clock = makeClock();
+    const fake = fakeLessonModel();
+    const app = makeApp({ now: clock, models: { step: fake.model } });
+    const { id } = (await (await start(app, cookie)).json()) as any;
+    if (state === "missing") await testDb.delete(schema.assessmentJob).where(eq(schema.assessmentJob.lessonId, id));
+    else await testDb.update(schema.assessmentJob).set({ status: state }).where(eq(schema.assessmentJob.lessonId, id));
+    expect(await preparation(app, cookie)).toEqual({ status: "failed", lesson: null });
+    expect((await app.request("/api/assessments/preparation", json({}, cookie))).status).toBe(202);
+    await app.runJobs(userId);
+    expect(await preparation(app, cookie)).toMatchObject({ status: "ready", lesson: { id } });
+  },
+);
+
+test("Lesson retry cannot rewrite another Learner's or a completed Lesson", async () => {
+  const { app, cookie, id } = await readyLessonWithFailedPage(3);
+  const other = await signUp(app);
+  expect((await app.request(`/api/lessons/${id}/retry`, json({}, other.cookie))).status).toBe(409);
+  await testDb.update(schema.lesson).set({ status: "completed" }).where(eq(schema.lesson.id, id));
+  const before = await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, id));
+  expect(before).toHaveLength(1);
+  expect((await app.request(`/api/lessons/${id}/retry`, json({}, cookie))).status).toBe(409);
+  expect(await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, id))).toEqual(before);
+  expect(await stepsAt(id)).toEqual([1, 2]);
+});
 
 test("retrying a Lesson with one failed Page writes only that Page and keeps every answered Page as it was", async () => {
   const { app, cookie, userId, id, fake, before } = await readyLessonWithFailedPage(2);

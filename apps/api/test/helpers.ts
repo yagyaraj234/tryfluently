@@ -80,7 +80,6 @@ export function fakeRealtime() {
         send: (e: object) => void sb.sent.push(e),
         hangup: async () => {
           sb.hungUp = true;
-          await onClose();
         },
       };
     },

@@ -1,8 +1,8 @@
 import { schema, type Skill } from "@fluently/db";
-import { and, eq } from "drizzle-orm";
-import type { Deps } from "./app";
+import { and, eq, isNull } from "drizzle-orm";
+import { defaultSettings, type Deps } from "./app";
 import { advanceUnit } from "./learning-memory";
-import { recordScores } from "./scoring";
+import { reconcileLessonScores } from "./scoring";
 import { questionBlocks } from "./lesson-blocks";
 
 const { lesson, step, assessmentJob: job } = schema;
@@ -32,9 +32,45 @@ export function scoresFromVerdicts(steps: { type: string; feedback: { verdict: s
   ) as Partial<Record<Skill, number>>;
 }
 
+/** Caller holds the Learner and Lesson locks, shared by Finish and feedback writes. */
+async function reconcilePagedScores(
+  db: Parameters<typeof reconcileLessonScores>[0],
+  row: typeof lesson.$inferSelect,
+  alpha: number,
+  at: Date,
+) {
+  if (row.contentVersion !== 2 || row.status !== "completed") return;
+  const steps = await db.select().from(step).where(eq(step.lessonId, row.id));
+  await reconcileLessonScores(db, row.userId, row.id, scoresFromVerdicts(steps), alpha, row.completedAt ?? at);
+}
+
+/** Feedback and its score correction commit together, whether it arrives before or after Finish. */
+export async function savePageFeedback(
+  { db, now, settings }: Pick<Deps, "db" | "now" | "settings">,
+  userId: string,
+  lessonId: string,
+  stepId: string,
+  feedback: NonNullable<typeof step.$inferSelect.feedback>,
+) {
+  return db.transaction(async (tx) => {
+    await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
+    const [row] = await tx
+      .select()
+      .from(lesson)
+      .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId)))
+      .for("update");
+    if (!row) return;
+    await tx
+      .update(step)
+      .set({ feedback, timing: null })
+      .where(and(eq(step.id, stepId), eq(step.lessonId, lessonId), isNull(step.feedback)));
+    await reconcilePagedScores(tx, row, settings?.alphaLesson ?? defaultSettings.alphaLesson, now());
+  });
+}
+
 /**
  * Finishes a paged Lesson with no model call: complete, unlock the next Lesson, move skill scores, queue the analysis.
- * Finishing again changes nothing, except that a failed analysis is put back in the queue.
+ * Finishing again reconciles saved verdicts without another measurement and requeues a failed analysis.
  */
 export async function finishPagedLesson({ db, now, settings }: Ctx, id: string, userId: string) {
   return db.transaction(async (tx) => {
@@ -59,15 +95,15 @@ export async function finishPagedLesson({ db, now, settings }: Ctx, id: string, 
         questions.some((q) => !q.question || !steps.some((s) => s.position === q.position && s.answeredAt))
       )
         return { status: "incomplete" as const };
-      await recordScores(tx, userId, scoresFromVerdicts(steps), {
-        alpha: settings.alphaLesson,
-        source: "lesson",
-        sourceId: id,
-        at,
-      });
       await tx.update(lesson).set({ status: "completed", completedAt: at }).where(eq(lesson.id, id));
       if (row.unitId) await advanceUnit(tx, row.unitId);
     }
+    await reconcilePagedScores(
+      tx,
+      { ...row, status: "completed", completedAt: row.completedAt ?? at },
+      settings.alphaLesson,
+      at,
+    );
     await tx
       .insert(job)
       .values({ lessonId: id, userId, kind: "lesson_analysis", availableAt: at })
