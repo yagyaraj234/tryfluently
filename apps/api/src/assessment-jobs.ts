@@ -3,7 +3,7 @@ import { and, asc, desc, eq, inArray, lte, or, sql } from "drizzle-orm";
 import type { Deps } from "./app";
 import { reportEmail } from "./mailer";
 import { analyseLesson } from "./lesson-analysis";
-import { generateLesson } from "./paged-lessons";
+import { generateLesson, retryLesson } from "./paged-lessons";
 import { buildRoadmap } from "./roadmap";
 
 const { assessmentJob: job, assessment, user, unit, lesson, goal } = schema;
@@ -138,6 +138,25 @@ export function startAssessmentJobs(deps: Deps) {
   return () => clearInterval(timer);
 }
 
+async function activeLesson(db: Deps["db"], userId: string) {
+  const [row] = await db
+    .select({ lesson, jobStatus: job.status })
+    .from(lesson)
+    .innerJoin(unit, eq(lesson.unitId, unit.id))
+    .leftJoin(job, and(eq(job.lessonId, lesson.id), eq(job.kind, "lesson")))
+    .where(
+      and(
+        eq(unit.userId, userId),
+        eq(lesson.userId, userId),
+        eq(unit.status, "active"),
+        eq(lesson.status, "in_progress"),
+      ),
+    )
+    .orderBy(asc(lesson.position))
+    .limit(1);
+  return row;
+}
+
 export async function practicePreparation(db: Deps["db"], userId: string, at = new Date()) {
   const [latest] = await db
     .select({ id: assessment.id })
@@ -150,21 +169,17 @@ export async function practicePreparation(db: Deps["db"], userId: string, at = n
   );
   if (!latest || !statuses.has("confirmed") || statuses.has("proposed"))
     return { status: "not_ready" as const, lesson: null };
-  const [active] = await db
-    .select()
-    .from(unit)
-    .where(and(eq(unit.userId, userId), eq(unit.status, "active")))
-    .limit(1);
-  const [current] = active
-    ? await db
-        .select()
-        .from(lesson)
-        .where(and(eq(lesson.unitId, active.id), eq(lesson.status, "in_progress")))
-        .orderBy(asc(lesson.position))
-        .limit(1)
-    : [];
+  const active = await activeLesson(db, userId);
+  const current = active?.lesson;
   if (current && current.preparation !== "failed" && current.preparation !== "preparing")
     return { status: "ready" as const, lesson: { id: current.id, kind: current.kind, title: current.title } };
+  if (current?.contentVersion === 2) {
+    const work = active?.jobStatus;
+    // Queued work and renewable worker leases outlive the Lesson's original preparation timestamp.
+    if (current.preparation !== "failed" && (work === "pending" || work === "running"))
+      return { status: work === "pending" ? ("pending" as const) : ("preparing" as const), lesson: null };
+    return { status: "failed" as const, lesson: null };
+  }
   if (
     current?.preparation === "preparing" &&
     current.preparationAt &&
@@ -179,10 +194,7 @@ export async function practicePreparation(db: Deps["db"], userId: string, at = n
   if (work?.status === "pending" || work?.status === "running")
     return { status: work.status === "pending" ? ("pending" as const) : ("preparing" as const), lesson: null };
   // The Learner starts their first Lesson from the Roadmap, so a built Roadmap with no Lesson is ready.
-  if (
-    !current &&
-    (active || (await db.select({ id: unit.id }).from(unit).where(eq(unit.userId, userId)).limit(1)).length)
-  )
+  if (!current && (await db.select({ id: unit.id }).from(unit).where(eq(unit.userId, userId)).limit(1)).length)
     return { status: "ready" as const, lesson: null };
   return { status: "failed" as const, lesson: null };
 }
@@ -195,6 +207,11 @@ export async function retryPracticePreparation(db: Deps["db"], userId: string, a
     .orderBy(desc(assessment.endedAt))
     .limit(1);
   if (!latest || (await practicePreparation(db, userId, at)).status === "not_ready") return false;
+  const current = (await activeLesson(db, userId))?.lesson;
+  if (current?.contentVersion === 2) {
+    await retryLesson({ db, now: () => at }, userId, current.id);
+    return true;
+  }
   await db
     .insert(job)
     .values({ assessmentId: latest.id, userId, kind: "practice", availableAt: at })
