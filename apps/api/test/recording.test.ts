@@ -16,6 +16,7 @@ import {
   type Turn,
 } from "./helpers";
 import { testDb } from "./setup";
+import { findRecording } from "../src/recordings";
 
 const speakPrompt = {
   tool: "speakPrompt",
@@ -202,6 +203,80 @@ describe("recorded voice Steps", () => {
     expect((await record(app, cookie, lesson.id, 0)).status).toBe(400);
     expect((await record(app, cookie, lesson.id, 600)).status).toBe(400);
     expect((await record(app, cookie, lesson.id, "abc")).status).toBe(400);
+  });
+
+  test("a clip larger than the remaining allowance is refused before transcription", async () => {
+    const clock = makeClock();
+    const { app, transcriber } = voiceApp([[speakPrompt]], { clock, minutes: 1 });
+    const { cookie } = await learnerWithRoadmap(clock);
+    const lesson = await startLesson(app, cookie);
+    expect((await record(app, cookie, lesson.id, 55)).status).toBe(201);
+    expect((await record(app, cookie, lesson.id, 180)).status).toBe(429);
+    expect(transcriber.calls).toHaveLength(1);
+    expect((await record(app, cookie, lesson.id, 5)).status).toBe(201);
+    expect((await record(app, cookie, lesson.id, 1)).status).toBe(429);
+  });
+
+  test("overlapping uploads reserve minutes across API instances before transcription", async () => {
+    const clock = makeClock();
+    const { app } = voiceApp([[speakPrompt]], { clock, minutes: 1 });
+    const learner = await learnerWithRoadmap(clock);
+    const lesson = await startLesson(app, learner.cookie);
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const transcriber = fakeTranscriber();
+    const transcribe = transcriber.transcribe;
+    transcriber.transcribe = async (audio) => {
+      entered.resolve();
+      await release.promise;
+      return transcribe(audio);
+    };
+    const options = { now: clock, transcriber, settings: { recordingMinutesPerDay: 1 } };
+    const first = record(makeApp(options), learner.cookie, lesson.id, 40);
+    try {
+      await entered.promise;
+      const [reserved] = await testDb
+        .select()
+        .from(schema.aiUsage)
+        .where(and(eq(schema.aiUsage.userId, learner.id), eq(schema.aiUsage.kind, "recording")));
+      expect(reserved!.seconds).toBe(40);
+      expect(await findRecording(testDb, learner.id, lesson.id, reserved!.callId!)).toBeUndefined();
+      expect((await record(makeApp(options), learner.cookie, lesson.id, 40)).status).toBe(429);
+    } finally {
+      release.resolve();
+      expect((await first).status).toBe(201);
+    }
+    const rows = await testDb
+      .select()
+      .from(schema.aiUsage)
+      .where(and(eq(schema.aiUsage.userId, learner.id), eq(schema.aiUsage.kind, "recording")));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.usage?.text).toBe(said);
+    expect(transcriber.calls).toHaveLength(1);
+  });
+
+  test("failed transcription returns its reservation so a retry can use the allowance", async () => {
+    const clock = makeClock();
+    const transcriber = fakeTranscriber();
+    const transcribe = transcriber.transcribe;
+    let fail = true;
+    transcriber.transcribe = async (audio) => {
+      if (fail) throw new Error("synthetic transcription failure");
+      return transcribe(audio);
+    };
+    const { app } = voiceApp([[speakPrompt]], { clock, transcriber, minutes: 1 });
+    const learner = await learnerWithRoadmap(clock);
+    const lesson = await startLesson(app, learner.cookie);
+    expect((await record(app, learner.cookie, lesson.id, 60)).status).toBe(502);
+    expect(
+      await testDb
+        .select()
+        .from(schema.aiUsage)
+        .where(and(eq(schema.aiUsage.userId, learner.id), eq(schema.aiUsage.kind, "recording"))),
+    ).toHaveLength(0);
+    fail = false;
+    expect((await record(app, learner.cookie, lesson.id, 60)).status).toBe(201);
+    expect((await record(app, learner.cookie, lesson.id, 1)).status).toBe(429);
   });
 
   test("a Learner can't record into someone else's Lesson", async () => {
