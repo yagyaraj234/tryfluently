@@ -389,8 +389,11 @@ test("paid request rate limits reset and leave status reads available", async ()
   expect(limited.status).toBe(429);
   expect(limited.headers.get("retry-after")).toBe("60");
   expect((await app.request("/api/me", get(learner.cookie))).status).toBe(200);
+  expect((await app.request("/api/assessments/preparation", get(learner.cookie))).status).toBe(200);
+  expect((await app.request("/api/assessments/preparation", json({}, learner.cookie))).status).toBe(429);
   clock.advance({ minutes: 1 });
   expect((await app.request("/api/goals/missing/confirm", json({}, learner.cookie))).status).toBe(404);
+  expect((await app.request("/api/assessments/preparation", json({}, learner.cookie))).status).toBe(409);
 });
 
 test("paid concurrency slots release after provider failures", async () => {

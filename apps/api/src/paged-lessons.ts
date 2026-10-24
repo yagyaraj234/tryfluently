@@ -221,17 +221,33 @@ async function writeQuestions(ctx: Ctx, lessonId: string, token: string) {
 }
 
 /**
- * A failed Lesson runs again, but only the Pages that are not ready. Ready Pages keep their content, question and
- * saved answers. If nothing is ready (or a failed Page lost its plan slice) the whole Lesson starts over.
+ * Failed Lessons and unfinished Lessons without runnable work retry only Pages that are not ready.
+ * Ready Pages keep their content, question and saved answers. Without a usable plan the whole Lesson starts over.
  */
 export async function retryLesson({ db, now }: Pick<Deps, "db" | "now">, userId: string, lessonId: string) {
   return db.transaction(async (tx) => {
     const [l] = await tx
       .select()
       .from(lesson)
-      .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), eq(lesson.contentVersion, 2)))
+      .where(
+        and(
+          eq(lesson.id, lessonId),
+          eq(lesson.userId, userId),
+          eq(lesson.contentVersion, 2),
+          eq(lesson.status, "in_progress"),
+        ),
+      )
       .for("update");
-    if (!l || l.preparation !== "failed") return;
+    if (!l) return;
+    if (l.preparation !== "failed") {
+      if (l.preparation !== "preparing") return;
+      const [work] = await tx
+        .select({ status: job.status })
+        .from(job)
+        .where(and(eq(job.lessonId, l.id), eq(job.kind, "lesson")))
+        .for("update");
+      if (work?.status === "pending" || work?.status === "running") return;
+    }
     const old = l.material as Stored[];
     const redo = l.pageStatus!.flatMap((s, i) => (s.page === "ready" ? [] : [i]));
     const all = redo.length === l.pageStatus!.length || redo.some((i) => !old[i]?.idea || !old[i]?.block);

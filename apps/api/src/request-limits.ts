@@ -32,7 +32,9 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
       (c.req.method === "POST" &&
         (starting ||
           path === "/api/roadmap" ||
-          /\/(chat|call|end|finish|recordings|confirm|answer|analyse|retry|next|outline|start)$/.test(path)));
+          /\/(chat|call|end|finish|recordings|confirm|answer|analyse|retry|next|outline|start|preparation)$/.test(
+            path,
+          )));
     if (paid) {
       const at = now().getTime();
       for (const [id, window] of windows) {
