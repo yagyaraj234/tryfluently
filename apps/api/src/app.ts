@@ -22,6 +22,7 @@ import { progressRoute } from "./progress";
 import { skillProfileRoutes } from "./scoring";
 import { metricsMiddleware, metricsRegistry } from "./metrics";
 import { requestLimits } from "./request-limits";
+import { health } from "./health";
 
 export type { Mailer, Models, Realtime, Speech, Transcriber };
 
@@ -155,6 +156,7 @@ export function createApp(deps: Deps) {
 
   const app = new Hono<AppEnv>()
     .use("*", metricsMiddleware(env.METRICS_ENABLED === "true"))
+    .route("/health", health(db))
     .get("/metrics", async (c) => {
       if (env.METRICS_ENABLED !== "true") return c.notFound();
       return c.text(await metricsRegistry.metrics(), 200, {
