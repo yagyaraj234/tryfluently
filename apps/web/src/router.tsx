@@ -7,12 +7,12 @@ import { RouteError } from "./routes/__root";
 export function getRouter() {
   // Each SSR request needs its own cache to avoid sharing learner data.
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { staleTime: 60_000 } },
+    defaultOptions: { queries: { staleTime: 60_000, refetchOnWindowFocus: false } },
   });
   const router = createRouter({
     routeTree,
     context: { queryClient },
-    defaultPreload: "intent",
+    defaultPreload: false,
     defaultPreloadStaleTime: 0,
     scrollRestoration: true,
     defaultErrorComponent: RouteError,
