@@ -5,9 +5,10 @@ import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
 import type { Question } from "./lesson-blocks";
+import { savePageFeedback } from "./paged-finish";
 
 const { lesson, step } = schema;
-type Ctx = Pick<Deps, "db" | "now" | "models">;
+type Ctx = Pick<Deps, "db" | "now" | "models" | "settings">;
 type Speak = Extract<Question, { block: "speakPrompt" }>;
 type StepRow = typeof step.$inferSelect;
 type Analysis = { state: "analysing"; at: number } | { state: "failed" };
@@ -90,10 +91,11 @@ async function analyse(ctx: Ctx, userId: string, lessonId: string, index: number
       output: Output.object({ schema: analysisOutput }),
     });
     const r = analysisOutput.parse(output);
-    await db
-      .update(step)
-      .set({ feedback: { verdict: r.verdict, corrected: "", explanation: r.feedback } })
-      .where(eq(step.id, row.id));
+    await savePageFeedback(ctx, userId, lessonId, row.id, {
+      verdict: r.verdict,
+      corrected: "",
+      explanation: r.feedback,
+    });
   } catch (error) {
     console.error(`Lesson ${lessonId} speech analysis for Page ${index + 1} failed`, error);
     await mark({ state: "failed" });

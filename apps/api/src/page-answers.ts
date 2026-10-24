@@ -5,6 +5,7 @@ import type { Deps } from "./app";
 import { questionBlocks, questionSchema, type Question } from "./lesson-blocks";
 import { judgeRewrite } from "./rewrite-judge";
 import { speakResult, startAnalysis } from "./speech-answers";
+import { savePageFeedback } from "./paged-finish";
 
 const { lesson, step } = schema;
 
@@ -106,7 +107,7 @@ export function answeredPages(l: typeof lesson.$inferSelect, rows: StepRow[]) {
  * The answer is a `step` row (position = Page index), so the finish and analysis step reads it like any other Step.
  */
 export async function answerPage(
-  ctx: Pick<Deps, "db" | "now" | "models">,
+  ctx: Pick<Deps, "db" | "now" | "models" | "settings">,
   userId: string,
   lessonId: string,
   index: number,
@@ -123,13 +124,14 @@ export async function answerPage(
 }
 
 async function save(
-  { db, now, models }: Pick<Deps, "db" | "now" | "models">,
+  { db, now, models, settings }: Pick<Deps, "db" | "now" | "models" | "settings">,
   userId: string,
   lessonId: string,
   index: number,
   answer: unknown,
 ) {
   const saved = await db.transaction(async (tx) => {
+    await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
     const [l] = await tx
       .select()
       .from(lesson)
@@ -208,7 +210,7 @@ async function save(
   const { stepId, q, text } = saved.judge!;
   try {
     const feedback = await judgeRewrite({ db, now, models }, userId, q, text);
-    await db.update(step).set({ feedback, timing: null }).where(eq(step.id, stepId));
+    await savePageFeedback({ db, now, settings }, userId, lessonId, stepId, feedback);
     return { status: 201 as const, result: pageResult(q, text, feedback.verdict, feedback) };
   } catch {
     await db.update(step).set({ timing: null }).where(eq(step.id, stepId));
