@@ -248,7 +248,8 @@ export function RoadmapUnit({
         </div>
         <div className="shrink-0">{detail}</div>
       </div>
-      <ol className="mx-auto flex w-full max-w-xl flex-col px-2 py-4 sm:px-5">{children}</ol>
+      {/* Top room for the cue that floats over a first Lesson that's up next. */}
+      <ol className="mx-auto flex w-full max-w-2xl flex-col px-2 pt-14 pb-4 sm:px-5">{children}</ol>
     </section>
   );
 }
@@ -256,12 +257,16 @@ export function RoadmapUnit({
 type NodeState = "complete" | "active" | "locked";
 
 const skillIcons = { vocabulary: BookOpenText, grammar: TextAa, fluency: ChatCircleText };
-const nodeStyles: Record<NodeState, string> = {
-  active:
-    "border-primary bg-primary-soft text-primary shadow-card ring-2 ring-primary ring-offset-4 ring-offset-canvas",
-  complete: "border-correct bg-correct-tint text-correct",
-  locked: "border-line bg-subtle text-muted",
+// Each button sets its own lip colour (--coin-edge), which the shadow-coin tokens draw under it.
+const coinStyles: Record<NodeState, string> = {
+  active: "border-brand bg-brand-mid text-on-brand [--coin-edge:var(--color-brand)]",
+  complete:
+    "border-brand-soft-edge bg-brand-soft text-brand dark:text-brand-hi [--coin-edge:var(--color-brand-soft-edge)]",
+  locked: "border-path-locked bg-subtle text-muted [--coin-edge:var(--color-path-locked)]",
 };
+// Hover lifts the button onto a taller lip; pressing pushes it down flush.
+const coinMotion =
+  "motion-safe:transition motion-safe:duration-press motion-safe:ease-press group-hover/node:-translate-y-0.5 group-hover/node:shadow-coin-lift group-active/node:translate-y-1.5 group-active/node:shadow-coin-pressed";
 const statePrefix: Record<NodeState, string> = { locked: "Locked: ", complete: "Completed: ", active: "Available: " };
 
 function LockBadge() {
@@ -275,30 +280,54 @@ function LockBadge() {
   );
 }
 
+// Odd rows sit left and even rows right, so a curve runs from this button's centre (x 0 or 100) to the next one's.
+const curves = [
+  { d: "M0 0 C0 50 100 50 100 100", className: "hidden group-odd:block" },
+  { d: "M100 0 C100 50 0 50 0 100", className: "hidden group-even:block" },
+];
+
+// The road to the next Lesson: solid sky with a thin highlight once this one is done, round dots before that.
 function NodePath({ state }: { state: NodeState }) {
-  const dash = state === "complete" ? undefined : "4 5";
+  const done = state === "complete";
   return (
     <svg
       aria-hidden
-      viewBox="0 0 120 100"
+      viewBox="0 0 100 100"
       preserveAspectRatio="none"
-      className={`pointer-events-none absolute top-7 left-0 z-behind h-full w-30 overflow-visible fill-none group-last:hidden ${state === "complete" ? "stroke-correct" : "stroke-line-strong"}`}
+      strokeLinecap="round"
+      className="pointer-events-none absolute top-8 left-8 z-behind h-full w-16 overflow-visible fill-none group-last:hidden sm:left-[calc(50%-3rem)] sm:w-24"
     >
-      <path
-        d="M28 0 C28 50 92 50 92 100"
-        className="hidden group-odd:block"
-        strokeWidth="2"
-        strokeDasharray={dash}
-        vectorEffect="non-scaling-stroke"
-      />
-      <path
-        d="M92 0 C92 50 28 50 28 100"
-        className="hidden group-even:block"
-        strokeWidth="2"
-        strokeDasharray={dash}
-        vectorEffect="non-scaling-stroke"
-      />
+      {curves.map(({ d, className }) => (
+        <g key={d} className={className}>
+          <path
+            d={d}
+            className={done ? "stroke-brand-hi" : "stroke-path-locked"}
+            strokeWidth={done ? 10 : 9}
+            strokeDasharray={done ? undefined : "0 17"}
+            vectorEffect="non-scaling-stroke"
+          />
+          {done && (
+            <path
+              d={d}
+              className="-translate-y-0.5 stroke-bevel-hi"
+              strokeWidth="3"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+        </g>
+      ))}
     </svg>
+  );
+}
+
+function Cue({ children }: { children: string }) {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute bottom-full left-1/2 mb-4 -translate-x-1/2 rounded-xl border-2 border-line bg-paper px-3 py-1 text-label font-bold tracking-wider whitespace-nowrap text-brand uppercase shadow-[0_3px_0_var(--color-line)] after:absolute after:top-full after:left-1/2 after:size-3 after:-translate-x-1/2 after:-translate-y-1.5 after:rotate-45 after:rounded-br-sm after:border-2 after:border-t-0 after:border-l-0 after:border-line after:bg-paper motion-safe:animate-cue dark:text-brand-hi"
+    >
+      {children}
+    </span>
   );
 }
 
@@ -308,6 +337,7 @@ export function RoadmapNode({
   description,
   children,
   skill = "vocabulary",
+  cue,
   render,
   onClick,
 }: {
@@ -316,6 +346,8 @@ export function RoadmapNode({
   description?: string;
   children?: ReactNode;
   skill?: "grammar" | "vocabulary" | "fluency";
+  /** A short word ("Start", "Continue") floating over the Lesson that's up next. */
+  cue?: string;
   render?: ReactElement;
   onClick?: () => void;
 }) {
@@ -327,13 +359,22 @@ export function RoadmapNode({
       onClick: interactive ? onClick : undefined,
       "aria-label": interactive ? `${state === "complete" ? "Review" : "Open"} ${title}` : undefined,
       "aria-hidden": !interactive || undefined,
-      // A live node's overlay stretches its click area over the whole row (the <li> is the positioned parent).
-      className: `${interactive ? "after:absolute after:inset-0 after:content-['']" : "relative"} flex size-14 shrink-0 items-center justify-center rounded-full border text-title ${nodeStyles[state]}`,
+      // A live node's overlay stretches its click area over the whole row, so the <li> must stay its nearest
+      // positioned ancestor: nothing between them is positioned or transformed. Margins shift it left or right.
+      className: `group/node ${interactive ? "after:absolute after:inset-0 after:content-['']" : ""} flex size-16 shrink-0 rounded-full focus-visible:outline-offset-4 group-even:ml-16 sm:col-start-2 sm:row-start-1 sm:group-odd:mr-24 sm:group-even:ml-24`,
       children: (
-        <>
-          <Icon aria-hidden size={24} weight="regular" />
-          {state === "locked" && <LockBadge />}
-        </>
+        <span className="relative size-full">
+          {state === "active" && (
+            <span aria-hidden className="absolute -inset-2.5 -bottom-4 rounded-full bg-brand-hi/35" />
+          )}
+          <span
+            className={`relative flex size-full items-center justify-center rounded-full border-2 shadow-coin ${coinStyles[state]} ${interactive ? coinMotion : ""}`}
+          >
+            <Icon aria-hidden size={28} weight="bold" />
+            {state === "locked" && <LockBadge />}
+          </span>
+          {state === "active" && cue && <Cue>{cue}</Cue>}
+        </span>
       ),
     },
   });
@@ -343,10 +384,12 @@ export function RoadmapNode({
     </Text>
   ) : null;
   return (
-    <li className="group relative isolate flex min-h-28 min-w-0 items-start gap-4 pb-10 even:pl-16 last:min-h-0 last:pb-0">
+    // Phone: buttons zigzag on the left with titles beside them. From sm the path runs down the middle and each
+    // title sits on the outside of its button, alternating sides.
+    <li className="group relative isolate grid min-h-36 min-w-0 grid-cols-[auto_1fr] items-start gap-x-4 pb-10 last:min-h-0 last:pb-0 sm:grid-cols-[1fr_auto_1fr] sm:gap-x-6">
       <NodePath state={state} />
       {circle}
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-1 pt-2">
+      <div className="flex min-w-0 flex-col items-start gap-1 pt-3 sm:row-start-1 sm:group-odd:col-start-1 sm:group-odd:items-end sm:group-odd:text-right sm:group-even:col-start-3">
         <span className="sr-only">{statePrefix[state]}</span>
         <Text>{title}</Text>
         {description_}
