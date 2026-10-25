@@ -246,6 +246,9 @@ export const unit = pgTable(
           position: number;
           estimatedMinutes?: number;
           pageCount?: number;
+          // A Follow-up Lesson: the Lesson it follows, its place in the chain (1 or 2), the Learner's note and the
+          // original Lesson's title.
+          followUp?: { of: string; depth: number; note: string | null; root: string };
         }[]
       >()
       .notNull()

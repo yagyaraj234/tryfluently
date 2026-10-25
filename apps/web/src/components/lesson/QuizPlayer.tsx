@@ -10,11 +10,12 @@ import {
   ReadingCard,
   Stack,
   Text,
+  TextArea,
   type PageQuestion,
   type PageResult,
 } from "@fluently/ui";
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { lessonPagesQuery } from "../../lib/lessons";
@@ -29,7 +30,7 @@ export type QuizItem = {
   questionData: PageQuestion;
   result?: PageResult;
 };
-type QuizData = PagedData & { quiz: QuizItem[]; practice: "preparing" | "failed" | null };
+type QuizData = PagedData & { quiz: QuizItem[]; practice: "preparing" | "failed" | null; learnMore: boolean };
 
 const errorOf = async (response: { json: () => Promise<unknown> }, fallback: string) =>
   new Error(((await response.json().catch(() => null)) as { error?: string } | null)?.error ?? fallback);
@@ -46,6 +47,7 @@ export function quizScore(items: QuizItem[]) {
  */
 export function QuizPlayer({ lesson }: { lesson: Lesson }) {
   const router = useRouter();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const initialData = {
     id: lesson.id,
@@ -55,10 +57,11 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
     pages: lesson.material,
     quiz: lesson.quiz,
     practice: lesson.practice,
+    learnMore: "learnMore" in lesson && lesson.learnMore,
   } as unknown as QuizData;
   const pagesQuery = lessonPagesQuery(lesson.id) as unknown as UseQueryOptions<QuizData>;
   const { data } = useQuery({ ...pagesQuery, initialData });
-  const { pages, quiz, practice } = data!;
+  const { pages, quiz, practice, learnMore } = data!;
   // The Quiz comes after the last Page, where version 2 Lessons have their recap.
   const quizAt = pages.length;
   // A Learner who left at the choice comes back to the results and choice, wherever they had stepped back to.
@@ -134,6 +137,24 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
       if (!response.ok) throw await errorOf(response, "We couldn't start your Practice Round. Try again.");
     },
     onSuccess: () => queryClient.invalidateQueries(lessonPagesQuery(lesson.id)),
+  });
+
+  // Learn more: completes this Lesson and opens the Follow-up Lesson inserted right after it.
+  const [askingNote, setAskingNote] = useState(false);
+  const [note, setNote] = useState("");
+  const follow = useMutation({
+    mutationFn: async () => {
+      const response = await api().api.lessons[":id"]["learn-more"].$post({
+        param: { id: lesson.id },
+        json: note.trim() ? { note: note.trim() } : {},
+      });
+      if (!response.ok) throw await errorOf(response, "We couldn't start your Follow-up Lesson. Try again.");
+      return (await response.json()) as { id: string };
+    },
+    onSuccess: async ({ id }) => {
+      await queryClient.invalidateQueries();
+      await navigate({ to: "/lessons/$lessonId", params: { lessonId: id } });
+    },
   });
 
   const finish = useMutation({
@@ -259,7 +280,34 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
                   Practice more
                 </Button>
               )}
-              <Button disabled={finish.isPending} onClick={() => finish.mutate()}>
+              {learnMore &&
+                (askingNote ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      follow.mutate();
+                    }}
+                  >
+                    <Stack gap={3}>
+                      <TextArea
+                        label="What confused you? (optional)"
+                        description="Your next Lesson goes over this again from a different angle."
+                        value={note}
+                        onValueChange={setNote}
+                        maxLength={500}
+                      />
+                      {follow.isError && <Notice tone="error">{follow.error.message}</Notice>}
+                      <Button type="submit" disabled={follow.isPending}>
+                        {follow.isPending ? "Starting…" : "Start the Follow-up Lesson"}
+                      </Button>
+                    </Stack>
+                  </form>
+                ) : (
+                  <Button variant="secondary" onClick={() => setAskingNote(true)}>
+                    Learn more
+                  </Button>
+                ))}
+              <Button disabled={finish.isPending || follow.isPending} onClick={() => finish.mutate()}>
                 {finish.isPending ? "Finishing…" : "Next lesson"}
               </Button>
             </Stack>

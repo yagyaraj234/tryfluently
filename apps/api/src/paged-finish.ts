@@ -1,4 +1,4 @@
-import { schema, type Skill } from "@fluently/db";
+import { schema, type Skill, type Tx } from "@fluently/db";
 import { and, eq, gte, isNull } from "drizzle-orm";
 import { defaultSettings, type Deps } from "./app";
 import { advanceUnit } from "./learning-memory";
@@ -6,7 +6,8 @@ import { reconcileLessonScores } from "./scoring";
 import { questionBlocks } from "./lesson-blocks";
 
 const { lesson, step, assessmentJob: job } = schema;
-type Ctx = Pick<Deps, "db" | "now"> & { settings: { alphaLesson: number } };
+// `db` may be a transaction: Learn more completes a Lesson inside its own.
+type Ctx = { db: Tx; now: Deps["now"]; settings: { alphaLesson: number } };
 
 // Which skill a graded Block gives evidence for. Vocab cards are never wrong. A spoken answer counts towards fluency once its analysis has saved a verdict.
 const blockSkill: Record<string, Skill | undefined> = {
