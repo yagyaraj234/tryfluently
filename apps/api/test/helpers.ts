@@ -16,6 +16,7 @@ import {
 import type { Realtime, RealtimeEvent, RealtimeSession } from "../src/realtime";
 import { testDb } from "./setup";
 import { runAssessmentJobs } from "../src/assessment-jobs";
+import { sendStreakReminders } from "../src/streak-reminders";
 
 export const WEB_ORIGIN = "http://localhost:5173";
 
@@ -159,7 +160,10 @@ export function makeApp({
       ...env,
     },
   };
-  return Object.assign(createApp(deps), { runJobs: (userId: string) => runAssessmentJobs(deps, userId) });
+  return Object.assign(createApp(deps), {
+    runJobs: (userId: string) => runAssessmentJobs(deps, userId),
+    remindStreaks: () => sendStreakReminders(deps),
+  });
 }
 
 export type TestApp = ReturnType<typeof makeApp>;

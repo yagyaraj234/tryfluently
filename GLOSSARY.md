@@ -137,6 +137,9 @@ _Avoid_: Mistake, weak point, todo
 **Streak**:
 The number of consecutive days on which the Learner completed at least one Lesson.
 
+**Streak reminder**:
+An email sent once, in the last 6 hours of the Learner's local day, when they have a Streak but haven't completed a Lesson yet today. Learners can turn it off from the email.
+
 **XP**:
 Points the Learner earns by completing Steps and Lessons.
 _Avoid_: Score, points, credits

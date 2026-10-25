@@ -23,6 +23,7 @@ import { skillProfileRoutes } from "./scoring";
 import { metricsMiddleware, metricsRegistry } from "./metrics";
 import { requestLimits } from "./request-limits";
 import { health } from "./health";
+import { unsubscribeRoute } from "./streak-reminders";
 
 export type { Mailer, Models, Realtime, Speech, Transcriber };
 
@@ -169,6 +170,8 @@ export function createApp(deps: Deps) {
     // Better Auth has no endpoint for this; sign-in shows the Google button only when it's configured.
     .get("/api/auth/providers", (c) => c.json({ google: Boolean(env.GOOGLE_CLIENT_ID) }))
     .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
+    // Opened from email links and mail apps, so it sits before the origin and session checks.
+    .route("/api/email/unsubscribe", unsubscribeRoute(deps))
     .use("/api/*", async (c, next) => {
       c.set("requestStartedAt", deps.now());
       // CORS controls response access; reject foreign browser writes before they reach handlers.
