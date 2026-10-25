@@ -109,3 +109,12 @@ test("Practice is only offered at the choice, before the Lesson completes", asyn
   expect((await t.app.request(`/api/lessons/${t.lessonId}/finish`, json({}, t.cookie))).status).toBe(200);
   expect((await practise(t)).status).toBe(409);
 });
+
+test("Next lesson waits while a Practice Round is being written", async () => {
+  const t = await atChoice();
+  expect((await practise(t)).status).toBe(202);
+  expect((await t.app.request(`/api/lessons/${t.lessonId}/finish`, json({}, t.cookie))).status).toBe(409);
+  await t.app.runJobs(t.id);
+  for (let i = 5; i < 10; i++) await answer(t.app, t.cookie, t.lessonId, i, "goes");
+  expect((await t.app.request(`/api/lessons/${t.lessonId}/finish`, json({}, t.cookie))).status).toBe(200);
+});
