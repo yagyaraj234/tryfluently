@@ -2,6 +2,7 @@ import {
   Button,
   Cluster,
   Heading,
+  LessonFrame,
   Notice,
   PageBlock,
   PageDots,
@@ -198,9 +199,6 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
             : "You reached the end of this Lesson."}
         </Text>
         {finish.isError && <Notice tone="error">{finish.error.message}</Notice>}
-        <Button disabled={finish.isPending} onClick={() => finish.mutate()}>
-          {finish.isPending ? "Finishing…" : "Finish Lesson"}
-        </Button>
       </Stack>
     );
   else if (broken)
@@ -259,21 +257,28 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
     );
 
   return (
-    <Stack gap={6}>
+    <LessonFrame
+      actions={
+        <Cluster justify="between">
+          <Button variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
+            Back
+          </Button>
+          {index < recap ? (
+            <Button disabled={!ready} onClick={() => go(index + 1)}>
+              {index === recap - 1 ? "Recap" : "Next"}
+            </Button>
+          ) : (
+            <Button disabled={finish.isPending} onClick={() => finish.mutate()}>
+              {finish.isPending ? "Finishing…" : "Finish Lesson"}
+            </Button>
+          )}
+        </Cluster>
+      }
+    >
       <PageDots current={index} total={recap + 1} />
       <div ref={heading} tabIndex={-1} aria-label={index === recap ? "Recap" : `Page ${index + 1} of ${recap}`}>
         {body}
       </div>
-      <Cluster justify="between">
-        <Button variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
-          Back
-        </Button>
-        {index < recap && (
-          <Button disabled={!ready} onClick={() => go(index + 1)}>
-            {index === recap - 1 ? "Recap" : "Next"}
-          </Button>
-        )}
-      </Cluster>
-    </Stack>
+    </LessonFrame>
   );
 }

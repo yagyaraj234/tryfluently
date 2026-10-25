@@ -222,6 +222,22 @@ export function LessonStage({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * A Lesson screen with its navigation (Back / Next, Back to summary) at the bottom, in the same place on every Page:
+ * at the foot of the screen when the Page is short, and pinned there while a long Page scrolls under it.
+ * The height fills PracticeShell below its header; the bar's -mb-10 takes the place of the shell's bottom padding.
+ */
+export function LessonFrame({ children, actions }: { children: ReactNode; actions: ReactNode }) {
+  return (
+    <div className="flex min-h-[calc(100dvh-5.25rem)] flex-col gap-6">
+      <div className="flex flex-1 flex-col gap-6">{children}</div>
+      <div className="sticky bottom-0 z-sticky -mb-10 flex flex-col gap-3 bg-canvas pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-6 before:bg-linear-to-t before:from-canvas before:to-transparent">
+        {actions}
+      </div>
+    </div>
+  );
+}
+
 export function RoadmapUnit({
   number,
   title,

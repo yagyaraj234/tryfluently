@@ -3,6 +3,7 @@ import {
   Card,
   Cluster,
   Heading,
+  LessonFrame,
   LoadingState,
   Notice,
   PageBlock,
@@ -212,12 +213,15 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
 
   if (lesson.status === "completed")
     return reviewing ? (
-      <Stack gap={6}>
+      <LessonFrame
+        actions={
+          <Button variant="secondary" onClick={() => setReviewing(false)}>
+            Back to summary
+          </Button>
+        }
+      >
         {resultsOf(quiz, "Your answers")}
-        <Button variant="secondary" onClick={() => setReviewing(false)}>
-          Back to summary
-        </Button>
-      </Stack>
+      </LessonFrame>
     ) : (
       <PagedComplete
         lessonId={lesson.id}
@@ -338,21 +342,24 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
     );
 
   return (
-    <Stack gap={6}>
+    <LessonFrame
+      actions={
+        <Cluster justify="between">
+          <Button variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
+            Back
+          </Button>
+          {index < quizAt && (
+            <Button disabled={page?.status !== "ready"} onClick={() => go(index + 1)}>
+              {index === quizAt - 1 ? "Start the Quiz" : "Next"}
+            </Button>
+          )}
+        </Cluster>
+      }
+    >
       <PageDots current={index} total={quizAt + 1} last="Quiz" />
       <div ref={heading} tabIndex={-1} aria-label={index === quizAt ? "Quiz" : `Page ${index + 1} of ${quizAt}`}>
         {body}
       </div>
-      <Cluster justify="between">
-        <Button variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
-          Back
-        </Button>
-        {index < quizAt && (
-          <Button disabled={page?.status !== "ready"} onClick={() => go(index + 1)}>
-            {index === quizAt - 1 ? "Start the Quiz" : "Next"}
-          </Button>
-        )}
-      </Cluster>
-    </Stack>
+    </LessonFrame>
   );
 }
