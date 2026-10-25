@@ -24,7 +24,7 @@ import { PagedComplete } from "./PagedComplete";
 import { PagedReview } from "./PagedReview";
 import { lessonXp, type Lesson } from "./lesson";
 
-type PageData = {
+export type PageData = {
   page: number;
   status: "pending" | "ready" | "failed";
   question: "pending" | "ready" | "failed";
@@ -35,9 +35,10 @@ type PageData = {
   example?: string | null;
   keyTerms?: string[];
   glossary?: GlossaryTerm[];
+  vocab?: { term: string; meaning: string };
   block?: string;
 };
-type PagedData = {
+export type PagedData = {
   id: string;
   preparation: "failed" | "preparing" | "ready" | null;
   currentPage: number;
@@ -46,7 +47,7 @@ type PagedData = {
 };
 
 /** Wraps the speaking Block with the browser's speech recognition. Recordings stay in browser memory until the Lesson is left. */
-function SpeakingBlock(props: {
+export function SpeakingBlock(props: {
   question: PageQuestion;
   result?: PageResult;
   pending: boolean;

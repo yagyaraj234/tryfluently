@@ -12,19 +12,17 @@ export const lessonRoute = (l: { id: string; kind: "practice" | "roleplay" }) =>
 type Pages = {
   preparation: string | null;
   pages: { status: "pending" | "ready" | "failed"; question?: string; result?: object }[];
+  quiz?: { result?: object }[];
 };
+const analysing = (r?: object) => (r as { analysis?: string } | undefined)?.analysis === "analysing";
 
-/** Nothing more will arrive once the Lesson failed or every Page and question is ready or failed, and no spoken answer is still being analysed. */
+/** Nothing more will arrive once the Lesson failed or every Page and question is ready or failed, and no spoken answer (on a Page or in the Quiz) is still being analysed. */
 export const pagesSettled = (d?: Pages) =>
   Boolean(
     d &&
     (d.preparation === "failed" ||
-      d.pages.every(
-        (p) =>
-          p.status !== "pending" &&
-          p.question !== "pending" &&
-          (p.result as { analysis?: string } | undefined)?.analysis !== "analysing",
-      )),
+      (d.pages.every((p) => p.status !== "pending" && p.question !== "pending" && !analysing(p.result)) &&
+        !d.quiz?.some((q) => analysing(q.result)))),
   );
 
 /** Polls a paged Lesson's Pages every 1.5 seconds until they have all settled. */

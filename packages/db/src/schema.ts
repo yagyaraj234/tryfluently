@@ -298,10 +298,14 @@ export const lesson = pgTable(
     phase: text().$type<"learning" | "assessment">(),
     report: jsonb().$type<Record<string, unknown>>(),
     // 1 = Lessons prepared before paged Lessons (material + Steps). 2 = Pages generated when the Learner presses Start.
+    // 3 = Pages that only teach, then an end-of-Lesson Quiz.
     contentVersion: integer().notNull().default(1),
     currentPage: integer().notNull().default(0),
     // Paged Lessons only: status of each Page and of its question slot, in Page order.
     pageStatus: jsonb().$type<{ page: "pending" | "ready" | "failed"; question: "pending" | "ready" | "failed" }[]>(),
+    // Content version 3: the Quiz and Practice Round questions, in the order asked. `page` is the Page a question tests
+    // (null for Practice Rounds), `round` 0 is the Quiz. Answers are Steps at the same index.
+    quiz: jsonb().$type<{ page: number | null; round: number; question: Record<string, unknown> }[]>(),
     startedAt: timestamp(),
     completedAt: timestamp(),
   },

@@ -1,5 +1,5 @@
 import { schema, type Skill } from "@fluently/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gte, isNull } from "drizzle-orm";
 import { defaultSettings, type Deps } from "./app";
 import { advanceUnit } from "./learning-memory";
 import { reconcileLessonScores } from "./scoring";
@@ -39,7 +39,7 @@ async function reconcilePagedScores(
   alpha: number,
   at: Date,
 ) {
-  if (row.contentVersion !== 2 || row.status !== "completed") return;
+  if (row.contentVersion < 2 || row.status !== "completed") return;
   const steps = await db.select().from(step).where(eq(step.lessonId, row.id));
   await reconcileLessonScores(db, row.userId, row.id, scoresFromVerdicts(steps), alpha, row.completedAt ?? at);
 }
@@ -78,16 +78,19 @@ export async function finishPagedLesson({ db, now, settings }: Ctx, id: string, 
     const [row] = await tx
       .select()
       .from(lesson)
-      .where(and(eq(lesson.id, id), eq(lesson.userId, userId), eq(lesson.contentVersion, 2)))
+      .where(and(eq(lesson.id, id), eq(lesson.userId, userId), gte(lesson.contentVersion, 2)))
       .for("update");
     if (!row) throw new Error("Lesson not found");
     if (row.status === "abandoned") return { status: "abandoned" as const };
     const at = now();
     if (row.status === "in_progress") {
       const steps = await tx.select().from(step).where(eq(step.lessonId, id));
-      const questions = (row.material ?? []).flatMap((p: any, position) =>
-        questionBlocks.includes(p.block) ? [{ position, question: p.question }] : [],
-      );
+      const questions =
+        row.contentVersion >= 3
+          ? (row.quiz ?? []).map((q, position) => ({ position, question: q.question }))
+          : (row.material ?? []).flatMap((p: any, position) =>
+              questionBlocks.includes(p.block) ? [{ position, question: p.question }] : [],
+            );
       if (
         row.preparation !== "ready" ||
         row.preparationToken ||

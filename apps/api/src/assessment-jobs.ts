@@ -173,7 +173,7 @@ export async function practicePreparation(db: Deps["db"], userId: string, at = n
   const current = active?.lesson;
   if (current && current.preparation !== "failed" && current.preparation !== "preparing")
     return { status: "ready" as const, lesson: { id: current.id, kind: current.kind, title: current.title } };
-  if (current?.contentVersion === 2) {
+  if (current && current.contentVersion >= 2) {
     const work = active?.jobStatus;
     // Queued work and renewable worker leases outlive the Lesson's original preparation timestamp.
     if (current.preparation !== "failed" && (work === "pending" || work === "running"))
@@ -208,7 +208,7 @@ export async function retryPracticePreparation(db: Deps["db"], userId: string, a
     .limit(1);
   if (!latest || (await practicePreparation(db, userId, at)).status === "not_ready") return false;
   const current = (await activeLesson(db, userId))?.lesson;
-  if (current?.contentVersion === 2) {
+  if (current && current.contentVersion >= 2) {
     await retryLesson({ db, now: () => at }, userId, current.id);
     return true;
   }

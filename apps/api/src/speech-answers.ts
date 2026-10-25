@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import type { Question } from "./lesson-blocks";
+import { questionAt, type Question } from "./lesson-blocks";
 import { savePageFeedback } from "./paged-finish";
 
 const { lesson, step } = schema;
@@ -66,7 +66,7 @@ export function startAnalysis(ctx: Ctx, userId: string, lessonId: string, index:
 async function analyse(ctx: Ctx, userId: string, lessonId: string, index: number) {
   const { db, models } = ctx;
   const [l] = await db.select().from(lesson).where(eq(lesson.id, lessonId));
-  const q = (l?.material?.[index] as { question?: Speak } | undefined)?.question;
+  const q = l && (questionAt(l, index) as Speak | undefined);
   const [row] = await db
     .select()
     .from(step)
