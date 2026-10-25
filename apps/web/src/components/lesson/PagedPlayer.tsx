@@ -261,17 +261,17 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
       actions={
         <LessonNav
           back={
-            <Button raised fullWidth variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
+            <Button fullWidth variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
               Back
             </Button>
           }
           next={
             index < recap ? (
-              <Button raised fullWidth disabled={!ready} onClick={() => go(index + 1)}>
+              <Button fullWidth disabled={!ready} onClick={() => go(index + 1)}>
                 {index === recap - 1 ? "Recap" : "Next"}
               </Button>
             ) : (
-              <Button raised fullWidth disabled={finish.isPending} onClick={() => finish.mutate()}>
+              <Button fullWidth disabled={finish.isPending} onClick={() => finish.mutate()}>
                 {finish.isPending ? "Finishing…" : "Finish Lesson"}
               </Button>
             )

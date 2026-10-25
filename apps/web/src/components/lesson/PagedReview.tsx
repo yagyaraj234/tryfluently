@@ -35,17 +35,17 @@ export function PagedReview({ pages, onClose }: { pages: ReviewPage[]; onClose: 
         <>
           <LessonNav
             back={
-              <Button raised fullWidth variant="secondary" disabled={index === 0} onClick={() => setIndex(index - 1)}>
+              <Button fullWidth variant="secondary" disabled={index === 0} onClick={() => setIndex(index - 1)}>
                 Back
               </Button>
             }
             next={
-              <Button raised fullWidth disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>
+              <Button fullWidth disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>
                 Next
               </Button>
             }
           />
-          <Button raised fullWidth variant="secondary" onClick={onClose}>
+          <Button fullWidth variant="secondary" onClick={onClose}>
             Back to summary
           </Button>
         </>
