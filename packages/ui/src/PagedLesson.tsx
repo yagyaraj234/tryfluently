@@ -63,7 +63,7 @@ export type GlossaryTerm = { term: string; definition: string };
 function Glossary({ term, children }: { term: GlossaryTerm; children: ReactNode }) {
   return (
     <Popover.Root>
-      <Popover.Trigger className="cursor-help underline decoration-dotted underline-offset-4 focus-visible:outline-2 focus-visible:outline-primary">
+      <Popover.Trigger className="cursor-help underline decoration-dotted underline-offset-4">
         {children}
       </Popover.Trigger>
       <Popover.Portal>
@@ -117,7 +117,7 @@ function FormattedBody({ body, keyTerms, glossary }: { body: string; keyTerms: s
   }
   return runs.map((run, i) =>
     run.bullets ? (
-      <ul key={i} className="list-disc space-y-1 pl-6 text-body leading-relaxed text-ink">
+      <ul key={i} className="flex list-disc flex-col gap-1 pl-6 text-body leading-relaxed text-ink">
         {run.lines.map((line, j) => (
           <li key={j}>{show(line)}</li>
         ))}
@@ -163,7 +163,7 @@ export function ReadingCard({
           <div
             role="group"
             aria-label={`Vocabulary: ${vocab.term}`}
-            className="rounded-2xl border border-primary bg-primary-soft p-4"
+            className="rounded-2xl border border-line bg-subtle p-4"
           >
             <Stack gap={1}>
               <Heading level={3}>{vocab.term}</Heading>
