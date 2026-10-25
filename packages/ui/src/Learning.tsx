@@ -311,7 +311,7 @@ function NodePath({ state }: { state: NodeState }) {
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       strokeLinecap="round"
-      className="pointer-events-none absolute top-8 left-8 z-behind h-full w-16 overflow-visible fill-none group-last:hidden sm:left-[calc(50%-3rem)] sm:w-24"
+      className="pointer-events-none absolute top-8 left-8 sm:top-9 lg:top-10 z-behind h-full w-16 overflow-visible fill-none group-last:hidden sm:left-[calc(50%-3rem)] sm:w-24"
     >
       {curves.map(({ d, className }) => (
         <g key={d} className={className}>
@@ -377,7 +377,7 @@ export function RoadmapNode({
       "aria-hidden": !interactive || undefined,
       // A live node's overlay stretches its click area over the whole row, so the <li> must stay its nearest
       // positioned ancestor: nothing between them is positioned or transformed. Margins shift it left or right.
-      className: `group/node ${interactive ? "after:absolute after:inset-0 after:content-['']" : ""} flex size-16 shrink-0 rounded-full focus-visible:outline-offset-4 group-even:ml-16 sm:col-start-2 sm:row-start-1 sm:group-odd:mr-24 sm:group-even:ml-24`,
+      className: `group/node ${interactive ? "after:absolute after:inset-0 after:content-['']" : ""} flex size-16 shrink-0 sm:size-18 lg:size-20 rounded-full focus-visible:outline-offset-4 group-even:ml-16 sm:col-start-2 sm:row-start-1 sm:group-odd:mr-24 sm:group-even:ml-24`,
       children: (
         <span className="relative size-full">
           {state === "active" && (
@@ -386,7 +386,7 @@ export function RoadmapNode({
           <span
             className={`relative flex size-full items-center justify-center rounded-full border-2 shadow-coin ${coinStyles[state]} ${interactive ? coinMotion : ""}`}
           >
-            <Icon aria-hidden size={28} weight="bold" />
+            <Icon aria-hidden weight="bold" className="size-7 sm:size-8 lg:size-9" />
             {state === "locked" && <LockBadge />}
           </span>
           {state === "active" && cue && <Cue>{cue}</Cue>}
@@ -405,7 +405,7 @@ export function RoadmapNode({
     <li className="group relative isolate grid min-h-36 min-w-0 grid-cols-[auto_1fr] items-start gap-x-4 pb-10 last:min-h-0 last:pb-0 sm:grid-cols-[1fr_auto_1fr] sm:gap-x-6">
       <NodePath state={state} />
       {circle}
-      <div className="flex min-w-0 flex-col items-start gap-1 pt-3 sm:row-start-1 sm:group-odd:col-start-1 sm:group-odd:items-end sm:group-odd:text-right sm:group-even:col-start-3">
+      <div className="flex min-w-0 flex-col items-start gap-1 pt-3 sm:row-start-1 sm:pt-4 lg:pt-5 sm:group-odd:col-start-1 sm:group-odd:items-end sm:group-odd:text-right sm:group-even:col-start-3">
         <span className="sr-only">{statePrefix[state]}</span>
         <Text>{title}</Text>
         {description_}
