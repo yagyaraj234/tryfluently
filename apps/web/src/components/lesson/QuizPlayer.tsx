@@ -60,7 +60,9 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
   const { pages, quiz } = data!;
   // The Quiz comes after the last Page, where version 2 Lessons have their recap.
   const quizAt = pages.length;
-  const [index, setIndex] = useState(Math.min(lesson.currentPage, quizAt));
+  // A Learner who left at the choice comes back to the results and choice, wherever they had stepped back to.
+  const quizDone = quiz.length > 0 && quiz.every((q) => q.result);
+  const [index, setIndex] = useState(quizDone ? quizAt : Math.min(lesson.currentPage, quizAt));
   const [reviewing, setReviewing] = useState(false);
   const heading = useRef<HTMLDivElement>(null);
   const first = useRef(true);
@@ -219,10 +221,15 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
       body = (
         <Stack gap={4}>
           {results}
-          {finish.isError && <Notice tone="error">{finish.error.message}</Notice>}
-          <Button disabled={finish.isPending} onClick={() => finish.mutate()}>
-            {finish.isPending ? "Finishing…" : "Finish Lesson"}
-          </Button>
+          <Card>
+            <Stack gap={3}>
+              <Heading level={2}>What's next?</Heading>
+              {finish.isError && <Notice tone="error">{finish.error.message}</Notice>}
+              <Button disabled={finish.isPending} onClick={() => finish.mutate()}>
+                {finish.isPending ? "Finishing…" : "Next lesson"}
+              </Button>
+            </Stack>
+          </Card>
         </Stack>
       );
   } else if (page?.status === "failed") body = failed;

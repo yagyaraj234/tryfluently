@@ -10,6 +10,7 @@ type Lesson = Unit["lessons"][number];
 
 function lessonDescription(lesson: Lesson) {
   if (lesson.status === "completed") return "Completed";
+  if (lesson.quizDone) return "Quiz done — choose what's next";
   if (lesson.preparation === "failed") return "Preparation failed. Retry";
   if (lesson.preparation === "preparing") return "Preparing";
   if (lesson.preparation === "ready") return "Ready";

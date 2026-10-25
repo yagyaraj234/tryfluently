@@ -134,3 +134,24 @@ test("rewrite and spoken Quiz answers are saved, then checked, and the results s
     explanation: "Clear and on topic.",
   });
 });
+
+test("answering the whole Quiz doesn't complete the Lesson: the Roadmap shows it waiting on the Learner's choice", async () => {
+  const fake = fakeQuizModel({
+    plans: () => plan(["multipleChoice"], ["fillGap"], ["fillGap"], ["fillGap"], ["fillGap"]),
+  });
+  const { app, cookie, lessonId } = await readyLesson(fake);
+  const listed = async () =>
+    ((await (await app.request("/api/roadmap", get(cookie))).json()) as any)[0].lessons.find(
+      (l: any) => l.id === lessonId,
+    );
+  expect(await listed()).toMatchObject({ status: "in_progress", quizDone: false });
+  await answer(app, cookie, lessonId, 0, 1);
+  for (const i of [1, 2, 3]) await answer(app, cookie, lessonId, i, "goes");
+  expect(await listed()).toMatchObject({ status: "in_progress", quizDone: false });
+  await answer(app, cookie, lessonId, 4, "go");
+  expect(await listed()).toMatchObject({ status: "in_progress", quizDone: true });
+
+  // Next lesson completes it.
+  expect((await app.request(`/api/lessons/${lessonId}/finish`, json({}, cookie))).status).toBe(200);
+  expect(await listed()).toMatchObject({ status: "completed" });
+});

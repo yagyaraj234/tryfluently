@@ -7,7 +7,7 @@ import { generate } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { skillProfile, skills } from "./scoring";
 
-const { unit, goal, focusItem, lesson, assessment } = schema;
+const { unit, goal, focusItem, lesson, assessment, step } = schema;
 
 const outlineItem = z.object({
   title: z.string().min(1).max(100),
@@ -269,6 +269,9 @@ export const roadmap = (deps: Deps) =>
             contentVersion: lesson.contentVersion,
             startedAt: lesson.startedAt,
             objectiveProgress: lesson.objectiveProgress,
+            // Every Quiz (and Practice Round) question answered: the Learner is choosing what's next.
+            // The outer id is written out: Drizzle leaves single-table columns unqualified, which the subquery would read as step.id.
+            quizDone: sql<boolean>`coalesce(jsonb_array_length(${lesson.quiz}), 0) > 0 and jsonb_array_length(${lesson.quiz}) <= (select count(*) from ${step} where ${step.lessonId} = "lesson"."id" and ${step.answeredAt} is not null)`,
           })
           .from(lesson)
           .where(and(eq(lesson.userId, userId), isNotNull(lesson.unitId)))
