@@ -379,11 +379,13 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
     // Each writer sees the whole plan and the focus, but writes only its own idea. A Page that fails its checks retries alone.
     const write = async (i: number) => {
       const slice = { idea: slices[i]!.idea!, block: slices[i]!.block };
+      // Tells the next attempt why the last one was rejected, so it does not repeat the same mistake.
+      let feedback = "";
       for (let tries = 0; tries <= MAX_RETRIES; tries++) {
         try {
           const { output } = await generate(ctx, row.userId, {
             ...base,
-            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} You write Page ${i + 1} of ${total}. Cover only your idea, for this Block type: ${slice.block}. The other Pages cover the rest, so do not repeat them. Stay on the Lesson focus and reuse the keyExample. Plain text only: no markdown, asterisks or underscores for emphasis. The "example" is a model sentence to read, never an exercise or instruction. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).`,
+            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} You write Page ${i + 1} of ${total}. Cover only your idea, for this Block type: ${slice.block}. The other Pages cover the rest, so do not repeat them. Stay on the Lesson focus and reuse the keyExample. Plain text only: no markdown, asterisks or underscores for emphasis. The "example" is a model sentence to read, never an exercise or instruction. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).${feedback}`,
             prompt: JSON.stringify({
               lesson: row.title,
               focus: lessonFocus,
@@ -401,7 +403,9 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
             written: written.filter((_, j) => j !== i),
           });
           if (problem) {
-            console.error(`Lesson ${lessonId} page ${i + 1} attempt ${tries + 1} rejected: ${problem}`);
+            const key = page.answerKey ? ` (answerKey ${JSON.stringify(page.answerKey)})` : "";
+            console.error(`Lesson ${lessonId} page ${i + 1} attempt ${tries + 1} rejected: ${problem}${key}`);
+            feedback = ` Your previous attempt was rejected: ${problem}${key}. Fix that this time: if the answerKey appeared in the reading, rephrase the reading or choose a different answerKey.`;
             continue;
           }
           written[i] = page;
