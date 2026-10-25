@@ -4,9 +4,9 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import { promptOf, publicQuestion, questionProblem, questionSchema, type Question } from "./lesson-blocks";
+import { publicQuestion, questionProblem, questionSchema, type Question } from "./lesson-blocks";
 import { mistakesOf, stepsOf } from "./page-answers";
-import { QUIZ_VERSION } from "./paged-lessons";
+import { norm, QUIZ_VERSION, quizBlocks } from "./paged-lessons";
 
 const { lesson, step, assessmentJob: job } = schema;
 type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal };
@@ -16,21 +16,19 @@ const MAX_RETRIES = 2;
 // A plain union, not questionSchema: a discriminated union becomes `oneOf`, which OpenAI structured output rejects.
 const roundOutput = z.object({ questions: z.array(z.union(questionSchema.options)) });
 
-const norm = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
+// Two questions are the same when the Learner would see the same thing: a shared general instruction is not a repeat.
+const sameness = (q: Question) => norm(JSON.stringify(publicQuestion(q)));
 
 /** Cheap rules on a round: 5 questions, checked like the Quiz's, none repeating an earlier one or each other. */
 function roundProblem(questions: Question[], asked: Question[]) {
   if (questions.length !== ROUND) return `needs exactly ${ROUND} questions, not ${questions.length}`;
-  const seen = new Set(asked.map((q) => norm(promptOf(q))));
+  const seen = new Set(asked.map(sameness));
   for (const [i, q] of questions.entries()) {
-    if (q.block === "vocabCard") return `question ${i + 1} is a vocab card, which is never quizzed`;
+    if (!(quizBlocks as readonly string[]).includes(q.block))
+      return `question ${i + 1} is a ${q.block}, which is never quizzed`;
     const problem = questionProblem(q);
     if (problem) return `question ${i + 1} rejected: ${problem}`;
-    const key = norm(promptOf(q));
+    const key = sameness(q);
     if (seen.has(key)) return `question ${i + 1} repeats an earlier question`;
     seen.add(key);
   }
@@ -90,7 +88,7 @@ export async function writePracticeRound(ctx: Ctx, lessonId: string, attempt: nu
           model: models.step,
           reasoning: "low",
           abortSignal: ctx.signal,
-          instructions: `Write a Practice Round of exactly ${ROUND} new questions for an English Lesson the Learner has just been quizzed on. Use only what its Pages teach, and lean toward the Learner's mistakes. Never repeat or reword a question in "asked". Use the Blocks fillGap, multipleChoice, matchPairs, reorder, rewrite or speakPrompt (never vocabCard). Give the exact answer and a one or two sentence explanation so answers can be graded with no AI later. A fillGap prompt has exactly one "___" and never contains its answer. For rewrite and speakPrompt give the prompt, an expectedAnswer and a short rubric instead. Plain text only: no markdown or asterisks.${feedback}`,
+          instructions: `Write a Practice Round of exactly ${ROUND} new questions for an English Lesson the Learner has just been quizzed on. Use only what its Pages teach, and lean toward the Learner's mistakes. Never repeat or reword a question in "asked". Use only the Blocks ${quizBlocks.join(", ")}. Give the exact answer and a one or two sentence explanation so answers can be graded with no AI later. A fillGap prompt has exactly one "___" and never contains its answer. For rewrite and speakPrompt give the prompt, an expectedAnswer and a short rubric instead. Plain text only: no markdown or asterisks.${feedback}`,
           prompt: JSON.stringify({
             lesson: l.title,
             objective: l.objective,

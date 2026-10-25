@@ -68,7 +68,7 @@ type PageOutput = z.infer<typeof pageOutput>;
 // A Page of content version 3 has no answerKey; its vocab card is the term it teaches with a plain meaning.
 export const teachingPageOutput = pageOutput.omit({ answerKey: true }).extend({ vocab: vocabOutput.nullable() });
 
-const norm = (s: string) =>
+export const norm = (s: string) =>
   s
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, " ")
