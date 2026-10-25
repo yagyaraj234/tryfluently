@@ -9,6 +9,7 @@ import {
   ReadingCard,
   Stack,
   Text,
+  type GlossaryTerm,
   type PageQuestion,
   type SpeechControl,
   type PageResult,
@@ -32,6 +33,8 @@ type PageData = {
   title?: string;
   body?: string;
   example?: string | null;
+  keyTerms?: string[];
+  glossary?: GlossaryTerm[];
   block?: string;
 };
 type PagedData = {
@@ -217,7 +220,13 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   else
     body = (
       <Stack gap={4}>
-        <ReadingCard title={page.title ?? ""} body={page.body ?? ""} example={page.example} />
+        <ReadingCard
+          title={page.title ?? ""}
+          body={page.body ?? ""}
+          example={page.example}
+          keyTerms={page.keyTerms}
+          glossary={page.glossary}
+        />
         {hasQuestion(page) &&
           (page.question === "ready" && page.questionData ? (
             page.questionData.block === "speakPrompt" ? (

@@ -60,6 +60,13 @@ const lessons = {
     ],
     { status: "completed" },
   ),
+  formatted: lesson("formatted", 0, [
+    ready(0, {
+      body: "Use the present simple for habits.\n\n- I commute by bus.",
+      keyTerms: ["present simple"],
+      glossary: [{ term: "commute", definition: "travel to work" }],
+    }),
+  ]),
   oldPlayer: lesson("oldPlayer", 0, [], { contentVersion: 1, phase: "learning" }),
 };
 
@@ -96,6 +103,12 @@ test("a paged Lesson opens on its first Page with progress dots and Back disable
   assert.match(html, /aria-label="Page 1 of 4"/);
   assert.ok(disabled(button(html, "Back")));
   assert.ok(!disabled(button(html, "Next")));
+});
+
+test("a formatted Page shows bullets, bold Key Terms and tappable Glossary Terms", async () => {
+  const html = await page("/lessons/formatted");
+  assert.match(html, /<strong>present simple<\/strong>/);
+  assert.match(html, /<li>I <button[^>]*>commute<\/button> by bus\.<\/li>/);
 });
 
 test("a reloaded Lesson resumes on the saved Page and shows its saved result and explanation", async () => {

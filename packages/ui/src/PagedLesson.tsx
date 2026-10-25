@@ -1,3 +1,4 @@
+import { Popover } from "@base-ui/react/popover";
 import { cva } from "class-variance-authority";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "./Button";
@@ -56,12 +57,102 @@ export function PageDots({ current, total }: { current: number; total: number })
   );
 }
 
-export function ReadingCard({ title, body, example }: { title: string; body: string; example?: string | null }) {
+export type GlossaryTerm = { term: string; definition: string };
+
+/** A word the Learner may not know: dotted underline, and its definition in a popover on tap, click or Enter. */
+function Glossary({ term, children }: { term: GlossaryTerm; children: ReactNode }) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger className="cursor-help underline decoration-dotted underline-offset-4 focus-visible:outline-2 focus-visible:outline-primary">
+        {children}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner className="z-overlay" sideOffset={6}>
+          <Popover.Popup className="max-w-xs rounded-xl border border-line bg-paper p-3 text-body text-ink shadow-card">
+            {term.definition}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Text with the first use of each Key Term in bold and each Glossary Term marked. `marked` spans the whole Page. */
+function withTerms(text: string, keyTerms: string[], glossary: GlossaryTerm[], marked: Set<string>) {
+  const terms = [...keyTerms, ...glossary.map((g) => g.term)].sort((a, b) => b.length - a.length);
+  if (!terms.length) return text;
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(${terms.map(escape).join("|")})(?![\\p{L}\\p{N}])`, "giu");
+  return text.split(pattern).map((part, i) => {
+    const key = part.toLowerCase();
+    if (i % 2 === 0 || marked.has(key)) return part;
+    marked.add(key);
+    const entry = glossary.find((g) => g.term.toLowerCase() === key);
+    return entry ? (
+      <Glossary key={i} term={entry}>
+        {part}
+      </Glossary>
+    ) : (
+      <strong key={i}>{part}</strong>
+    );
+  });
+}
+
+/** Blank lines split paragraphs; a run of lines starting with "- " is a bullet list. */
+function FormattedBody({ body, keyTerms, glossary }: { body: string; keyTerms: string[]; glossary: GlossaryTerm[] }) {
+  const marked = new Set<string>();
+  const show = (text: string) => withTerms(text, keyTerms, glossary, marked);
+  const runs: { bullets: boolean; lines: string[] }[] = [];
+  for (const block of body.split(/\n\s*\n/)) {
+    let last: (typeof runs)[number] | undefined;
+    for (const raw of block.split("\n")) {
+      const line = raw.trim();
+      if (!line) continue;
+      const bullets = line.startsWith("- ");
+      const text = bullets ? line.slice(2) : line;
+      if (last?.bullets === bullets) last.lines.push(text);
+      else runs.push((last = { bullets, lines: [text] }));
+    }
+  }
+  return runs.map((run, i) =>
+    run.bullets ? (
+      <ul key={i} className="list-disc space-y-1 pl-6 text-body leading-relaxed text-ink">
+        {run.lines.map((line, j) => (
+          <li key={j}>{show(line)}</li>
+        ))}
+      </ul>
+    ) : (
+      <p key={i} className="text-body leading-relaxed text-ink">
+        {show(run.lines.join(" "))}
+      </p>
+    ),
+  );
+}
+
+export function ReadingCard({
+  title,
+  body,
+  example,
+  keyTerms,
+  glossary = [],
+}: {
+  title: string;
+  body: string;
+  example?: string | null;
+  /** Pages written before Key Terms existed have none and keep their plain reading. */
+  keyTerms?: string[];
+  glossary?: GlossaryTerm[];
+}) {
   return (
     <Card>
       <Stack gap={4}>
         <Heading level={2}>{title}</Heading>
-        <p className="whitespace-pre-line text-body leading-relaxed text-ink">{body}</p>
+        {keyTerms ? (
+          <FormattedBody body={body} keyTerms={keyTerms} glossary={glossary} />
+        ) : (
+          <p className="whitespace-pre-line text-body leading-relaxed text-ink">{body}</p>
+        )}
         {example && (
           <blockquote className="rounded-2xl border border-line bg-subtle p-4 text-body text-ink">{example}</blockquote>
         )}
