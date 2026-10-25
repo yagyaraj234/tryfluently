@@ -1,6 +1,6 @@
 # Paged Lessons, generated when the Learner presses Start
 
-Updated 20 October 2026. Supersedes the "prepare the next Lesson automatically" and "one-call Lesson" parts of [0002](0002-just-in-time-lesson-generation.md). Stable Roadmap outlines, immutable content and "completion regardless of score" still stand.
+Updated 20 October 2026. Partly superseded by [0004](0004-end-of-lesson-quiz-practice-rounds-follow-up-lessons.md). Supersedes the "prepare the next Lesson automatically" and "one-call Lesson" parts of [0002](0002-just-in-time-lesson-generation.md). Stable Roadmap outlines, immutable content and "completion regardless of score" still stand.
 
 ## Decisions
 
