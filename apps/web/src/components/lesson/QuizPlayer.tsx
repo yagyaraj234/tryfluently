@@ -307,7 +307,10 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
                     Learn more
                   </Button>
                 ))}
-              <Button disabled={finish.isPending || follow.isPending} onClick={() => finish.mutate()}>
+              <Button
+                disabled={finish.isPending || follow.isPending || practise.isPending}
+                onClick={() => finish.mutate()}
+              >
                 {finish.isPending ? "Finishing…" : "Next lesson"}
               </Button>
             </Stack>

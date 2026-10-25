@@ -94,6 +94,7 @@ export async function finishPagedLesson({ db, now, settings }: Ctx, id: string, 
             );
       if (
         row.preparation !== "ready" ||
+        row.practice === "preparing" ||
         row.preparationToken ||
         !row.pageStatus?.every((s) => s.page === "ready" && s.question === "ready") ||
         questions.some((q) => !q.question || !steps.some((s) => s.position === q.position && s.answeredAt))
