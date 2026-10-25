@@ -153,6 +153,7 @@ export {
   CoachAvatar,
   CoachCall,
   LessonFrame,
+  LessonNav,
   LessonStage,
   RoadmapNode,
   RoadmapUnit,

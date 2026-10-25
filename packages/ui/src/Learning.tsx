@@ -238,6 +238,16 @@ export function LessonFrame({ children, actions }: { children: ReactNode; action
   );
 }
 
+/** Back and Next side by side at the foot of a Lesson: Back takes a quarter of the row and Next the rest. */
+export function LessonNav({ back, next }: { back: ReactNode; next?: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-3">
+      {back}
+      {next}
+    </div>
+  );
+}
+
 export function RoadmapUnit({
   number,
   title,

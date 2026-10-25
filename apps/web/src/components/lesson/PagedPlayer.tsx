@@ -1,6 +1,6 @@
 import {
   Button,
-  Cluster,
+  LessonNav,
   Heading,
   LessonFrame,
   Notice,
@@ -259,20 +259,24 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   return (
     <LessonFrame
       actions={
-        <Cluster justify="between">
-          <Button variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
-            Back
-          </Button>
-          {index < recap ? (
-            <Button disabled={!ready} onClick={() => go(index + 1)}>
-              {index === recap - 1 ? "Recap" : "Next"}
+        <LessonNav
+          back={
+            <Button raised fullWidth variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
+              Back
             </Button>
-          ) : (
-            <Button disabled={finish.isPending} onClick={() => finish.mutate()}>
-              {finish.isPending ? "Finishing…" : "Finish Lesson"}
-            </Button>
-          )}
-        </Cluster>
+          }
+          next={
+            index < recap ? (
+              <Button raised fullWidth disabled={!ready} onClick={() => go(index + 1)}>
+                {index === recap - 1 ? "Recap" : "Next"}
+              </Button>
+            ) : (
+              <Button raised fullWidth disabled={finish.isPending} onClick={() => finish.mutate()}>
+                {finish.isPending ? "Finishing…" : "Finish Lesson"}
+              </Button>
+            )
+          }
+        />
       }
     >
       <PageDots current={index} total={recap + 1} />

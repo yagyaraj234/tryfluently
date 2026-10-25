@@ -1,7 +1,7 @@
 import {
   Button,
   Card,
-  Cluster,
+  LessonNav,
   Heading,
   LessonFrame,
   LoadingState,
@@ -215,7 +215,7 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
     return reviewing ? (
       <LessonFrame
         actions={
-          <Button variant="secondary" onClick={() => setReviewing(false)}>
+          <Button raised fullWidth variant="secondary" onClick={() => setReviewing(false)}>
             Back to summary
           </Button>
         }
@@ -344,16 +344,20 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
   return (
     <LessonFrame
       actions={
-        <Cluster justify="between">
-          <Button variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
-            Back
-          </Button>
-          {index < quizAt && (
-            <Button disabled={page?.status !== "ready"} onClick={() => go(index + 1)}>
-              {index === quizAt - 1 ? "Start the Quiz" : "Next"}
+        <LessonNav
+          back={
+            <Button raised fullWidth variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
+              Back
             </Button>
-          )}
-        </Cluster>
+          }
+          next={
+            index < quizAt && (
+              <Button raised fullWidth disabled={page?.status !== "ready"} onClick={() => go(index + 1)}>
+                {index === quizAt - 1 ? "Start the Quiz" : "Next"}
+              </Button>
+            )
+          }
+        />
       }
     >
       <PageDots current={index} total={quizAt + 1} last="Quiz" />

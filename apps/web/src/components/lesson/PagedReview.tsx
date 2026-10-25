@@ -1,6 +1,6 @@
 import {
   Button,
-  Cluster,
+  LessonNav,
   LessonFrame,
   PageBlock,
   PageDots,
@@ -33,15 +33,19 @@ export function PagedReview({ pages, onClose }: { pages: ReviewPage[]; onClose: 
     <LessonFrame
       actions={
         <>
-          <Cluster justify="between">
-            <Button variant="secondary" disabled={index === 0} onClick={() => setIndex(index - 1)}>
-              Back
-            </Button>
-            <Button disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>
-              Next
-            </Button>
-          </Cluster>
-          <Button variant="secondary" onClick={onClose}>
+          <LessonNav
+            back={
+              <Button raised fullWidth variant="secondary" disabled={index === 0} onClick={() => setIndex(index - 1)}>
+                Back
+              </Button>
+            }
+            next={
+              <Button raised fullWidth disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>
+                Next
+              </Button>
+            }
+          />
+          <Button raised fullWidth variant="secondary" onClick={onClose}>
             Back to summary
           </Button>
         </>
