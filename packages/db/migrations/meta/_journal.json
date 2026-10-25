@@ -134,6 +134,13 @@
       "when": 1792908843687,
       "tag": "0018_perpetual_chronomancer",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792909439718,
+      "tag": "0019_colorful_zodiak",
+      "breakpoints": true
     }
   ]
 }

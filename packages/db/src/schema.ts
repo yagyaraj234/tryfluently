@@ -167,7 +167,7 @@ export const assessmentJob = pgTable(
     assessmentId: text().references(() => assessment.id, { onDelete: "cascade" }),
     lessonId: text().references(() => lesson.id, { onDelete: "cascade" }),
     userId: learner(),
-    kind: text().$type<"report_email" | "practice" | "lesson" | "lesson_analysis">().notNull(),
+    kind: text().$type<"report_email" | "practice" | "lesson" | "lesson_analysis" | "practice_round">().notNull(),
     status: text().$type<"pending" | "running" | "done" | "failed">().notNull().default("pending"),
     attempts: integer().notNull().default(0),
     availableAt: timestamp().notNull().defaultNow(),
@@ -306,6 +306,8 @@ export const lesson = pgTable(
     // Content version 3: the Quiz and Practice Round questions, in the order asked. `page` is the Page a question tests
     // (null for Practice Rounds), `round` 0 is the Quiz. Answers are Steps at the same index.
     quiz: jsonb().$type<{ page: number | null; round: number; question: Record<string, unknown> }[]>(),
+    // The Practice Round the Learner asked for is being written, or its writing failed; null otherwise.
+    practice: text().$type<"preparing" | "failed">(),
     startedAt: timestamp(),
     completedAt: timestamp(),
   },

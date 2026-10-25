@@ -36,6 +36,14 @@ const lesson = (id, currentPage, quiz, over = {}) => ({
   quiz,
   ...over,
 });
+const roundItem = (index, prompt, result) => ({
+  index,
+  page: null,
+  round: 1,
+  questionData: { block: "fillGap", prompt },
+  ...(result && { result }),
+});
+const quizDone = [item(0, fillGap, wrong), item(1, choice, right)];
 const lessons = {
   lastPage: lesson("lastPage", 1, [item(0, fillGap), item(1, choice)]),
   asking: lesson("asking", 2, [item(0, fillGap, wrong), item(1, choice)]),
@@ -44,6 +52,14 @@ const lessons = {
   }),
   results: lesson("results", 2, [item(0, fillGap, wrong), item(1, choice, right)]),
   // Left at the choice after stepping back to a Page: the Learner comes back to the results and choice.
+  writingRound: lesson("writingRound", 2, quizDone, { practice: "preparing" }),
+  roundFailed: lesson("roundFailed", 2, quizDone, { practice: "failed" }),
+  inRound: lesson("inRound", 2, [...quizDone, roundItem(2, "He ___ home."), roundItem(3, "They ___ late.")]),
+  roundDone: lesson("roundDone", 2, [
+    ...quizDone,
+    roundItem(2, "He ___ home.", { ...wrong, answer: "go" }),
+    roundItem(3, "They ___ late.", { ...wrong, answer: "works", correctAnswer: "work" }),
+  ]),
   leftAtChoice: lesson("leftAtChoice", 0, [item(0, fillGap, wrong), item(1, choice, right)]),
 };
 
@@ -113,5 +129,41 @@ test("after the last answer one results screen shows every question, answer, ver
 test("re-opening a Lesson whose Quiz is done lands on the results and choice", async () => {
   const html = await open("/lessons/leftAtChoice");
   assert.match(text(html), /Quiz results/);
+  assert.ok(buttons(html).includes("Next lesson"));
+});
+
+test("the choice offers Practice more", async () => {
+  assert.ok(buttons(await open("/lessons/results")).includes("Practice more"));
+});
+
+test("a Practice Round being written shows a placeholder", async () => {
+  const html = await open("/lessons/writingRound");
+  assert.match(html, /aria-label="Writing your Practice Round"/);
+});
+
+test("a Practice Round that couldn't be written can be tried again from the choice", async () => {
+  const html = await open("/lessons/roundFailed");
+  assert.match(text(html), /Your Practice Round couldn(&#x27;|')t be written/);
+  assert.ok(buttons(html).includes("Try again"));
+  assert.ok(buttons(html).includes("Next lesson"));
+});
+
+test("a Practice Round is answered like the Quiz, one question at a time", async () => {
+  const t = text(await open("/lessons/inRound"));
+  assert.match(t, /Practice Round 1/);
+  assert.match(t, /Question 1 of 2/);
+  assert.match(t, /He ___ home\./);
+  assert.doesNotMatch(t, /Quiz results/);
+});
+
+test("each Practice Round has its own results, then the choice again", async () => {
+  const html = await open("/lessons/roundDone");
+  const t = text(html);
+  assert.match(t, /Practice Round 1 results/);
+  assert.match(t, /0 of 2 right/);
+  assert.match(t, /They ___ late\./);
+  assert.match(t, /Correct answer: work/);
+  assert.doesNotMatch(t, /Which is right\?/);
+  assert.ok(buttons(html).includes("Practice more"));
   assert.ok(buttons(html).includes("Next lesson"));
 });
