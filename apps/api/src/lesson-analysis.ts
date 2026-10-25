@@ -23,7 +23,7 @@ Return usedFocusItemIds only for supplied open Focus Items that their answers de
 /** Runs one `lesson_analysis` job. Generation stays outside the transaction; the Learner lock covers the writes. */
 export async function analyseLesson({ db, now, models, signal }: Ctx, lessonId: string) {
   const [row] = await db.select().from(lesson).where(eq(lesson.id, lessonId));
-  if (!row || row.contentVersion !== 2 || row.status !== "completed" || row.summary) return;
+  if (!row || row.contentVersion < 2 || row.status !== "completed" || row.summary) return;
   const open = await db
     .select({ id: schema.focusItem.id, label: schema.focusItem.label })
     .from(schema.focusItem)

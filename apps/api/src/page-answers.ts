@@ -1,8 +1,8 @@
 import { schema } from "@fluently/db";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import type { Deps } from "./app";
-import { questionBlocks, questionSchema, type Question } from "./lesson-blocks";
+import { questionAt, questionBlocks, questionSchema, type Question } from "./lesson-blocks";
 import { judgeRewrite } from "./rewrite-judge";
 import { speakResult, startAnalysis } from "./speech-answers";
 import { savePageFeedback } from "./paged-finish";
@@ -87,14 +87,13 @@ export function pageResult(q: Question, answer: unknown, verdict: Verdict | null
 export type PageResult = ReturnType<typeof pageResult>;
 
 type Verdict = "correct" | "almost" | "incorrect";
-type Stored = { question?: Question };
 type StepRow = typeof step.$inferSelect;
 
 /** Results of the answered Pages, by Page index, for the player to show again after a refresh. */
 export function answeredPages(l: typeof lesson.$inferSelect, rows: StepRow[]) {
   const out = new Map<number, PageResult>();
   for (const s of rows) {
-    const q = (l.material?.[s.position] as Stored | undefined)?.question;
+    const q = questionAt(l, s.position);
     if (q?.block === "speakPrompt" && s.answeredAt) out.set(s.position, speakResult(s.output?.answer, s));
     else if (q && s.answeredAt)
       out.set(s.position, pageResult(q, s.output?.answer, s.feedback?.verdict ?? null, s.feedback));
@@ -135,11 +134,12 @@ async function save(
     const [l] = await tx
       .select()
       .from(lesson)
-      .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), eq(lesson.contentVersion, 2)))
+      .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), gte(lesson.contentVersion, 2)))
       .for("update");
     if (!l) return { status: 404 as const, error: "Lesson not found" };
-    const q = (l.material?.[index] as Stored | undefined)?.question;
-    if (!q || l.pageStatus?.[index]?.question !== "ready" || !questionBlocks.includes(q.block))
+    const q = questionAt(l, index);
+    const ready = l.contentVersion >= 3 || l.pageStatus?.[index]?.question === "ready";
+    if (!q || !ready || !questionBlocks.includes(q.block))
       return { status: 409 as const, error: "This Page has no question yet" };
     const [prev] = await tx
       .select()
@@ -226,7 +226,7 @@ export async function setCurrentPage(db: Deps["db"], userId: string, lessonId: s
   const [l] = await db
     .select({ n: lesson.pageStatus })
     .from(lesson)
-    .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), eq(lesson.contentVersion, 2)));
+    .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), gte(lesson.contentVersion, 2)));
   if (!l || page > (l.n?.length ?? 0)) return false;
   await db.update(lesson).set({ currentPage: page }).where(eq(lesson.id, lessonId));
   return true;

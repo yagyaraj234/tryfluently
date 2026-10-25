@@ -130,7 +130,13 @@ async function learner() {
   await testDb.delete(schema.lesson).where(eq(schema.lesson.userId, l.id));
   return l;
 }
-const start = (app: any, cookie: string, p = 0) => app.request(`/api/lessons/${p}/start`, json({}, cookie));
+// These tests cover Lessons started before the end-of-Lesson Quiz (content version 2), which must keep working.
+const start = async (app: any, cookie: string, p = 0) => {
+  const res = await app.request(`/api/lessons/${p}/start`, json({}, cookie));
+  const { id } = (await res.clone().json()) as any;
+  if (id) await testDb.update(schema.lesson).set({ contentVersion: 2 }).where(eq(schema.lesson.id, id));
+  return res;
+};
 const pages = async (app: any, cookie: string, id: string) =>
   (await (await app.request(`/api/lessons/${id}/pages`, get(cookie))).json()) as any;
 

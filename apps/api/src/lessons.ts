@@ -9,7 +9,7 @@ import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { answerPage, setCurrentPage, stepsOf } from "./page-answers";
 import { retryAnalysis } from "./speech-answers";
-import { publicPages, retryLesson, startLesson } from "./paged-lessons";
+import { publicPages, publicQuiz, retryLesson, startLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
 import { completeLesson } from "./completion";
 import { finishPagedLesson } from "./paged-finish";
@@ -80,17 +80,31 @@ export const lessons = ({
       return { ...s, input, feedback: l.status === "completed" ? s.feedback : null };
     });
     const { preparationToken, ...view } = l;
-    if (l.contentVersion === 2) return { ...view, material: publicPages(l, rows), questions: [], steps: [] };
+    if (l.contentVersion >= 2)
+      return { ...view, material: publicPages(l, rows), quiz: publicQuiz(l, rows), questions: [], steps: [] };
     return { ...view, questions: safe, steps: safe };
   };
 
-  const pagesView = async (l: typeof lesson.$inferSelect) => ({
-    id: l.id,
-    preparation: l.preparation,
-    currentPage: l.currentPage,
-    status: l.status,
-    pages: publicPages(l, await stepsOf(db, l.id)),
-  });
+  const pagesView = async (l: typeof lesson.$inferSelect) => {
+    const steps = await stepsOf(db, l.id);
+    return {
+      id: l.id,
+      preparation: l.preparation,
+      currentPage: l.currentPage,
+      status: l.status,
+      pages: publicPages(l, steps),
+      quiz: publicQuiz(l, steps),
+    };
+  };
+
+  type Vars = Pick<AppEnv["Variables"], "user" | "retainAiTask">;
+  const submit = ({ user, retainAiTask }: Vars, id: string, index: number, answer: unknown) =>
+    answerPage({ db, now, models, settings }, user.id, id, index, answer, retainAiTask);
+  const reanalyse = async ({ user, retainAiTask }: Vars, id: string, index: number) => {
+    const l = await find(id, user.id);
+    if (l && l.contentVersion >= 2)
+      return retryAnalysis({ db, now, models, settings }, user.id, l.id, index, retainAiTask);
+  };
 
   const openFocus = (userId: string) =>
     db
@@ -188,12 +202,14 @@ export const lessons = ({
       // Polled while Pages are written: which are ready, with their content so far (never answer keys).
       .get("/:id/pages", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
-        return row?.contentVersion === 2 ? c.json(await pagesView(row)) : c.json({ error: "Lesson not found" }, 404);
+        return row && row.contentVersion >= 2
+          ? c.json(await pagesView(row))
+          : c.json({ error: "Lesson not found" }, 404);
       })
       // The end screen polls this: the background analysis status and, once it is done, the short summary.
       .get("/:id/analysis", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
-        if (row?.contentVersion !== 2) return c.json({ error: "Lesson not found" }, 404);
+        if (!row || row.contentVersion < 2) return c.json({ error: "Lesson not found" }, 404);
         const [work] = await db
           .select({ status: schema.assessmentJob.status })
           .from(schema.assessmentJob)
@@ -203,30 +219,22 @@ export const lessons = ({
       // Grades a paged Lesson's Page on the server and returns the verdict, correct answer and explanation straight away.
       // The `answer` shape depends on the Block (see page-answers.ts). Sending it again returns the first result.
       .post("/:id/pages/:index{[0-9]+}/answer", zValidator("json", z.object({ answer: z.unknown() })), async (c) => {
-        const r = await answerPage(
-          { db, now, models, settings },
-          c.var.user.id,
-          c.req.param("id"),
-          Number(c.req.param("index")),
-          c.req.valid("json").answer,
-          c.var.retainAiTask,
-        );
+        const r = await submit(c.var, c.req.param("id"), Number(c.req.param("index")), c.req.valid("json").answer);
+        return "error" in r ? c.json({ error: r.error }, r.status) : c.json(r.result, r.status);
+      })
+      // A Quiz or Practice Round answer (content version 3), by its index in the Quiz, under the same rules.
+      .post("/:id/quiz/:index{[0-9]+}/answer", zValidator("json", z.object({ answer: z.unknown() })), async (c) => {
+        const r = await submit(c.var, c.req.param("id"), Number(c.req.param("index")), c.req.valid("json").answer);
         return "error" in r ? c.json({ error: r.error }, r.status) : c.json(r.result, r.status);
       })
       // Tries a spoken answer's text analysis again after it failed. The saved transcript is kept as it was.
       .post("/:id/pages/:index{[0-9]+}/analyse", async (c) => {
-        const l = await find(c.req.param("id"), c.var.user.id);
-        const r =
-          l?.contentVersion === 2
-            ? await retryAnalysis(
-                { db, now, models, settings },
-                c.var.user.id,
-                l.id,
-                Number(c.req.param("index")),
-                c.var.retainAiTask,
-              )
-            : undefined;
+        const r = await reanalyse(c.var, c.req.param("id"), Number(c.req.param("index")));
         return r ? c.json(r, 202) : c.json({ error: "Nothing to analyse on this Page" }, 404);
+      })
+      .post("/:id/quiz/:index{[0-9]+}/analyse", async (c) => {
+        const r = await reanalyse(c.var, c.req.param("id"), Number(c.req.param("index")));
+        return r ? c.json(r, 202) : c.json({ error: "Nothing to analyse on this question" }, 404);
       })
       // Remembers which Page the Learner is on (0-based; the recap is one past the last Page) so a return visit resumes there.
       .patch("/:id/page", zValidator("json", z.object({ page: z.number().int().min(0) })), async (c) => {
@@ -324,7 +332,7 @@ export const lessons = ({
       .post("/:id/finish", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
         if (!row) return c.json({ error: "Lesson not found" }, 404);
-        const paged = row.contentVersion === 2;
+        const paged = row.contentVersion >= 2;
         if (paged) {
           const result = await finishPagedLesson({ db, now, settings }, row.id, row.userId);
           if (result.status === "incomplete")

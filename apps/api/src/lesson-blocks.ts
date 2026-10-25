@@ -56,6 +56,16 @@ export const questionSchema = z.discriminatedUnion("block", [
   speakPromptQuestion,
 ]);
 export type Question = z.infer<typeof questionSchema>;
+/** The question answered at `index`: a Page's in content version 2, a Quiz or Practice Round question's after that. */
+export function questionAt(
+  l: { contentVersion: number; material: unknown[] | null; quiz: { question: unknown }[] | null },
+  index: number,
+) {
+  const q =
+    l.contentVersion >= 3 ? l.quiz?.[index]?.question : (l.material?.[index] as { question?: unknown })?.question;
+  return q as Question | undefined;
+}
+
 /** Blocks that carry a question. `reading` has none. */
 export const questionBlocks: string[] = questionSchema.options.map((o) => o.shape.block.value);
 

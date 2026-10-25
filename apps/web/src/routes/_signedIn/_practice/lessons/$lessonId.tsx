@@ -8,6 +8,7 @@ import { LessonReview } from "../../../../components/lesson/LessonReview";
 import { Player } from "../../../../components/lesson/Player";
 import { PagedPlayer } from "../../../../components/lesson/PagedPlayer";
 import { PreparedPlayer } from "../../../../components/lesson/PreparedPlayer";
+import { QuizPlayer } from "../../../../components/lesson/QuizPlayer";
 import { lessonRoute } from "../../../../lib/lessons";
 import { progressQuery, roadmapQuery } from "../../../../lib/queries";
 
@@ -65,6 +66,7 @@ function LessonScreen() {
       />
     );
   // Keyed: a new Lesson (from Lesson complete's "Next Lesson") gets a fresh player.
+  if (lesson.contentVersion >= 3) return <QuizPlayer key={lesson.id} lesson={lesson} />;
   if (lesson.contentVersion === 2) return <PagedPlayer key={lesson.id} lesson={lesson} />;
   if (lesson.preparation || lesson.report) return <PreparedPlayer key={lesson.id} lesson={lesson} />;
   if (lesson.status === "in_progress") return <Player key={lesson.id} lesson={lesson} />;

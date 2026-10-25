@@ -40,8 +40,8 @@ const dot = cva("block size-3 rounded-full border border-line-strong", {
   variants: { state: { done: "bg-primary border-primary", current: "bg-ink border-ink", todo: "bg-paper" } },
 });
 
-/** One dot per Page, plus one for the recap. */
-export function PageDots({ current, total }: { current: number; total: number }) {
+/** One dot per Page, plus one for the recap (or whatever `last` names, such as the Quiz). */
+export function PageDots({ current, total, last = "Recap" }: { current: number; total: number; last?: string }) {
   return (
     <ol aria-label={`Page ${current + 1} of ${total}`} className="flex items-center justify-center gap-2">
       {Array.from({ length: total }, (_, i) => (
@@ -50,7 +50,7 @@ export function PageDots({ current, total }: { current: number; total: number })
           aria-current={i === current ? "step" : undefined}
           className={dot({ state: i < current ? "done" : i === current ? "current" : "todo" })}
         >
-          <span className="sr-only">{i === total - 1 ? "Recap" : `Page ${i + 1}`}</span>
+          <span className="sr-only">{i === total - 1 ? last : `Page ${i + 1}`}</span>
         </li>
       ))}
     </ol>
@@ -136,6 +136,7 @@ export function ReadingCard({
   example,
   keyTerms,
   glossary = [],
+  vocab,
 }: {
   title: string;
   body: string;
@@ -143,6 +144,8 @@ export function ReadingCard({
   /** Pages written before Key Terms existed have none and keep their plain reading. */
   keyTerms?: string[];
   glossary?: GlossaryTerm[];
+  /** A vocab card that teaches a term on the Page; it is not a question. */
+  vocab?: { term: string; meaning: string } | null;
 }) {
   return (
     <Card>
@@ -156,16 +159,28 @@ export function ReadingCard({
         {example && (
           <blockquote className="rounded-2xl border border-line bg-subtle p-4 text-body text-ink">{example}</blockquote>
         )}
+        {vocab && (
+          <div
+            role="group"
+            aria-label={`Vocabulary: ${vocab.term}`}
+            className="rounded-2xl border border-primary bg-primary-soft p-4"
+          >
+            <Stack gap={1}>
+              <Heading level={3}>{vocab.term}</Heading>
+              <Text>{vocab.meaning}</Text>
+            </Stack>
+          </div>
+        )}
       </Stack>
     </Card>
   );
 }
 
 /** A short placeholder while the question is still being written. */
-export function QuestionSkeleton() {
+export function QuestionSkeleton({ label = "Getting your question ready" }: { label?: string }) {
   return (
     <Card>
-      <div role="status" aria-label="Getting your question ready" className="flex flex-col gap-3">
+      <div role="status" aria-label={label} className="flex flex-col gap-3">
         <Skeleton shape="text" size="title" />
         <Skeleton shape="block" size={10} />
       </div>

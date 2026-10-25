@@ -23,7 +23,7 @@ function KnownLessonNode({ unit, lesson, onRetry, onResume }: NodeProps) {
   const planned = unit.lessonOutline?.find((l) => l.title === lesson.title);
   const skill = lesson.kind === "roleplay" ? "fluency" : (planned?.skill ?? unit.skills[0]);
   // A paged Lesson that is still being written (or failed) reopens its loading screen, which can retry it.
-  const paged = lesson.contentVersion === 2 && retry;
+  const paged = lesson.contentVersion >= 2 && retry;
   return (
     <RoadmapNode
       state={lesson.status === "completed" ? "complete" : "active"}

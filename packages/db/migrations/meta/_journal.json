@@ -127,6 +127,13 @@
       "when": 1792770435173,
       "tag": "0017_flaky_adam_destine",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792908843687,
+      "tag": "0018_perpetual_chronomancer",
+      "breakpoints": true
     }
   ]
 }

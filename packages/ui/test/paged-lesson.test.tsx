@@ -142,3 +142,16 @@ test("a Page saved before Key Terms keeps its plain reading", () => {
   expect([...document.querySelectorAll("p")].map((p) => p.textContent)).toEqual(["One line.\n\n- not a bullet"]);
   expect(document.querySelector("li")).toBeNull();
 });
+
+test("a Page can carry a vocab card that teaches a term and its meaning", () => {
+  render(
+    <ReadingCard
+      title="Commuting"
+      body="People commute."
+      keyTerms={[]}
+      vocab={{ term: "commute", meaning: "the trip to work" }}
+    />,
+  );
+  const card = screen.getByRole("group", { name: "Vocabulary: commute" });
+  expect(card.textContent).toContain("the trip to work");
+});
