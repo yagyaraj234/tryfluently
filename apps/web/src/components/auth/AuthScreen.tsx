@@ -5,6 +5,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../../lib/api";
 import { signInWithGoogle } from "../../lib/auth";
+import { PublicLinks } from "../landing/PublicLinks";
 
 export const loadProviders = async () => (await api().api.auth.providers.$get()).json();
 
@@ -133,6 +134,23 @@ export function AuthScreen(props: {
           <Button type="submit" fullWidth disabled={pending}>
             {props.submitLabel}
           </Button>
+          {signingUp && (
+            <Text tone="muted">
+              Free beta. 10 live voice minutes/month; text practice remains available. No card or automatic charge.{" "}
+              <TextLink render={<Link to="/" hash="free" />}>See current limits</TextLink>. Prefer a preview?{" "}
+              <TextLink render={<Link to="/demo" />}>Try the sample</TextLink>.
+            </Text>
+          )}
+          <Text tone="muted">
+            {signingUp
+              ? "By creating an account, you agree to the Terms. See Privacy for voice processing, storage and deletion."
+              : "Read how Fluently handles your account and voice data."}
+          </Text>
+          <nav aria-label="Legal and support">
+            <Cluster gap={4}>
+              <PublicLinks />
+            </Cluster>
+          </nav>
         </Stack>
       </form>
     </AuthLayout>

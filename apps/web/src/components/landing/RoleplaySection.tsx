@@ -7,7 +7,7 @@ export function RoleplaySection() {
       id="roleplay"
       pill="Roleplay"
       title="Practise the conversation, then see what to fix"
-      description="The AI plays the other person and stays in character. When it ends, you get feedback that shows what to say instead, with a recording of how it sounds."
+      description="Rehearse a work call or everyday situation with an AI partner. Finish with a Debrief of corrections to practise."
       points={[
         {
           icon: Microphone,

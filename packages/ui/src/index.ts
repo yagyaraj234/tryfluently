@@ -163,3 +163,7 @@ export {
 } from "./Learning";
 
 export { ProgressOverview, ProgressCheckIn, SkillProgressCard, type SkillProgressCardProps } from "./ProgressOverview";
+
+export { MarketingSample } from "./MarketingSample";
+export { MarketingOffer } from "./MarketingOffer";
+export { MarketingDocument, MarketingCaption } from "./Marketing";

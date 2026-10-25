@@ -1,8 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { signUp } from "../lib/auth";
 import { AuthFooter, AuthScreen, loadProviders } from "../components/auth/AuthScreen";
+import { publicPageHead } from "../lib/site";
 
-export const Route = createFileRoute("/sign-up")({ loader: loadProviders, component: SignUp });
+export const Route = createFileRoute("/sign-up")({
+  head: () =>
+    publicPageHead(
+      "/sign-up",
+      "Create a free account",
+      "Start with a Voice or Written Assessment. Free beta with 10 live voice minutes per month and no card needed.",
+    ),
+  loader: loadProviders,
+  component: SignUp,
+});
 
 function SignUp() {
   const { google } = Route.useLoaderData();

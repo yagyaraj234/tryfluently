@@ -9,6 +9,28 @@ import { Stack } from "./Stack";
 import { Text } from "./Text";
 
 export const liftCardClasses = `${cardClasses} min-w-0 motion-safe:transition motion-safe:duration-ui motion-safe:ease-press hover:-translate-y-0.5 hover:shadow-lift`;
+
+export function MarketingDocument({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mx-auto grid max-w-180 gap-6 py-12 sm:py-16 [&_h2]:text-2xl [&_h2]:font-bold [&_p]:leading-relaxed [&_section]:grid [&_section]:gap-3">
+      <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">{title}</h1>
+      <p className="text-lg text-muted">{description}</p>
+      {children}
+    </div>
+  );
+}
+
+export function MarketingCaption({ children }: { children: ReactNode }) {
+  return <p className="mt-5 text-center text-sm text-muted">{children}</p>;
+}
 const wrap = "mx-auto w-full max-w-page";
 const h2 = "mx-auto max-w-[20ch] text-center text-4xl leading-none font-bold tracking-tight text-balance sm:text-5xl";
 const h3 = "text-xl font-bold tracking-tight";
@@ -33,10 +55,19 @@ export type MarketingShellProps = {
   startLabel: string;
   home: ReactElement;
   footerText: string;
+  footerLinks?: ReactNode;
   children?: ReactNode;
 };
 
-export function MarketingShell({ links, start, startLabel, home, footerText, children }: MarketingShellProps) {
+export function MarketingShell({
+  links,
+  start,
+  startLabel,
+  home,
+  footerText,
+  footerLinks,
+  children,
+}: MarketingShellProps) {
   return (
     <div className="min-h-dvh overflow-x-clip bg-canvas px-4 text-ink">
       <a
@@ -49,7 +80,7 @@ export function MarketingShell({ links, start, startLabel, home, footerText, chi
       <main id="main" className={wrap}>
         {children}
       </main>
-      <MarketingFooter links={links} footerText={footerText} />
+      <MarketingFooter links={links} footerText={footerText} footerLinks={footerLinks} />
     </div>
   );
 }
@@ -59,7 +90,7 @@ function MarketingNav({ links, start, startLabel, home }: Omit<MarketingShellPro
   const anchors = links.map((l) => (
     <a
       key={l.href}
-      className="hidden min-h-8 items-center font-medium text-muted transition-colors hover:text-ink sm:inline-flex"
+      className="hidden min-h-8 items-center font-medium whitespace-nowrap text-muted transition-colors hover:text-ink md:inline-flex"
       href={l.href}
     >
       {l.label}
@@ -68,7 +99,7 @@ function MarketingNav({ links, start, startLabel, home }: Omit<MarketingShellPro
   return (
     <header className="sticky top-0 z-sticky flex justify-center pt-3.5">
       <nav
-        className="flex items-center justify-between gap-4 rounded-full border border-line bg-paper/72 py-2 pr-2 pl-5 text-sm shadow-card backdrop-blur-lg backdrop-saturate-180 max-sm:w-full sm:gap-7 reduce-transparency:bg-paper reduce-transparency:backdrop-blur-none"
+        className="flex items-center justify-between gap-4 rounded-full border border-line bg-paper/72 py-2 pr-2 pl-5 text-sm shadow-card backdrop-blur-lg backdrop-saturate-180 max-md:w-full md:gap-7 reduce-transparency:bg-paper reduce-transparency:backdrop-blur-none"
         aria-label="Main"
       >
         {homeLink}
@@ -81,7 +112,11 @@ function MarketingNav({ links, start, startLabel, home }: Omit<MarketingShellPro
   );
 }
 
-function MarketingFooter({ links, footerText }: Pick<MarketingShellProps, "links" | "footerText">) {
+function MarketingFooter({
+  links,
+  footerText,
+  footerLinks,
+}: Pick<MarketingShellProps, "links" | "footerText" | "footerLinks">) {
   const anchors = links.map((l) => (
     <a key={l.href} className="transition-colors hover:text-ink" href={l.href}>
       {l.label}
@@ -95,6 +130,7 @@ function MarketingFooter({ links, footerText }: Pick<MarketingShellProps, "links
       </div>
       <nav className="flex flex-wrap items-start gap-x-4 gap-y-2 sm:gap-x-5.5" aria-label="Footer">
         {anchors}
+        {footerLinks}
       </nav>
     </footer>
   );
@@ -108,6 +144,7 @@ export type MarketingHeroProps = {
   cta: ReactElement;
   ctaLabel: string;
   note: string;
+  secondaryCta?: ReactNode;
   children?: ReactNode;
 };
 
@@ -130,7 +167,7 @@ function HeroTitle({ title, emphasis }: { title: string; emphasis: string }) {
   return (
     <h1
       id="hero-title"
-      className={`max-w-[14ch] text-5xl leading-none font-bold tracking-tighter text-balance sm:text-6xl lg:text-7xl ${rise[1]}`}
+      className={`max-w-[22ch] text-5xl leading-none font-bold tracking-tighter text-balance sm:text-6xl lg:text-7xl ${rise[1]}`}
     >
       {title}{" "}
       <em className="relative inline-block text-primary not-italic">
@@ -165,6 +202,7 @@ export function MarketingHero({
   cta,
   ctaLabel,
   note,
+  secondaryCta,
   children,
 }: MarketingHeroProps) {
   return (
@@ -186,6 +224,7 @@ export function MarketingHero({
           <Button glow render={cta}>
             {ctaLabel}
           </Button>
+          {secondaryCta}
           <span className={fine}>{note}</span>
         </div>
       </section>
@@ -297,7 +336,7 @@ export function Feature({ id, pill, title, description, points, flip, children }
   const copyOrder = flip ? "md:order-2" : "";
   return (
     <section
-      className="grid items-center gap-6 py-10 sm:gap-12 sm:py-16 md:grid-cols-2 lg:gap-18 lg:py-20"
+      className="grid items-center gap-6 py-8 sm:gap-10 sm:py-10 md:grid-cols-2 lg:gap-14 lg:py-12"
       id={id}
       aria-labelledby={`${id}-title`}
     >

@@ -1,5 +1,7 @@
 import {
   Faq,
+  MarketingCaption,
+  TextLink,
   FinalCta,
   floatChips,
   GoalsStrip,
@@ -14,7 +16,9 @@ import {
 } from "@fluently/ui";
 import { createFileRoute, isRedirect, Link, redirect } from "@tanstack/react-router";
 import { AssessmentSection } from "../components/landing/AssessmentSection";
-import { MoreWaysSection } from "../components/landing/MoreWaysSection";
+import { FreeSection } from "../components/landing/FreeSection";
+import { TrustSection } from "../components/landing/TrustSection";
+import { PublicLinks } from "../components/landing/PublicLinks";
 import { RoadmapSection } from "../components/landing/RoadmapSection";
 import { RoleplaySection } from "../components/landing/RoleplaySection";
 import { faqs, site } from "../content/landing";
@@ -23,9 +27,8 @@ import { siteOrigin } from "../lib/site";
 
 const nav = [
   { label: "How it works", href: "#how" },
-  { label: "Assessment", href: "#assessment" },
-  { label: "Roadmap", href: "#roadmap" },
-  { label: "Roleplay", href: "#roleplay" },
+  { label: "Free beta", href: "#free" },
+  { label: "Why Fluently", href: "#trust" },
   { label: "FAQ", href: "#faq" },
 ];
 
@@ -57,7 +60,7 @@ function structuredData(origin: string) {
         },
         featureList: [
           "Voice or written English assessment of up to 10 minutes",
-          "CEFR level (A1 to C2) for fluency, grammar and vocabulary",
+          "Estimated CEFR levels for measured skills; written Assessments do not measure spoken fluency",
           "Adaptive Roadmap of Units and Lessons",
           "Roleplays that stay in character, with a Debrief",
           "Reference pronunciation for words and corrections",
@@ -116,15 +119,17 @@ function Landing() {
       start={start}
       startLabel="Start free"
       footerText="An AI coach for speaking and writing English."
+      footerLinks={<PublicLinks />}
     >
       <MarketingHero
-        badge="AI language coach"
-        title="Lessons that change"
-        emphasis="as you do."
-        description="Say exactly what you mean, in English. Talk or type, and get feedback on every answer."
+        badge="AI English coach · Free beta"
+        title="Speak English confidently"
+        emphasis="with lessons built around you."
+        description="Practise work calls, interviews and everyday conversations. Get feedback on your English and Lessons shaped by your Goals."
         cta={start}
         ctaLabel="Start your free assessment"
-        note="Voice or written. No card needed."
+        note="Free beta. 10 live voice minutes/month. No card needed."
+        secondaryCta={<TextLink render={<Link to="/demo" />}>Try a 1-minute sample — no signup</TextLink>}
       >
         <ProductFrame
           label="Fluently preview: a Roleplay, an Assessment Report and a Roadmap"
@@ -138,19 +143,23 @@ function Landing() {
         </ProductFrame>
       </MarketingHero>
 
+      <MarketingCaption>
+        Illustrative product previews. Your feedback and Roadmap will depend on your answers.
+      </MarketingCaption>
+
       <GoalsStrip label="Whatever you want English for" goals={["Work", "Study", "Travel", "Everyday life"]} />
 
       <HowItWorks
         id="how"
-        title="Three steps to your first Lesson"
+        title="Your path to daily practice"
         steps={[
           {
             title: "Set a Goal",
-            body: "Choose what you want to use English for. Add details about your work or daily life so Lessons use your own examples.",
+            body: "Work, study or daily life: choose what you want to practise.",
           },
           {
             title: "Take the Assessment",
-            body: "Talk or type for up to 10 minutes. Your coach scores fluency, grammar and vocabulary.",
+            body: "Talk or type for up to 10 minutes to find your starting point.",
           },
           { title: "Follow your Roadmap", body: "Short Lessons and Roleplays. Each one uses how you did in the last." },
         ]}
@@ -162,13 +171,15 @@ function Landing() {
 
       <RoleplaySection />
 
-      <MoreWaysSection />
+      <TrustSection />
+
+      <FreeSection />
 
       <Faq id="faq" title="Questions before you start" items={faqs} />
 
       <FinalCta
-        title="Your next conversation gets easier"
-        description="Start with the free assessment and get a Roadmap based on how you speak."
+        title="Make time for your next conversation"
+        description="Start with a Voice or Written Assessment and get a Roadmap based on your answers. Free during beta, with clear voice limits."
         cta={start}
         ctaLabel="Start your free assessment"
       />
