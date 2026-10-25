@@ -98,7 +98,7 @@ function fakeLessonModel(
         reply = questions(body.pages, ++questionAttempts);
       } else {
         const slice = JSON.parse(options.prompt.at(-1).content[0].text);
-        calls.writers.push(slice);
+        calls.writers.push({ ...slice, system });
         const n = slice.page;
         attempts.set(n, (attempts.get(n) ?? 0) + 1);
         reply = page(n, attempts.get(n)!);
@@ -177,6 +177,10 @@ test("a Page that fails its checks retries alone and then lands", async () => {
   expect((await pages(app, cookie, id)).preparation).toBe("ready");
   expect(fake.attempts.get(3)).toBe(3);
   expect(fake.attempts.get(1)).toBe(1);
+  // Each retry is told why the last attempt was rejected; the first attempt is not.
+  const page3 = fake.calls.writers.filter((w) => w.page === 3).map((w) => w.system);
+  expect(page3[0]).not.toContain("previous attempt was rejected");
+  expect(page3[1]).toContain('rejected: answerKey appears in the reading (answerKey \\"goes3\\")');
 });
 
 test("a Page that keeps failing fails the Lesson, and Retry runs it again", async () => {
