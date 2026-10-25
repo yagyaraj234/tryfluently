@@ -215,7 +215,7 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
     return reviewing ? (
       <LessonFrame
         actions={
-          <Button raised fullWidth variant="secondary" onClick={() => setReviewing(false)}>
+          <Button fullWidth variant="secondary" onClick={() => setReviewing(false)}>
             Back to summary
           </Button>
         }
@@ -346,13 +346,13 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
       actions={
         <LessonNav
           back={
-            <Button raised fullWidth variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
+            <Button fullWidth variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
               Back
             </Button>
           }
           next={
             index < quizAt && (
-              <Button raised fullWidth disabled={page?.status !== "ready"} onClick={() => go(index + 1)}>
+              <Button fullWidth disabled={page?.status !== "ready"} onClick={() => go(index + 1)}>
                 {index === quizAt - 1 ? "Start the Quiz" : "Next"}
               </Button>
             )

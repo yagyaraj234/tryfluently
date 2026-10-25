@@ -313,8 +313,9 @@
       --color-primary: #8cc4ff;
       --color-on-primary: #0b1240;
       --color-primary-soft: #1d2550;
-      --color-brand-soft: #1d2550;
-      --color-brand-soft-edge: #2b3a78;
+      --color-brand-soft: #2b3a8f;
+      --color-brand-soft-edge: #1a2266;
+      --color-bevel-hi: rgb(255 255 255 / 0.14);
       --color-path-locked: #33332f;
       --color-star: #ffd24d;
       --color-live: #ff6b98;

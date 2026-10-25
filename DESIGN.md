@@ -62,13 +62,13 @@ Cobalt panels (the auth story panel, the Roleplay preview, the closing call to a
 
 The Roadmap is the one game-like screen. Its Lesson buttons are raised brand-coloured buttons on a road: the Lesson up next is solid `brand-mid` with a sky ring and a bobbing "Start" tag, finished Lessons are a soft brand tint with their stars, and locked Lessons are grey with a lock on grey dots. Finished Lessons use brand colours rather than `correct`, because finishing a Lesson isn't a verdict.
 
-| Token                   | Light                 | Dark      | Use                                                                                        |
-| ----------------------- | --------------------- | --------- | ------------------------------------------------------------------------------------------ |
-| `brand-soft`            | `#E3EAFF`             | `#1D2550` | A finished Lesson's button                                                                 |
-| `brand-soft-edge`       | `#B3C3FA`             | `#2B3A78` | Its rim and lip                                                                            |
-| `path-locked`           | `#DCDEE3`             | `#33332F` | The dotted road ahead, and a locked Lesson's rim                                           |
-| `star`                  | `#E0A400`             | `#FFD24D` | The 1–3 stars under a finished Lesson (from its objective progress: 90+ is three, 80+ two) |
-| `bevel-hi` / `bevel-lo` | white 30% / black 12% | same      | Light on a raised button's top edge, shade on its foot                                     |
+| Token                   | Light                 | Dark             | Use                                                                                        |
+| ----------------------- | --------------------- | ---------------- | ------------------------------------------------------------------------------------------ |
+| `brand-soft`            | `#E3EAFF`             | `#2B3A8F`        | A finished Lesson's button                                                                 |
+| `brand-soft-edge`       | `#B3C3FA`             | `#1A2266`        | Its rim and lip                                                                            |
+| `path-locked`           | `#DCDEE3`             | `#33332F`        | The dotted road ahead, and a locked Lesson's rim                                           |
+| `star`                  | `#E0A400`             | `#FFD24D`        | The 1–3 stars under a finished Lesson (from its objective progress: 90+ is three, 80+ two) |
+| `bevel-hi` / `bevel-lo` | white 30% / black 12% | white 14% / same | Light on a raised button's top edge, shade on its foot                                     |
 
 ### Live voice
 
@@ -235,7 +235,7 @@ Form controls work controlled or uncontrolled (`defaultValue`, `defaultChecked`)
 
 How they look:
 
-- **Button:** a pill, semibold, at least 44px tall. `primary` is cobalt with `on-primary` text; `secondary` is paper with a hairline and `shadow-card`; `inverse` is white on a cobalt panel. `size="sm"` is the nav size. `glow` adds the ring and cobalt glow for a page's one main call to action. `raised` is the game-like look from the Roadmap (a 2px rim, a solid lip it presses into, uppercase bold label): a Lesson's Back / Next sit in `LessonNav` at the foot of the screen, Back a quarter of the row and Next the rest.
+- **Button:** a pill, semibold, at least 44px tall. `primary` is cobalt with `on-primary` text; `secondary` is paper with a hairline and `shadow-card`; `inverse` is white on a cobalt panel. `size="sm"` is the nav size. `glow` adds the ring and cobalt glow for a page's one main call to action. A Lesson's Back / Next are plain buttons in `LessonNav` at the foot of the screen, Back a quarter of the row and Next the rest; the raised, game-like look stays on the Roadmap.
 - **Card:** paper, `rounded-3xl`, hairline, `shadow-card`. The same classes (`cardClasses`) build the landing page's cards, so they can't drift.
 - **TextField / TextArea / Select:** paper fill, `line-strong` border, `rounded-xl`. Focus shows the global 2px cobalt ring, offset by 2px.
 - **ChoiceChips:** outlined pills; a picked chip fills with `primary-soft` and takes a cobalt border.
