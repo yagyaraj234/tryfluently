@@ -77,7 +77,7 @@ export function fakeQuizModel({
   quiz?: (pages: any[]) => object;
   rounds?: (call: number, body: any) => object;
 } = {}) {
-  const calls = { planner: 0, writers: [] as any[], quiz: [] as any[], rounds: [] as any[] };
+  const calls = { planner: 0, plans: [] as any[], writers: [] as any[], quiz: [] as any[], rounds: [] as any[] };
   const model = new MockLanguageModelV4({
     doGenerate: async (options: any) => {
       const system = JSON.stringify(options.prompt);
@@ -85,11 +85,14 @@ export function fakeQuizModel({
       let reply: object;
       if (system.includes("Plan one short English Lesson")) {
         calls.planner++;
+        calls.plans.push(body);
         reply = { focus: "Describe your routine.", keyExample: "Maya's commute", pages: plans(calls.planner) };
       } else if (system.includes("You check one English rewrite exercise")) {
         reply = { verdict: "almost", corrected: "I go.", explanation: "Use go with I." };
       } else if (system.includes("spoken answer")) {
         reply = { verdict: "correct", feedback: "Clear and on topic." };
+      } else if (system.includes("You are an examiner")) {
+        reply = { summary: "You mixed up go and goes.", focusItems: null, usedFocusItemIds: null };
       } else if (system.includes("Write a Practice Round")) {
         calls.rounds.push(body);
         reply = rounds(calls.rounds.length, body);
@@ -126,7 +129,8 @@ export const answer = (app: any, cookie: string, id: string, i: number, body: un
 /** A started Lesson with its Pages and Quiz written. */
 export async function readyLesson(fake = fakeQuizModel(), overrides: Parameters<typeof makeApp>[0] = {}) {
   const l = await learner();
-  const app = makeApp({ models: { step: fake.model }, ...overrides });
+  // The same fake plays the analysis that Next lesson and Learn more queue.
+  const app = makeApp({ models: { step: fake.model, judge: fake.model }, ...overrides });
   const { id } = (await (await start(app, l.cookie)).json()) as any;
   await app.runJobs(l.id);
   return { ...l, app, lessonId: id, fake };

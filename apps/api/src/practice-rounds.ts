@@ -4,8 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import { publicQuestion, questionAt, questionProblem, questionSchema, type Question } from "./lesson-blocks";
-import { answeredPages, stepsOf } from "./page-answers";
+import { promptOf, publicQuestion, questionProblem, questionSchema, type Question } from "./lesson-blocks";
+import { mistakesOf, stepsOf } from "./page-answers";
 import { QUIZ_VERSION } from "./paged-lessons";
 
 const { lesson, step, assessmentJob: job } = schema;
@@ -21,7 +21,6 @@ const norm = (s: string) =>
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
-const promptOf = (q: Question) => ("prompt" in q ? q.prompt : q.term);
 
 /** Cheap rules on a round: 5 questions, checked like the Quiz's, none repeating an earlier one or each other. */
 function roundProblem(questions: Question[], asked: Question[]) {
@@ -77,11 +76,7 @@ export async function writePracticeRound(ctx: Ctx, lessonId: string, attempt: nu
   const fail = () => db.update(lesson).set({ practice: "failed" }).where(waiting);
   try {
     const asked = (l.quiz ?? []).map((q) => q.question as Question);
-    const mistakes = [...answeredPages(l, await stepsOf(db, l.id))].flatMap(([i, r]) =>
-      r.verdict === "incorrect" || r.verdict === "almost"
-        ? [{ prompt: promptOf(questionAt(l, i)!), answer: r.answer, correctAnswer: r.correctAnswer }]
-        : [],
-    );
+    const mistakes = mistakesOf(l, await stepsOf(db, l.id));
     const pages = (l.material ?? []).map((p: any) => ({
       title: p.title,
       body: p.body,

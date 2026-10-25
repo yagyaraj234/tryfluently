@@ -34,6 +34,7 @@ const lesson = (id, currentPage, quiz, over = {}) => ({
   questions: [],
   material: [page(0), page(1, { vocab: { term: "commute", meaning: "the trip to work" } })],
   quiz,
+  learnMore: true,
   ...over,
 });
 const roundItem = (index, prompt, result) => ({
@@ -60,6 +61,7 @@ const lessons = {
     roundItem(2, "He ___ home.", { ...wrong, answer: "go" }),
     roundItem(3, "They ___ late.", { ...wrong, answer: "works", correctAnswer: "work" }),
   ]),
+  lastInChain: lesson("lastInChain", 2, quizDone, { learnMore: false }),
   leftAtChoice: lesson("leftAtChoice", 0, [item(0, fillGap, wrong), item(1, choice, right)]),
 };
 
@@ -166,4 +168,14 @@ test("each Practice Round has its own results, then the choice again", async () 
   assert.doesNotMatch(t, /Which is right\?/);
   assert.ok(buttons(html).includes("Practice more"));
   assert.ok(buttons(html).includes("Next lesson"));
+});
+
+test("the choice offers Learn more, but not from the last Follow-up Lesson a chain allows", async () => {
+  assert.deepEqual(
+    buttons(await open("/lessons/results")).filter((b) => /Practice more|Learn more|Next lesson/.test(b)),
+    ["Practice more", "Learn more", "Next lesson"],
+  );
+  const last = buttons(await open("/lessons/lastInChain"));
+  assert.ok(!last.includes("Learn more"));
+  assert.ok(last.includes("Practice more") && last.includes("Next lesson"));
 });

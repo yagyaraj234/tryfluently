@@ -1,4 +1,4 @@
-import { schema } from "@fluently/db";
+import { schema, type Tx } from "@fluently/db";
 import { Output } from "ai";
 import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -14,6 +14,7 @@ import {
 } from "./lesson-blocks";
 import { waitForAnalysis, type Clock } from "./lesson-analysis";
 import { answeredPages } from "./page-answers";
+import { followUpBrief } from "./follow-up-lessons";
 import { skillProfile } from "./scoring";
 
 const { lesson, unit, goal, focusItem, learnerMemory, assessmentJob: job } = schema;
@@ -158,7 +159,7 @@ const pending = (n: number) =>
   Array.from({ length: n }, () => ({ page: "pending" as const, question: "pending" as const }));
 
 /** Reserves the Learner's next outlined Lesson and queues its generation. Starting twice returns the same Lesson. */
-export async function startLesson({ db, now }: Pick<Deps, "db" | "now">, userId: string, position: number) {
+export async function startLesson({ db, now }: { db: Tx; now: Deps["now"] }, userId: string, position: number) {
   return db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
     const [active] = await tx
@@ -461,7 +462,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
     else {
       // The last Lesson's analysis feeds this plan; give it a few seconds, then go on with what exists.
       await waitForAnalysis(db, row.userId, { clock: ctx.clock });
-      const [[active], goals, focus, memory, profile] = await Promise.all([
+      const [[active], goals, focus, memory, profile, followUp] = await Promise.all([
         db.select().from(unit).where(eq(unit.id, row.unitId!)),
         db
           .select({ statement: goal.statement, brief: goal.brief, targetLevels: goal.targetLevels })
@@ -473,13 +474,17 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
           .where(and(eq(focusItem.userId, row.userId), eq(focusItem.status, "open"))),
         db.select().from(learnerMemory).where(eq(learnerMemory.userId, row.userId)),
         skillProfile(db, row.userId),
+        quiz ? followUpBrief(db, row) : undefined,
       ]);
       const each = quiz
         ? `Each Page only teaches one idea; set "vocabCard" when a key word or phrase on it deserves a vocab card. Give each Page 1-3 "questions" for the end-of-Lesson Quiz (${quizBlocks.join(", ")}), more where the idea is dense or the Learner is weak on that skill, and at most ${MAX_QUIZ} in the whole Lesson.`
         : `Each Page teaches one idea and uses one Block type (${blockTypes.join(", ")}).`;
+      const again = followUp
+        ? ` This is a Follow-up Lesson: re-teach the same objective from a different angle than the Lesson before it, aimed at the Learner's mistakes there and their note on what confused them.`
+        : "";
       const { output: plan } = await generate(ctx, row.userId, {
         ...base,
-        instructions: `Plan one short English Lesson of exactly ${total} Pages. ${each} Give the Lesson one through-line and a "focus": one sentence on the single thing the Learner can do by the end. Pick a "keyExample", one short scenario every Page reuses. One distinct idea per Page, no filler Pages, nothing repeated. Build up from simple to practised, never drifting off the Lesson title and objective, and adapt to the Learner's evidence, Focus Items and memory.`,
+        instructions: `Plan one short English Lesson of exactly ${total} Pages.${again} ${each} Give the Lesson one through-line and a "focus": one sentence on the single thing the Learner can do by the end. Pick a "keyExample", one short scenario every Page reuses. One distinct idea per Page, no filler Pages, nothing repeated. Build up from simple to practised, never drifting off the Lesson title and objective, and adapt to the Learner's evidence, Focus Items and memory.`,
         prompt: JSON.stringify({
           unit: { title: active?.title, objective: active?.objective },
           lesson: { title: row.title, objective: row.objective },
@@ -487,6 +492,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
           skillProfile: profile,
           focusItems: focus.map((f) => f.label),
           learnerMemory: memory[0]?.summary ?? "",
+          ...(followUp && { followUp }),
         }),
         output: quiz ? Output.object({ schema: quizPlanOutput }) : Output.object({ schema: planOutput }),
       });

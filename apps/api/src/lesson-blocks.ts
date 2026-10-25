@@ -66,6 +66,9 @@ export function questionAt(
   return q as Question | undefined;
 }
 
+/** What a question asks, for comparing questions and telling the model about them. */
+export const promptOf = (q: Question) => ("prompt" in q ? q.prompt : q.term);
+
 /** Blocks that carry a question. `reading` has none. */
 export const questionBlocks: string[] = questionSchema.options.map((o) => o.shape.block.value);
 

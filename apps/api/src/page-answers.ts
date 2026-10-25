@@ -2,7 +2,7 @@ import { schema } from "@fluently/db";
 import { and, asc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import type { Deps } from "./app";
-import { questionAt, questionBlocks, questionSchema, type Question } from "./lesson-blocks";
+import { promptOf, questionAt, questionBlocks, questionSchema, type Question } from "./lesson-blocks";
 import { judgeRewrite } from "./rewrite-judge";
 import { speakResult, startAnalysis } from "./speech-answers";
 import { savePageFeedback } from "./paged-finish";
@@ -99,6 +99,15 @@ export function answeredPages(l: typeof lesson.$inferSelect, rows: StepRow[]) {
       out.set(s.position, pageResult(q, s.output?.answer, s.feedback?.verdict ?? null, s.feedback));
   }
   return out;
+}
+
+/** The questions the Learner got wrong or nearly right, with their answer and the correct one. */
+export function mistakesOf(l: typeof lesson.$inferSelect, steps: StepRow[]) {
+  return [...answeredPages(l, steps)].flatMap(([i, r]) =>
+    r.verdict === "incorrect" || r.verdict === "almost"
+      ? [{ prompt: promptOf(questionAt(l, i)!), answer: r.answer, correctAnswer: r.correctAnswer }]
+      : [],
+  );
 }
 
 /**

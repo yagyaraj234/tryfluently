@@ -11,6 +11,7 @@ import { answerPage, setCurrentPage, stepsOf } from "./page-answers";
 import { retryAnalysis } from "./speech-answers";
 import { publicPages, publicQuiz, retryLesson, startLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
+import { canLearnMore, learnMore } from "./follow-up-lessons";
 import { requestPracticeRound } from "./practice-rounds";
 import { completeLesson } from "./completion";
 import { finishPagedLesson } from "./paged-finish";
@@ -82,7 +83,14 @@ export const lessons = ({
     });
     const { preparationToken, ...view } = l;
     if (l.contentVersion >= 2)
-      return { ...view, material: publicPages(l, rows), quiz: publicQuiz(l, rows), questions: [], steps: [] };
+      return {
+        ...view,
+        material: publicPages(l, rows),
+        quiz: publicQuiz(l, rows),
+        learnMore: l.contentVersion >= 3 && (await canLearnMore(db, l)),
+        questions: [],
+        steps: [],
+      };
     return { ...view, questions: safe, steps: safe };
   };
 
@@ -96,6 +104,7 @@ export const lessons = ({
       pages: publicPages(l, steps),
       quiz: publicQuiz(l, steps),
       practice: l.practice,
+      learnMore: l.contentVersion >= 3 && (await canLearnMore(db, l)),
     };
   };
 
@@ -204,6 +213,18 @@ export const lessons = ({
           ? c.json(await pagesView((await find(c.req.param("id"), c.var.user.id))!), 202)
           : c.json({ error: r.error }, r.status);
       })
+      // Learn more: completes this Lesson and starts a Follow-up Lesson right after it, aimed at the Learner's
+      // mistakes and their optional note on what confused them.
+      .post(
+        "/:id/learn-more",
+        zValidator("json", z.object({ note: z.string().trim().max(500).optional() })),
+        async (c) => {
+          const note = c.req.valid("json").note || null;
+          const r = await learnMore({ db, now, settings }, c.var.user.id, c.req.param("id"), note);
+          if (r.status !== 201) return c.json({ error: r.error }, r.status);
+          return c.json({ ...(await pagesView(r.lesson)), position: r.lesson.position }, 201);
+        },
+      )
       .post("/:id/retry", async (c) => {
         const r = await retryLesson({ db, now }, c.var.user.id, c.req.param("id"));
         return r ? c.json(await pagesView(r), 202) : c.json({ error: "Only a failed Lesson can be retried" }, 409);
