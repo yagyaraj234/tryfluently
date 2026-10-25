@@ -42,7 +42,15 @@ export const planOutput = z.object({
   pages: z.array(z.object({ idea: text, block: z.enum(blockTypes) })).min(1),
 });
 // answerKey is what the later question for this Page is graded on; it is never sent to the Learner.
-export const pageOutput = z.object({ title: text, body: text, example: text.nullable(), answerKey: text.nullable() });
+// keyTerms (shown bold) and glossary terms (shown with a definition) must appear word for word in the body.
+export const pageOutput = z.object({
+  title: text,
+  body: text,
+  example: text.nullable(),
+  answerKey: text.nullable(),
+  keyTerms: z.array(text),
+  glossary: z.array(z.object({ term: text, definition: text })),
+});
 type PageOutput = z.infer<typeof pageOutput>;
 
 const norm = (s: string) =>
@@ -60,6 +68,12 @@ export function pageProblem(
   others: { ideas: string[]; written: PageOutput[] } = { ideas: [], written: [] },
 ) {
   if (words(`${page.body} ${page.example ?? ""}`) > WORD_CAP) return `over ${WORD_CAP} words`;
+  if (page.keyTerms.length < 2 || page.keyTerms.length > 4) return "needs 2 to 4 Key Terms";
+  if (page.glossary.length > 3) return "at most 3 Glossary Terms";
+  const missing = page.keyTerms.find((t) => !hasPhrase(page.body, t));
+  if (missing) return `Key Term ${JSON.stringify(missing)} is not in the body`;
+  const unknown = page.glossary.find((g) => !hasPhrase(page.body, g.term));
+  if (unknown) return `Glossary Term ${JSON.stringify(unknown.term)} is not in the body`;
   const key = page.answerKey?.trim();
   if (needsKey.has(block) && !key) return "missing answerKey";
   if (key) {
@@ -94,7 +108,14 @@ export function publicPages(l: typeof lesson.$inferSelect, steps: (typeof schema
       ...(answered.has(i) && { result: answered.get(i) }),
       ...(s.question === "ready" && page?.question && { questionData: publicQuestion(page.question) }),
       ...(s.page === "ready" &&
-        page && { title: page.title, body: page.body, example: page.example, block: page.block }),
+        page && {
+          title: page.title,
+          body: page.body,
+          example: page.example,
+          block: page.block,
+          // Pages written before Key Terms existed have none and keep their plain reading.
+          ...(page.keyTerms && { keyTerms: page.keyTerms, glossary: page.glossary ?? [] }),
+        }),
     };
   });
 }
@@ -385,7 +406,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
         try {
           const { output } = await generate(ctx, row.userId, {
             ...base,
-            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} You write Page ${i + 1} of ${total}. Cover only your idea, for this Block type: ${slice.block}. The other Pages cover the rest, so do not repeat them. Stay on the Lesson focus and reuse the keyExample. Plain text only: no markdown, asterisks or underscores for emphasis. The "example" is a model sentence to read, never an exercise or instruction. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).${feedback}`,
+            instructions: `Write one Page of an English Lesson in at most ${WORD_CAP} words in total. ${hint} You write Page ${i + 1} of ${total}. Cover only your idea, for this Block type: ${slice.block}. The other Pages cover the rest, so do not repeat them. Stay on the Lesson focus and reuse the keyExample. Plain text only: no markdown, asterisks or underscores for emphasis. Split the body into short paragraphs separated by a blank line; a line starting with "- " is a bullet. Give 2-4 keyTerms, the phrases this Page teaches, and up to 3 glossary entries for words the Learner may not know, each with a short plain definition; every keyTerm and glossary term must appear word for word in the body. The "example" is a model sentence to read, never an exercise or instruction. The reading must teach without containing the answerKey, the exact word or phrase the Learner will later be asked for (null for reading, vocabCard, rewrite and speakPrompt).${feedback}`,
             prompt: JSON.stringify({
               lesson: row.title,
               focus: lessonFocus,
@@ -405,7 +426,7 @@ export async function generateLesson(ctx: Ctx, lessonId: string, attempt: number
           if (problem) {
             const key = page.answerKey ? ` (answerKey ${JSON.stringify(page.answerKey)})` : "";
             console.error(`Lesson ${lessonId} page ${i + 1} attempt ${tries + 1} rejected: ${problem}${key}`);
-            feedback = ` Your previous attempt was rejected: ${problem}${key}. Fix that this time: if the answerKey appeared in the reading, rephrase the reading or choose a different answerKey.`;
+            feedback = ` Your previous attempt was rejected: ${problem}${key}. Fix that this time: if the answerKey appeared in the reading, rephrase the reading or choose a different answerKey; if a term is not in the body, use it in the body word for word or drop it.`;
             continue;
           }
           written[i] = page;

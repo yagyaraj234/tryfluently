@@ -119,6 +119,8 @@ const good = (n: number) => ({
   title: `Page ${n}`,
   body: `Short reading ${n}.`,
   example: null,
+  keyTerms: ["Short", "reading"],
+  glossary: [],
   answerKey: [3, 4, 5, 6].includes(n) ? `goes${n}` : null,
 });
 
@@ -169,7 +171,7 @@ test("starting a Lesson plans it, writes every Page in parallel, and the status 
 
 test("a Page that fails its checks retries alone and then lands", async () => {
   const { cookie, id: userId } = await learner();
-  const leaky = { ...good(3), body: "She goes3 to work." };
+  const leaky = { ...good(3), body: "Short reading: she goes3 to work." };
   const fake = fakeLessonModel((n, attempt) => (n === 3 && attempt < 3 ? leaky : good(n)));
   const app = makeApp({ models: { step: fake.model } });
   const { id } = (await (await start(app, cookie)).json()) as any;
@@ -181,6 +183,37 @@ test("a Page that fails its checks retries alone and then lands", async () => {
   const page3 = fake.calls.writers.filter((w) => w.page === 3).map((w) => w.system);
   expect(page3[0]).not.toContain("previous attempt was rejected");
   expect(page3[1]).toContain('rejected: answerKey appears in the reading (answerKey \\"goes3\\")');
+});
+
+test("a Page whose Key Terms or Glossary Terms are not in its body is written again, and the Learner sees its terms", async () => {
+  const { cookie, id: userId } = await learner();
+  const withTerms = {
+    ...good(1),
+    body: "Use the present simple for habits.\n\n- I commute by bus.\n- She commutes by train.",
+    keyTerms: ["present simple", "habits"],
+    glossary: [{ term: "commute", definition: "travel to work" }],
+  };
+  const fake = fakeLessonModel((n, attempt) => {
+    if (n === 1 && attempt === 1) return { ...withTerms, keyTerms: ["present simple", "routines"] };
+    if (n === 1 && attempt === 2) return { ...withTerms, glossary: [{ term: "rush hour", definition: "busy time" }] };
+    if (n === 2 && attempt === 1) return { ...good(2), keyTerms: ["Short"] };
+    return n === 1 ? withTerms : good(n);
+  });
+  const app = makeApp({ models: { step: fake.model } });
+  const { id } = (await (await start(app, cookie)).json()) as any;
+  await app.runJobs(userId);
+  const view = await pages(app, cookie, id);
+  expect(view.preparation).toBe("ready");
+  expect(fake.attempts.get(1)).toBe(3);
+  expect(fake.attempts.get(2)).toBe(2);
+  const page1 = fake.calls.writers.filter((w) => w.page === 1).map((w) => w.system);
+  expect(page1[1]).toContain('Key Term \\"routines\\" is not in the body');
+  expect(page1[2]).toContain('Glossary Term \\"rush hour\\" is not in the body');
+  expect(view.pages[0]).toMatchObject({
+    body: withTerms.body,
+    keyTerms: ["present simple", "habits"],
+    glossary: [{ term: "commute", definition: "travel to work" }],
+  });
 });
 
 test("a Page that keeps failing fails the Lesson, and Retry runs it again", async () => {
