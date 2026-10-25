@@ -1,6 +1,7 @@
 import { Button, Cluster, ErrorState, Heading, LiveBar, Notice, Stack, Text, VoiceOrb } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
+import { MicrophoneProblem } from "../voice/MicrophoneProblem";
 import { BetaVoiceCredits, VoiceAccess, VoiceLimit } from "../voice/VoiceCredits";
 import { useRealtimeCall } from "../../lib/call";
 import { voiceMinutesQuery } from "../../lib/queries";
@@ -99,14 +100,7 @@ function CallProblem({
 }) {
   const status = response?.status;
   if (microphone)
-    return (
-      <ErrorState
-        title="Allow your microphone"
-        description="A voice Roleplay needs your microphone. Allow it for Fluently in your browser's site settings, or connect one, then try again."
-        onRetry={retry}
-        action={typeInstead}
-      />
-    );
+    return <MicrophoneProblem needs="A voice Roleplay needs your microphone." onRetry={retry} action={typeInstead} />;
   if (status === 429) {
     const budget = response?.body as { limitMinutes?: number; resetsAt?: string } | undefined;
     return <Capped budget={budget} {...props} />;

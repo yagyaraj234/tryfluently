@@ -1,6 +1,7 @@
 import {
   Button,
-  Cluster,
+  LessonNav,
+  LessonFrame,
   PageBlock,
   PageDots,
   ReadingCard,
@@ -29,7 +30,27 @@ export function PagedReview({ pages, onClose }: { pages: ReviewPage[]; onClose: 
   const [index, setIndex] = useState(0);
   const page = pages[index]!;
   return (
-    <Stack gap={6}>
+    <LessonFrame
+      actions={
+        <>
+          <LessonNav
+            back={
+              <Button raised fullWidth variant="secondary" disabled={index === 0} onClick={() => setIndex(index - 1)}>
+                Back
+              </Button>
+            }
+            next={
+              <Button raised fullWidth disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>
+                Next
+              </Button>
+            }
+          />
+          <Button raised fullWidth variant="secondary" onClick={onClose}>
+            Back to summary
+          </Button>
+        </>
+      }
+    >
       <PageDots current={index} total={pages.length} />
       <div aria-label={`Page ${index + 1} of ${pages.length}`}>
         {page.status === "ready" ? (
@@ -58,17 +79,6 @@ export function PagedReview({ pages, onClose }: { pages: ReviewPage[]; onClose: 
           <Text tone="muted">This page wasn't written.</Text>
         )}
       </div>
-      <Cluster justify="between">
-        <Button variant="secondary" disabled={index === 0} onClick={() => setIndex(index - 1)}>
-          Back
-        </Button>
-        <Button disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>
-          Next
-        </Button>
-      </Cluster>
-      <Button variant="secondary" onClick={onClose}>
-        Back to summary
-      </Button>
-    </Stack>
+    </LessonFrame>
   );
 }

@@ -152,6 +152,8 @@ export { XpChip, type XpChipProps } from "./XpChip";
 export {
   CoachAvatar,
   CoachCall,
+  LessonFrame,
+  LessonNav,
   LessonStage,
   RoadmapNode,
   RoadmapUnit,

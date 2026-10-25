@@ -17,6 +17,13 @@ function lessonDescription(lesson: Lesson) {
   return "In progress";
 }
 
+// How far the Lesson moved the Learner toward its objective, as 1–3 stars. Older Lessons without a score get none.
+function starsFor(lesson: Lesson) {
+  const progress = lesson.objectiveProgress;
+  if (lesson.status !== "completed" || progress === null) return undefined;
+  return progress >= 90 ? 3 : progress >= 80 ? 2 : 1;
+}
+
 type NodeProps = { unit: Unit; lesson: Lesson; onRetry: () => void; onResume: (lesson: Starting) => void };
 
 function KnownLessonNode({ unit, lesson, onRetry, onResume }: NodeProps) {
@@ -31,6 +38,7 @@ function KnownLessonNode({ unit, lesson, onRetry, onResume }: NodeProps) {
       title={lesson.title}
       skill={skill}
       description={lessonDescription(lesson)}
+      stars={starsFor(lesson)}
       cue={retry ? undefined : "Continue"}
       render={retry ? undefined : <Link {...lessonRoute(lesson)} />}
       onClick={
@@ -71,6 +79,7 @@ export function UnitSection({ unit, onSelect, onRetry, onResume }: Props) {
           title={lesson.title}
           skill={lesson.skill}
           state={selectable && index === 0 ? "active" : "locked"}
+          description={selectable && index === 0 ? "Up next" : undefined}
           cue="Start"
           onClick={selectable && index === 0 ? () => onSelect(lesson) : undefined}
         />
@@ -82,6 +91,7 @@ export function UnitSection({ unit, onSelect, onRetry, onResume }: Props) {
       state={roleplayActive ? "active" : "locked"}
       title={roleplay.title}
       skill="fluency"
+      description={roleplayActive ? "Up next" : undefined}
       cue="Start"
       onClick={roleplayActive ? () => onSelect(roleplay) : undefined}
     />

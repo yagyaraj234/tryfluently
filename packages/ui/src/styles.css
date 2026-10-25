@@ -43,6 +43,7 @@
   --color-brand-soft: #e3eaff;
   --color-brand-soft-edge: #b3c3fa;
   --color-path-locked: #dcdee3;
+  --color-star: #e0a400; /* the stars a finished Lesson earned */
   /* Light on the top inside edge and shade on the bottom one make a raised button. */
   --color-bevel-hi: rgb(255 255 255 / 0.3);
   --color-bevel-lo: rgb(0 0 0 / 0.12);
@@ -315,6 +316,7 @@
       --color-brand-soft: #1d2550;
       --color-brand-soft-edge: #2b3a78;
       --color-path-locked: #33332f;
+      --color-star: #ffd24d;
       --color-live: #ff6b98;
       --color-live-text: #ff6b98;
       --color-streak: #ffb86b;

@@ -1,6 +1,7 @@
 import { CoachCall, ErrorState, Notice, Stack, TextLink } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { MicrophoneProblem } from "../voice/MicrophoneProblem";
 import { VoiceAccess, VoiceLimit, BetaVoiceCredits } from "../voice/VoiceCredits";
 import { voiceMinutesQuery } from "../../lib/queries";
 import { minutesLeft, useCallClock } from "../../lib/voiceMinutes";
@@ -19,13 +20,7 @@ function CallScreen({ call, session, left }: { call: Call; session: Session; lef
   if (call.status === "failed" && call.response?.status === 429)
     return <VoiceLimit budget={call.response.body as { resetsAt?: string }} action={<WrittenAlternative />} />;
   if (call.status === "microphone")
-    return (
-      <ErrorState
-        title="Allow your microphone"
-        description="The Voice Assessment needs your microphone. Allow it for Fluently in your browser's site settings, or connect one, then try again."
-        onRetry={call.retry}
-      />
-    );
+    return <MicrophoneProblem needs="The Voice Assessment needs your microphone." onRetry={call.retry} />;
   if (call.status === "failed" && call.response?.status === 409)
     return (
       <ErrorState
