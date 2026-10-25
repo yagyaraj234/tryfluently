@@ -3,9 +3,11 @@ import {
   Card,
   Cluster,
   Heading,
+  LoadingState,
   Notice,
   PageBlock,
   PageDots,
+  PollyWalking,
   QuestionSkeleton,
   ReadingCard,
   Stack,
@@ -226,6 +228,10 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
     );
 
   const page = pages[index];
+  // Page 1 still being written (a Follow-up Lesson opens straight away): the same wait as starting from the Roadmap.
+  const writing = page?.status !== "ready" && page?.status !== "failed" && data!.preparation !== "failed";
+  if (index === 0 && writing)
+    return <LoadingState title={lesson.title} description={lesson.objective} mascot={<PollyWalking />} />;
   const failed = (
     <Notice tone="error">
       <Stack gap={3}>
