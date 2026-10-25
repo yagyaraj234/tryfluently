@@ -176,7 +176,11 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
       />
     );
 
-  const broken = !page ? false : page.status === "failed" || (hasQuestion(page) && page.question === "failed");
+  // Questions are written only after every Page, so when another Page failed this one's question never arrives.
+  const stuck = data!.preparation === "failed" && page?.question === "pending";
+  const broken = !page
+    ? false
+    : page.status === "failed" || (hasQuestion(page) && (page.question === "failed" || stuck));
   const ready = Boolean(page && page.status === "ready" && (!hasQuestion(page) || page.result));
 
   let body;
@@ -200,6 +204,7 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
       <Notice tone="error">
         <Stack gap={3}>
           <span>This page couldn't be written.</span>
+          {retry.isError && <span>{retry.error.message}</span>}
           <div>
             <Button size="sm" disabled={retry.isPending} onClick={() => retry.mutate()}>
               Try again
