@@ -118,3 +118,24 @@ test("Next lesson waits while a Practice Round is being written", async () => {
   for (let i = 5; i < 10; i++) await answer(t.app, t.cookie, t.lessonId, i, "goes");
   expect((await t.app.request(`/api/lessons/${t.lessonId}/finish`, json({}, t.cookie))).status).toBe(200);
 });
+
+test("questions that share a general instruction but ask different things are not repeats", async () => {
+  const match = (left: string, right: string) => ({
+    block: "matchPairs",
+    prompt: "Match each word to its meaning.",
+    pairs: [
+      { left, right },
+      { left: `${left}s`, right: `more ${right}` },
+    ],
+    explanation: "Meanings.",
+  });
+  const fake = fakeQuizModel({
+    plans: fillGaps,
+    rounds: (call) => ({ questions: [match("commute", "trip"), match("rush", "hurry"), ...roundOf(call).slice(2)] }),
+  });
+  const t = await atChoice(fake);
+  await practise(t);
+  await t.app.runJobs(t.id);
+  expect((await pages(t.app, t.cookie, t.lessonId)).quiz).toHaveLength(10);
+  expect(fake.calls.rounds).toHaveLength(1);
+});
