@@ -307,4 +307,6 @@ The working [Design System guide](http://localhost:3001/design-system) renders t
 
 The first completed Report is delivered as responsive HTML plus plain text. A heading introduces the overall CEFR Level; the body includes measured skills, strengths, quoted weaknesses, better versions and the first Unit. Written Assessments explicitly leave fluency unmeasured; partial Reports say so. One cobalt action opens Home, which confirms proposed Goals before offering the first Lesson. Email clients don't run Tailwind, so the email uses inline styles, system fonts and layout tables, with no remote images, scripts or tracking pixels, and doesn't depend on the app's CSS. Untrusted Report text is escaped.
 
+Every email (verification, Report, Streak reminder) shares one layout in `apps/api/src/mailer.ts`: a cobalt brand-panel header with white text on the `canvas` background, a white body, and one cobalt pill button with the link repeated as text below it. Email has no dark mode of its own, so the layout stays light. The Streak reminder shows this week as seven day dots (practised days filled cobalt, today dashed) and carries a one-click unsubscribe link and header.
+
 Haptics, share images and translations remain outside v1 as specified in #86.

@@ -26,6 +26,9 @@ export const user = pgTable("user", {
   emailVerified: boolean().notNull().default(false),
   image: text(),
   timezone: text().notNull().default("UTC"),
+  streakReminders: boolean().notNull().default(true),
+  // The Learner's local day (YYYY-MM-DD) of their last Streak reminder, so they get at most one a day.
+  streakRemindedOn: text(),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
 });

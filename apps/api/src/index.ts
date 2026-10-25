@@ -2,6 +2,7 @@ import { createDb } from "@fluently/db";
 import { createApp, type Deps, type Env } from "./app";
 import { resendMailer } from "./mailer";
 import { startAssessmentJobs } from "./assessment-jobs";
+import { startStreakReminders } from "./streak-reminders";
 import { modelsFromSettings } from "./models";
 import { kenpathSpeech } from "./pronunciation";
 import { openaiRealtime } from "./realtime";
@@ -32,7 +33,10 @@ const deps = {
   realtime: openaiRealtime(env.OPENAI_API_KEY!, env.MODEL_REALTIME || undefined),
   transcriber: openaiTranscriber(env.OPENAI_API_KEY!),
 } satisfies Deps;
-if (import.meta.main) startAssessmentJobs(deps);
+if (import.meta.main) {
+  startAssessmentJobs(deps);
+  startStreakReminders(deps);
+}
 
 export default {
   port: Number(env.PORT ?? 3000),

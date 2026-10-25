@@ -141,6 +141,13 @@
       "when": 1792909439718,
       "tag": "0019_colorful_zodiak",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792935310795,
+      "tag": "0020_loud_warpath",
+      "breakpoints": true
     }
   ]
 }
