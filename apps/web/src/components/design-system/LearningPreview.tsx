@@ -35,8 +35,15 @@ function RoadmapView({ onOpen }: { onOpen: () => void }) {
         description="Introduce yourself with confidence"
         detail={<Chip>Active</Chip>}
       >
-        <RoadmapNode state="complete" title="A clear introduction" onClick={onOpen} />
-        <RoadmapNode state="active" title="Words for your experience" skill="vocabulary" cue="Start" onClick={onOpen} />
+        <RoadmapNode state="complete" title="A clear introduction" stars={3} onClick={onOpen} />
+        <RoadmapNode
+          state="active"
+          title="Words for your experience"
+          skill="vocabulary"
+          description="Up next"
+          cue="Start"
+          onClick={onOpen}
+        />
         <RoadmapNode state="locked" title="Past projects, clear timelines" skill="grammar" />
         <RoadmapNode state="locked" title="Explain your impact" skill="fluency" />
       </RoadmapUnit>

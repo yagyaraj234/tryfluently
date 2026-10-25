@@ -60,14 +60,15 @@ Cobalt panels (the auth story panel, the Roleplay preview, the closing call to a
 
 ### Roadmap path
 
-The Roadmap is the one game-like screen. Its Lesson buttons are raised brand-coloured buttons on a road: the Lesson up next is solid `brand-mid`, finished Lessons are a soft brand tint, and the road ahead is grey dots. Finished Lessons use brand colours rather than `correct`, because finishing a Lesson isn't a verdict.
+The Roadmap is the one game-like screen. Its Lesson buttons are raised brand-coloured buttons on a road: the Lesson up next is solid `brand-mid` with a sky ring and a bobbing "Start" tag, finished Lessons are a soft brand tint with their stars, and locked Lessons are grey with a lock on grey dots. Finished Lessons use brand colours rather than `correct`, because finishing a Lesson isn't a verdict.
 
-| Token                   | Light                 | Dark      | Use                                                    |
-| ----------------------- | --------------------- | --------- | ------------------------------------------------------ |
-| `brand-soft`            | `#E3EAFF`             | `#1D2550` | A finished Lesson's button                             |
-| `brand-soft-edge`       | `#B3C3FA`             | `#2B3A78` | Its rim and lip                                        |
-| `path-locked`           | `#DCDEE3`             | `#33332F` | The dotted road ahead, and a locked Lesson's rim       |
-| `bevel-hi` / `bevel-lo` | white 30% / black 12% | same      | Light on a raised button's top edge, shade on its foot |
+| Token                   | Light                 | Dark      | Use                                                                                        |
+| ----------------------- | --------------------- | --------- | ------------------------------------------------------------------------------------------ |
+| `brand-soft`            | `#E3EAFF`             | `#1D2550` | A finished Lesson's button                                                                 |
+| `brand-soft-edge`       | `#B3C3FA`             | `#2B3A78` | Its rim and lip                                                                            |
+| `path-locked`           | `#DCDEE3`             | `#33332F` | The dotted road ahead, and a locked Lesson's rim                                           |
+| `star`                  | `#E0A400`             | `#FFD24D` | The 1–3 stars under a finished Lesson (from its objective progress: 90+ is three, 80+ two) |
+| `bevel-hi` / `bevel-lo` | white 30% / black 12% | same      | Light on a raised button's top edge, shade on its foot                                     |
 
 ### Live voice
 
