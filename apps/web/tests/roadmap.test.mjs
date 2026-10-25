@@ -94,6 +94,21 @@ const roadmaps = {
       ],
     }),
   ],
+  quizDone: [
+    unit("1", "active", {
+      lessons: [
+        lesson({
+          id: "choosing",
+          title: "Next practice",
+          position: 0,
+          status: "in_progress",
+          preparation: "ready",
+          contentVersion: 3,
+          quizDone: true,
+        }),
+      ],
+    }),
+  ],
   expiredCurrent: [
     unit("1", "active", {
       lessons: [
@@ -300,4 +315,11 @@ test("a failed check on a paged Lesson slows the polling down instead of stoppin
 test("Home puts learning before the supporting progress summary in reading order", async () => {
   const html = await page("/home");
   assert.ok(html.indexOf("Continue learning") < html.indexOf('aria-label="Your profile"'));
+});
+
+test("a Lesson whose Quiz is done waits on the Learner's choice on the Roadmap", async () => {
+  const html = await page("/roadmap", "quizDone");
+  assert.match(text(html), /Quiz done — choose what(&#x27;|')s next/);
+  assert.doesNotMatch(text(html), /In progress/);
+  assert.match(linkTo(html, "/lessons/choosing"), /Next practice/);
 });

@@ -43,6 +43,8 @@ const lessons = {
     material: [page(0, { question: "pending" }), page(1, { question: "pending" })],
   }),
   results: lesson("results", 2, [item(0, fillGap, wrong), item(1, choice, right)]),
+  // Left at the choice after stepping back to a Page: the Learner comes back to the results and choice.
+  leftAtChoice: lesson("leftAtChoice", 0, [item(0, fillGap, wrong), item(1, choice, right)]),
 };
 
 let web;
@@ -103,5 +105,13 @@ test("after the last answer one results screen shows every question, answer, ver
   assert.match(t, /Correct answer: goes/);
   assert.match(t, /Add -es\./);
   assert.match(t, /Agreement\./);
-  assert.ok(buttons(html).includes("Finish Lesson"));
+  assert.match(t, /What(&#x27;|')s next\?/);
+  assert.ok(buttons(html).includes("Next lesson"));
+  assert.ok(!buttons(html).includes("Finish Lesson"));
+});
+
+test("re-opening a Lesson whose Quiz is done lands on the results and choice", async () => {
+  const html = await open("/lessons/leftAtChoice");
+  assert.match(text(html), /Quiz results/);
+  assert.ok(buttons(html).includes("Next lesson"));
 });
