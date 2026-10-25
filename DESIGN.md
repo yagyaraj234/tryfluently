@@ -58,6 +58,17 @@ Cobalt panels (the auth story panel, the Roleplay preview, the closing call to a
 | `on-brand`        | `#FFFFFF`             | Text and glass on a panel (`bg-on-brand/12`, `border-on-brand/24`) |
 | `white` / `black` | `#FFFFFF` / `#0E0E0F` | Pills that sit on a panel (`Button variant="inverse"`)             |
 
+### Roadmap path
+
+The Roadmap is the one game-like screen. Its Lesson buttons are raised brand-coloured buttons on a road: the Lesson up next is solid `brand-mid`, finished Lessons are a soft brand tint, and the road ahead is grey dots. Finished Lessons use brand colours rather than `correct`, because finishing a Lesson isn't a verdict.
+
+| Token                   | Light                 | Dark      | Use                                                    |
+| ----------------------- | --------------------- | --------- | ------------------------------------------------------ |
+| `brand-soft`            | `#E3EAFF`             | `#1D2550` | A finished Lesson's button                             |
+| `brand-soft-edge`       | `#B3C3FA`             | `#2B3A78` | Its rim and lip                                        |
+| `path-locked`           | `#DCDEE3`             | `#33332F` | The dotted road ahead, and a locked Lesson's rim       |
+| `bevel-hi` / `bevel-lo` | white 30% / black 12% | same      | Light on a raised button's top edge, shade on its foot |
+
 ### Live voice
 
 Use these **only** while the microphone is recording or a Realtime call is connected.
@@ -130,6 +141,7 @@ Display type on the landing page and auth panels uses Tailwind's scale and steps
 | `shadow-frame` | a long, low shadow                                                                                                                                                                                                        | The product frame under the hero                                                               |
 | `shadow-float` | black at 35%                                                                                                                                                                                                              | Pills sitting on a cobalt panel                                                                |
 | `shadow-glow`  | tinted with `shadow-primary/55`                                                                                                                                                                                           | The one call to action on a page, with a `ring-2 ring-primary ring-offset-2`                   |
+| `shadow-coin`  | a solid 6px lip in `--coin-edge` plus the bevel; `-lift` (8px) on hover, `-pressed` (none) on press                                                                                                                       | Roadmap Lesson buttons, which set `[--coin-edge:var(--color-…)]`                               |
 | Spacing        | Tailwind's 4px scale (`p-4`, `gap-3.5`, `pt-14`)                                                                                                                                                                          | Use `gap` on flex and grid, not margins between siblings                                       |
 | Touch target   | `min-h-11` / `size-11` (44px)                                                                                                                                                                                             | The smallest touch target                                                                      |
 | Layers         | `z-behind` (−1) · `z-sticky` (10) · `z-overlay` (20) · `z-toast` (30)                                                                                                                                                     | The only stacking levels. `z-behind` sits decoration behind content inside an `isolate` parent |
@@ -173,6 +185,7 @@ Long pasted text wraps inside its container (`wrap-anywhere` on `body`). App nav
 | `animate-celebrate`                                            | 800ms, once                             | Lesson complete, current CEFR cell, Streak milestones              |
 | `animate-rise`                                                 | 520ms fade up                           | The landing hero, staggered with `[animation-delay:60ms]` steps    |
 | `animate-draw`, `animate-bob`, `animate-wave`, `animate-blink` |                                         | The hero underline, floating chips, the waveform, the typing caret |
+| `animate-cue`                                                  | 1.8s bob                                | The "Start" / "Continue" tag over the Roadmap's next Lesson        |
 
 - **Press:** buttons shrink to 97% on `:active`. It feels like a physical key without moving the layout.
 - **Celebrations** happen at brand moments, never during practice, and last under 1.2s.

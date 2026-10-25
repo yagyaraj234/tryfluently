@@ -132,7 +132,7 @@ test("Roadmap curves stay decorative and distinguish completed from upcoming con
   expect(curves).toHaveLength(3);
   expect(curves.every((curve) => curve.getAttribute("aria-hidden") === "true")).toBe(true);
   expect(curves[0]!.querySelector("path")!.getAttribute("stroke-dasharray")).toBeNull();
-  expect(curves[1]!.querySelector("path")!.getAttribute("stroke-dasharray")).toBe("4 5");
+  expect(curves[1]!.querySelector("path")!.getAttribute("stroke-dasharray")).toBe("0 17");
   expect(screen.getByRole("link", { name: "Review Start a conversation" }).getAttribute("href")).toBe("/lessons/one");
   expect(screen.queryByRole("button", { name: "Open Wrap up" })).toBeNull();
 });

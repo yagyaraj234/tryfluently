@@ -31,6 +31,7 @@ function KnownLessonNode({ unit, lesson, onRetry, onResume }: NodeProps) {
       title={lesson.title}
       skill={skill}
       description={lessonDescription(lesson)}
+      cue={retry ? undefined : "Continue"}
       render={retry ? undefined : <Link {...lessonRoute(lesson)} />}
       onClick={
         paged
@@ -70,6 +71,7 @@ export function UnitSection({ unit, onSelect, onRetry, onResume }: Props) {
           title={lesson.title}
           skill={lesson.skill}
           state={selectable && index === 0 ? "active" : "locked"}
+          cue="Start"
           onClick={selectable && index === 0 ? () => onSelect(lesson) : undefined}
         />
       ))
@@ -80,6 +82,7 @@ export function UnitSection({ unit, onSelect, onRetry, onResume }: Props) {
       state={roleplayActive ? "active" : "locked"}
       title={roleplay.title}
       skill="fluency"
+      cue="Start"
       onClick={roleplayActive ? () => onSelect(roleplay) : undefined}
     />
   ) : null;
