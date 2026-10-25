@@ -300,6 +300,9 @@ test("polling a paged Lesson stops once every Page is ready or failed, or the Le
   assert.equal(pagesSettled(pages("ready", "ready")), true);
   assert.equal(pagesSettled(pages("ready", "failed")), true);
   assert.equal(pagesSettled({ ...pages("pending"), preparation: "failed" }), true);
+  // A Practice Round being written keeps it polling until it arrives or fails.
+  assert.equal(pagesSettled({ ...pages("ready"), preparation: "ready", practice: "preparing" }), false);
+  assert.equal(pagesSettled({ ...pages("ready"), preparation: "ready", practice: "failed" }), true);
 });
 
 test("a failed check on a paged Lesson slows the polling down instead of stopping it", async () => {

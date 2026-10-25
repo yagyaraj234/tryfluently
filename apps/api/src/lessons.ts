@@ -11,6 +11,7 @@ import { answerPage, setCurrentPage, stepsOf } from "./page-answers";
 import { retryAnalysis } from "./speech-answers";
 import { publicPages, publicQuiz, retryLesson, startLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
+import { requestPracticeRound } from "./practice-rounds";
 import { completeLesson } from "./completion";
 import { finishPagedLesson } from "./paged-finish";
 import { countFocusHits } from "./learning-memory";
@@ -94,6 +95,7 @@ export const lessons = ({
       status: l.status,
       pages: publicPages(l, steps),
       quiz: publicQuiz(l, steps),
+      practice: l.practice,
     };
   };
 
@@ -194,6 +196,13 @@ export const lessons = ({
         const r = await startLesson({ db, now }, c.var.user.id, Number(c.req.param("position")));
         if ("error" in r) return c.json({ error: r.error }, 409);
         return c.json(await pagesView(r.lesson), r.created ? 201 : 200);
+      })
+      // Practice more: queues a Practice Round of 5 new questions, or queues a failed one again.
+      .post("/:id/practice", async (c) => {
+        const r = await requestPracticeRound({ db, now }, c.var.user.id, c.req.param("id"));
+        return r.status === 202
+          ? c.json(await pagesView((await find(c.req.param("id"), c.var.user.id))!), 202)
+          : c.json({ error: r.error }, r.status);
       })
       .post("/:id/retry", async (c) => {
         const r = await retryLesson({ db, now }, c.var.user.id, c.req.param("id"));

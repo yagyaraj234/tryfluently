@@ -54,6 +54,15 @@ export const good = (n: number) => ({
   vocab: n === 2 ? { term: "commute", meaning: "the trip to work" } : null,
 });
 
+/** Five fresh fill-the-gap questions for Practice Round call `n`. */
+export const roundOf = (n: number) =>
+  Array.from({ length: 5 }, (_, i) => ({
+    block: "fillGap",
+    prompt: `Round ${n} question ${i + 1}: he ___ home.`,
+    answer: "goes",
+    explanation: "He takes -es.",
+  }));
+
 /** Plays the planner, the Page writers and the Quiz writer. `plans(attempt)` can return a broken plan. */
 export function fakeQuizModel({
   plans = (_attempt: number) => defaultPlan,
@@ -62,8 +71,13 @@ export function fakeQuizModel({
       p.questions.map((block: string) => ({ page: p.page, question: questionFor[block] })),
     ),
   }),
-}: { plans?: (attempt: number) => PlanPage[]; quiz?: (pages: any[]) => object } = {}) {
-  const calls = { planner: 0, writers: [] as any[], quiz: [] as any[] };
+  rounds = (call: number) => ({ questions: roundOf(call) }),
+}: {
+  plans?: (attempt: number) => PlanPage[];
+  quiz?: (pages: any[]) => object;
+  rounds?: (call: number, body: any) => object;
+} = {}) {
+  const calls = { planner: 0, writers: [] as any[], quiz: [] as any[], rounds: [] as any[] };
   const model = new MockLanguageModelV4({
     doGenerate: async (options: any) => {
       const system = JSON.stringify(options.prompt);
@@ -76,6 +90,9 @@ export function fakeQuizModel({
         reply = { verdict: "almost", corrected: "I go.", explanation: "Use go with I." };
       } else if (system.includes("spoken answer")) {
         reply = { verdict: "correct", feedback: "Clear and on topic." };
+      } else if (system.includes("Write a Practice Round")) {
+        calls.rounds.push(body);
+        reply = rounds(calls.rounds.length, body);
       } else if (system.includes("Write the Quiz")) {
         calls.quiz.push(body);
         reply = quiz(body.pages);

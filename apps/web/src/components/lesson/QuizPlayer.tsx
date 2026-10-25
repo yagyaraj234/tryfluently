@@ -29,7 +29,7 @@ export type QuizItem = {
   questionData: PageQuestion;
   result?: PageResult;
 };
-type QuizData = PagedData & { quiz: QuizItem[] };
+type QuizData = PagedData & { quiz: QuizItem[]; practice: "preparing" | "failed" | null };
 
 const errorOf = async (response: { json: () => Promise<unknown> }, fallback: string) =>
   new Error(((await response.json().catch(() => null)) as { error?: string } | null)?.error ?? fallback);
@@ -54,10 +54,11 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
     status: lesson.status,
     pages: lesson.material,
     quiz: lesson.quiz,
+    practice: lesson.practice,
   } as unknown as QuizData;
   const pagesQuery = lessonPagesQuery(lesson.id) as unknown as UseQueryOptions<QuizData>;
   const { data } = useQuery({ ...pagesQuery, initialData });
-  const { pages, quiz } = data!;
+  const { pages, quiz, practice } = data!;
   // The Quiz comes after the last Page, where version 2 Lessons have their recap.
   const quizAt = pages.length;
   // A Learner who left at the choice comes back to the results and choice, wherever they had stepped back to.
@@ -126,6 +127,15 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
     onSuccess: () => queryClient.invalidateQueries(lessonPagesQuery(lesson.id)),
   });
 
+  // Practice more, or trying a failed Practice Round again.
+  const practise = useMutation({
+    mutationFn: async () => {
+      const response = await api().api.lessons[":id"].practice.$post({ param: { id: lesson.id } });
+      if (!response.ok) throw await errorOf(response, "We couldn't start your Practice Round. Try again.");
+    },
+    onSuccess: () => queryClient.invalidateQueries(lessonPagesQuery(lesson.id)),
+  });
+
   const finish = useMutation({
     mutationFn: async () => {
       const response = await api().api.lessons[":id"].finish.$post({ param: { id: lesson.id } });
@@ -157,11 +167,15 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
     );
   };
 
-  const results = (
+  // The Quiz is round 0; each Practice Round is answered and shown on its own.
+  const round = current?.round ?? Math.max(0, ...quiz.map((q) => q.round));
+  const inRound = quiz.filter((q) => q.round === round);
+  const roundName = round ? `Practice Round ${round}` : "Quiz";
+  const resultsOf = (items: QuizItem[], title: string) => (
     <Stack gap={4}>
-      <Heading level={2}>Quiz results</Heading>
-      <Text>{`You got ${quizScore(quiz).correct} of ${quizScore(quiz).graded} right.`}</Text>
-      {quiz.map((item, i) => (
+      <Heading level={2}>{title}</Heading>
+      <Text>{`You got ${quizScore(items).correct} of ${quizScore(items).graded} right.`}</Text>
+      {items.map((item, i) => (
         <Card key={item.index}>
           <Stack gap={3}>
             <Text tone="muted">{`Question ${i + 1}`}</Text>
@@ -176,7 +190,7 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
   if (lesson.status === "completed")
     return reviewing ? (
       <Stack gap={6}>
-        {results}
+        {resultsOf(quiz, "Your answers")}
         <Button variant="secondary" onClick={() => setReviewing(false)}>
           Back to summary
         </Button>
@@ -209,10 +223,12 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
   if (index === quizAt) {
     if (!quiz.length && (data!.preparation === "failed" || pages.some((p) => p.question === "failed"))) body = failed;
     else if (!quiz.length) body = <QuestionSkeleton label="Getting your Quiz ready" />;
+    else if (practice === "preparing") body = <QuestionSkeleton label="Writing your Practice Round" />;
     else if (current)
       body = (
         <Stack gap={4}>
-          <Text tone="muted">{`Question ${quiz.indexOf(current) + 1} of ${quiz.length}`}</Text>
+          {round > 0 && <Heading level={2}>{roundName}</Heading>}
+          <Text tone="muted">{`Question ${inRound.indexOf(current) + 1} of ${inRound.length}`}</Text>
           {question(current)}
           {answer.isError && <Notice tone="error">{answer.error.message}</Notice>}
         </Stack>
@@ -220,11 +236,29 @@ export function QuizPlayer({ lesson }: { lesson: Lesson }) {
     else
       body = (
         <Stack gap={4}>
-          {results}
+          {resultsOf(inRound, `${roundName} results`)}
           <Card>
             <Stack gap={3}>
               <Heading level={2}>What's next?</Heading>
+              {practice === "failed" && (
+                <Notice tone="error">
+                  <Stack gap={3}>
+                    <span>Your Practice Round couldn't be written.</span>
+                    <div>
+                      <Button size="sm" disabled={practise.isPending} onClick={() => practise.mutate()}>
+                        Try again
+                      </Button>
+                    </div>
+                  </Stack>
+                </Notice>
+              )}
+              {practise.isError && <Notice tone="error">{practise.error.message}</Notice>}
               {finish.isError && <Notice tone="error">{finish.error.message}</Notice>}
+              {practice !== "failed" && (
+                <Button variant="secondary" disabled={practise.isPending} onClick={() => practise.mutate()}>
+                  Practice more
+                </Button>
+              )}
               <Button disabled={finish.isPending} onClick={() => finish.mutate()}>
                 {finish.isPending ? "Finishing…" : "Next lesson"}
               </Button>

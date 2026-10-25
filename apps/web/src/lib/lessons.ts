@@ -13,16 +13,18 @@ type Pages = {
   preparation: string | null;
   pages: { status: "pending" | "ready" | "failed"; question?: string; result?: object }[];
   quiz?: { result?: object }[];
+  practice?: string | null;
 };
 const analysing = (r?: object) => (r as { analysis?: string } | undefined)?.analysis === "analysing";
 
-/** Nothing more will arrive once the Lesson failed or every Page and question is ready or failed, and no spoken answer (on a Page or in the Quiz) is still being analysed. */
+/** Nothing more will arrive once the Lesson failed or every Page and question is ready or failed, no spoken answer (on a Page or in the Quiz) is still being analysed and no Practice Round is being written. */
 export const pagesSettled = (d?: Pages) =>
   Boolean(
     d &&
     (d.preparation === "failed" ||
       (d.pages.every((p) => p.status !== "pending" && p.question !== "pending" && !analysing(p.result)) &&
-        !d.quiz?.some((q) => analysing(q.result)))),
+        !d.quiz?.some((q) => analysing(q.result)) &&
+        d.practice !== "preparing")),
   );
 
 /** Polls a paged Lesson's Pages every 1.5 seconds until they have all settled. */
