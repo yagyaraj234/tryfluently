@@ -42,6 +42,26 @@ test("health endpoints are public and readiness reaches the database", async () 
   expect(await ready.json()).toEqual({ status: "ready" });
 });
 
+test("a readiness probe cannot report ready after shutdown starts", async () => {
+  let ready = true;
+  const entered = Promise.withResolvers<void>();
+  const gate = Promise.withResolvers<unknown>();
+  const database = fakeDatabase(async () => {
+    entered.resolve();
+    return gate.promise;
+  });
+  const app = health(database.db, () => ready);
+  const checking = app.request("/ready");
+  await entered.promise;
+  ready = false;
+  gate.resolve([]);
+  expect((await checking).status).toBe(503);
+  const statements = database.transaction.mock.calls.length;
+  expect((await app.request("/ready")).status).toBe(503);
+  expect(database.transaction).toHaveBeenCalledTimes(statements);
+  expect((await app.request("/live")).status).toBe(200);
+});
+
 test("the database cancels a slow probe and later readiness recovers after rollback", async () => {
   let statements = 0;
   let failure: unknown;

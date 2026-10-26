@@ -377,6 +377,7 @@ export const assessments = ({
               .where(and(eq(assessment.id, row.id), eq(assessment.status, "in_progress"))),
         });
         if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
+        if ("unavailable" in call) return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
         return c.body(call.answer, 201, { "content-type": "application/sdp" });
       })

@@ -117,6 +117,11 @@ Readiness shares a two-second probe deadline and returns 503 when unavailable; l
 Probe statements have a 1.5-second database deadline inside a transaction, without changing other queries' settings.
 The production API container uses readiness; `/api/auth/providers` only reports sign-in configuration.
 
+On SIGTERM or SIGINT, the API fails readiness and rejects new API work, stops worker polling, and drains
+requests, retained AI work and live voice calls before closing Postgres. Shutdown has a 120-second
+deadline; Docker allows 130 seconds before killing the container. Work still blocked at the deadline
+is interrupted, and persisted background jobs recover through their leases on restart.
+
 For local API metrics, keep `METRICS_ENABLED=true` in the root `.env` and run
 `docker compose -f docker-compose.monitoring.yml up -d`. See
 [infra/monitoring/README.md](infra/monitoring/README.md) for Grafana access and

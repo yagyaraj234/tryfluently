@@ -92,6 +92,8 @@ export type AppEnv = {
 
 export function createApp(deps: Deps) {
   const { db, env, mailer } = deps;
+  let draining = false;
+  const limits = requestLimits(deps.now);
   const settings = { ...defaultSettings, ...deps.settings };
   const broker = realtimeBroker({
     ...deps,
@@ -157,7 +159,10 @@ export function createApp(deps: Deps) {
 
   const app = new Hono<AppEnv>()
     .use("*", metricsMiddleware(env.METRICS_ENABLED === "true"))
-    .route("/health", health(db))
+    .route(
+      "/health",
+      health(db, () => !draining),
+    )
     .get("/metrics", async (c) => {
       if (env.METRICS_ENABLED !== "true") return c.notFound();
       return c.text(await metricsRegistry.metrics(), 200, {
@@ -165,6 +170,13 @@ export function createApp(deps: Deps) {
       });
     })
     .use("/api/*", cors({ origin: env.WEB_ORIGIN, credentials: true }))
+    .use("/api/*", async (c, next) => {
+      if (draining) {
+        c.header("Retry-After", "1");
+        return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
+      }
+      await next();
+    })
     // Bound the stream before JSON/multipart parsing; recordings allow up to 5 MB plus form overhead.
     .use("/api/*", bodyLimit({ maxSize: 6_000_000 }))
     // Better Auth has no endpoint for this; sign-in shows the Google button only when it's configured.
@@ -190,7 +202,7 @@ export function createApp(deps: Deps) {
       c.set("user", session.user as User);
       await next();
     })
-    .use("/api/*", requestLimits(deps.now))
+    .use("/api/*", limits)
     .get("/api/me", (c) => c.json(c.var.user))
     .route("/api/reports", reports(deps))
     .route("/api/goals", goals(deps))
@@ -264,7 +276,13 @@ export function createApp(deps: Deps) {
     }),
   );
 
-  return app;
+  return Object.assign(app, {
+    shutdown() {
+      draining = true;
+      return broker.shutdown();
+    },
+    drain: limits.drain,
+  });
 }
 
 export type AppType = ReturnType<typeof createApp>;

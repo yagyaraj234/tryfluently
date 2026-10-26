@@ -106,6 +106,7 @@ type Live = {
   sideband?: Sideband;
   stop?: () => Promise<void>;
   ready: Promise<void>;
+  closed: Promise<SaveFailure | undefined>;
   targetId?: string;
   startedAt?: Date;
   endsAt?: Date;
@@ -120,6 +121,7 @@ export function realtimeBroker({
 }: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule; limitMinutes: number }) {
   // shortcut: call slots and timers live in memory; use a durable registry before scaling out or requiring restart recovery.
   const live = new Map<string, Live>();
+  let closing: Promise<void> | undefined;
 
   // Count only the portion of each live call inside this UTC calendar month.
   async function voiceMinutes(userId: string) {
@@ -170,10 +172,13 @@ export function realtimeBroker({
       onTranscript(t: UIMessage[]): Promise<unknown>;
     },
   ) {
+    if (closing) return { unavailable: true as const };
     if (live.has(userId)) return { busy: true as const };
     let ready!: () => void;
+    const closed = Promise.withResolvers<SaveFailure | undefined>();
     const entry: Live = {
       ready: new Promise((r) => (ready = r)),
+      closed: closed.promise,
       targetId: opts.targetId,
     };
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
@@ -186,12 +191,14 @@ export function realtimeBroker({
       budgetSeconds = Math.min(budget.remainingSeconds, opts.budgetSeconds ?? Infinity);
       if (budgetSeconds <= 0) {
         live.delete(userId);
+        closed.resolve(undefined);
         ready();
         return { capped: budget };
       }
       call = await realtime.createCall(opts.sdp, opts.tools ? { ...sessionConfig, tools: opts.tools } : sessionConfig);
     } catch (e) {
       live.delete(userId);
+      closed.resolve(undefined);
       ready();
       throw e;
     }
@@ -263,6 +270,7 @@ export function realtimeBroker({
           failure ??= { error };
         } finally {
           live.delete(userId);
+          closed.resolve(failure);
         }
         if (failure) throw failure.error;
       });
@@ -335,7 +343,25 @@ export function realtimeBroker({
     await entry.stop?.();
   }
 
-  return { start, hangup, voiceMinutes };
+  function shutdown() {
+    return (closing ??= Promise.resolve().then(async () => {
+      const results = await Promise.all(
+        [...live].map(async ([userId, entry]) => {
+          try {
+            await hangup(userId);
+          } catch (error) {
+            console.error("Realtime shutdown failed", error);
+          }
+          // Failed hangups keep their slot and existing retry timer until provider teardown succeeds.
+          return entry.closed;
+        }),
+      );
+      const failures = results.flatMap((result) => (result ? [result.error] : []));
+      if (failures.length) throw new AggregateError(failures, "Failed to save closing voice calls");
+    }));
+  }
+
+  return { start, hangup, voiceMinutes, shutdown };
 }
 export type RealtimeBroker = ReturnType<typeof realtimeBroker>;
 

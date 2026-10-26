@@ -4,12 +4,13 @@ import type { AppEnv } from "./app";
 export const PAID_REQUESTS_PER_MINUTE = 60;
 export const PAID_REQUESTS_IN_FLIGHT = 4;
 
-export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
+export function requestLimits(now: () => Date) {
   // shortcut: guards cover one API instance, move claims and rate windows to Postgres before scaling out.
   const windows = new Map<string, { until: number; count: number }>();
   const active = new Map<string, number>();
   const conversations = new Map<string, { count: number; exclusive: boolean }>();
-  return async (c, next) => {
+  const pending = new Set<Promise<void>>();
+  const middleware: MiddlewareHandler<AppEnv> = async (c, next) => {
     const userId = c.var.user.id;
     const path = c.req.path.replace(/\/$/, "");
     const turn = path.match(/^\/api\/(?:assessments|roleplays|lessons)\/([^/]+)\/(chat|call|end|finish)$/);
@@ -64,6 +65,8 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
     let released = false;
     let responseDone = false;
     let tasks = 0;
+    const done = Promise.withResolvers<void>();
+    pending.add(done.promise);
     const release = () => {
       if (released || !responseDone || tasks) return;
       released = true;
@@ -76,6 +79,8 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
         const state = conversations.get(key)!;
         if (--state.count === 0) conversations.delete(key);
       }
+      pending.delete(done.promise);
+      done.resolve();
     };
     c.set("retainAiTask", (task) => {
       tasks++;
@@ -128,4 +133,9 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
       if (!streaming) finishResponse();
     }
   };
+  return Object.assign(middleware, {
+    async drain() {
+      while (pending.size) await Promise.all([...pending]);
+    },
+  });
 }

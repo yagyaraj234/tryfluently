@@ -13,6 +13,7 @@ services:
     image: fluently-runtime
     build: .
     restart: unless-stopped
+    stop_grace_period: 130s
     env_file: .env
     environment:
       NODE_ENV: production

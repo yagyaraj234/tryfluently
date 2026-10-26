@@ -282,6 +282,7 @@ This Roleplay is a text chat: write your lines as you would say them, without st
           onTranscript: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
         });
         if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
+        if ("unavailable" in call) return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
         if (!row.startedAt) await db.update(lesson).set({ startedAt: deps.now() }).where(eq(lesson.id, row.id));
         return c.body(call.answer, 201, { "content-type": "application/sdp" });

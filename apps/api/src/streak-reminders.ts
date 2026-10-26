@@ -67,22 +67,24 @@ export async function sendStreakReminders(deps: Deps) {
 }
 
 export function startStreakReminders(deps: Deps) {
-  let running = false;
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      await sendStreakReminders(deps);
-    } catch (error) {
-      console.error("Streak reminders failed", error);
-    } finally {
-      running = false;
-    }
+  let running: Promise<void> | undefined;
+  let stopped = false;
+  const tick = () => {
+    if (stopped || running) return;
+    running = sendStreakReminders(deps)
+      .catch((error) => console.error("Streak reminders failed", error))
+      .finally(() => {
+        running = undefined;
+      });
   };
   const timer = setInterval(() => void tick(), 5 * 60_000);
   timer.unref();
   void tick();
-  return () => clearInterval(timer);
+  return async () => {
+    stopped = true;
+    clearInterval(timer);
+    await running;
+  };
 }
 
 const page = (message: string, form = "") =>

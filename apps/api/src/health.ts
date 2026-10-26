@@ -2,7 +2,7 @@ import type { Db } from "@fluently/db";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 
-export function health(db: Db) {
+export function health(db: Db, ready = () => true) {
   let checking: Promise<void> | undefined;
   function probe() {
     let expired = false;
@@ -27,11 +27,13 @@ export function health(db: Db) {
     .get("/live", (c) => c.json({ status: "alive" }))
     .get("/ready", async (c) => {
       try {
+        if (!ready()) return c.json({ status: "unavailable" }, 503);
         // Share the response deadline too, so a stuck connection cannot poison all later probes.
         checking ??= probe().finally(() => {
           checking = undefined;
         });
         await checking;
+        if (!ready()) return c.json({ status: "unavailable" }, 503);
         return c.json({ status: "ready" });
       } catch {
         return c.json({ status: "unavailable" }, 503);

@@ -123,22 +123,24 @@ export async function runAssessmentJobs(deps: Deps, userId?: string) {
 
 /** Runs inside the long-lived Bun API process; pending work survives process restarts. */
 export function startAssessmentJobs(deps: Deps) {
-  let running = false;
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      await runAssessmentJobs(deps);
-    } catch (error) {
-      console.error("Assessment worker failed", error);
-    } finally {
-      running = false;
-    }
+  let running: Promise<void> | undefined;
+  let stopped = false;
+  const tick = () => {
+    if (stopped || running) return;
+    running = runAssessmentJobs(deps)
+      .catch((error) => console.error("Assessment worker failed", error))
+      .finally(() => {
+        running = undefined;
+      });
   };
   const timer = setInterval(() => void tick(), 2_000);
   timer.unref();
   void tick();
-  return () => clearInterval(timer);
+  return async () => {
+    stopped = true;
+    clearInterval(timer);
+    await running;
+  };
 }
 
 async function activeLesson(db: Deps["db"], userId: string) {
