@@ -23,27 +23,53 @@ import { RoleplaySection } from "../components/landing/RoleplaySection";
 import { assessmentTiming, faqs, site } from "../content/landing";
 import { publicNavigation } from "../components/landing/PublicPage";
 import { api } from "../lib/api";
-import { siteOrigin } from "../lib/site";
+import { publicPageHead, siteOrigin } from "../lib/site";
 
 function structuredData(origin: string) {
   return {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "Organization", "@id": `${origin}/#org`, name: site.name, url: origin },
+      {
+        "@type": "Organization",
+        "@id": `${origin}/#org`,
+        name: site.name,
+        url: `${origin}/`,
+        logo: `${origin}/favicon.svg`,
+      },
       {
         "@type": "WebSite",
         "@id": `${origin}/#site`,
         name: site.name,
-        url: origin,
+        url: `${origin}/`,
         description: site.description,
         publisher: { "@id": `${origin}/#org` },
         inLanguage: "en",
       },
       {
+        "@type": "WebPage",
+        "@id": `${origin}/#page`,
+        url: `${origin}/`,
+        name: site.title,
+        description: site.description,
+        isPartOf: { "@id": `${origin}/#site` },
+        mainEntity: { "@id": `${origin}/#app` },
+        inLanguage: "en",
+        primaryImageOfPage: {
+          "@type": "ImageObject",
+          url: `${origin}${site.image}`,
+          width: 1200,
+          height: 630,
+          caption: site.imageAlt,
+        },
+      },
+      {
         "@type": "SoftwareApplication",
+        "@id": `${origin}/#app`,
         name: site.name,
-        url: origin,
+        url: `${origin}/`,
         description: site.summary,
+        publisher: { "@id": `${origin}/#org` },
+        image: `${origin}${site.image}`,
         applicationCategory: "EducationalApplication",
         operatingSystem: "Web",
         inLanguage: "en",
@@ -61,6 +87,8 @@ function structuredData(origin: string) {
       },
       {
         "@type": "FAQPage",
+        "@id": `${origin}/#faq`,
+        isPartOf: { "@id": `${origin}/#page` },
         mainEntity: faqs.map((f) => ({
           "@type": "Question",
           name: f.question,
@@ -83,21 +111,10 @@ export const Route = createFileRoute("/")({
   head: () => {
     const origin = siteOrigin();
     return {
-      meta: [
-        { title: site.title },
-        { name: "description", content: site.description },
-        { name: "robots", content: "index, follow, max-image-preview:large" },
-        { property: "og:type", content: "website" },
-        { property: "og:site_name", content: site.name },
-        { property: "og:title", content: site.title },
-        { property: "og:description", content: site.description },
-        { property: "og:url", content: `${origin}/` },
-        { name: "twitter:card", content: "summary" },
-        { name: "twitter:title", content: site.title },
-        { name: "twitter:description", content: site.description },
+      ...publicPageHead("/", site.title, site.description),
+      scripts: [
+        { type: "application/ld+json", children: JSON.stringify(structuredData(origin)).replace(/</g, "\\u003c") },
       ],
-      links: [{ rel: "canonical", href: `${origin}/` }],
-      scripts: [{ type: "application/ld+json", children: JSON.stringify(structuredData(origin)) }],
     };
   },
   component: Landing,

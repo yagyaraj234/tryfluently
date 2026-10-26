@@ -8,6 +8,8 @@ export const site = {
     "Practise English speaking and writing with an AI coach. Take a voice or written assessment, then follow a Roadmap of short Lessons and conversation practice.",
   summary:
     "Fluently is an AI coach that helps people speak and write English. It assesses a learner's skills, then builds a stable Roadmap of Units and Lessons. Each Lesson's content adapts to earlier practice. English today, with more languages planned.",
+  image: "/og-image.png",
+  imageAlt: "Fluently: Your English. Your pace. An AI coach for speaking, writing and real conversations.",
 };
 
 export const assessmentTiming =
@@ -26,6 +28,7 @@ export const freeAccess = {
 };
 
 export const faqs = [
+  { question: "What is Fluently?", answer: site.summary },
   {
     question: "How long is the assessment?",
     answer: `${assessmentTiming} It is a conversation, not an exam. Your report is prepared after you finish.`,

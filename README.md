@@ -215,6 +215,24 @@ and builds. Commit the generated route tree so typechecking works immediately af
 Web tests start the dev server against a stub API and check the pass-through, signed-in guard,
 onboarding routing, theme cookie and practice flows.
 
+### Search and sharing
+
+`/` and `/sign-up` are the indexable public pages. They render metadata on the server, including
+canonical URLs and a 1200×630 PNG share image at `/og-image.png`. Edit `apps/web/public/og-image.svg`
+to update the artwork, then export it to PNG at the same dimensions. Other HTML pages inherit
+`noindex`; signed-in routes still require a session.
+
+Set `WEB_ORIGIN` to the public HTTPS origin before starting the production server. Canonicals,
+share URLs, `/robots.txt`, `/sitemap.xml` and `/llms.txt` use this origin during server rendering.
+The crawler rules give search and named AI crawlers the same exclusions for the API and Learner pages.
+Keep previews private or block indexing at the hosting layer.
+
+Landing copy, visible FAQs, FAQ structured data and the optional AI summary share
+`apps/web/src/content/landing.ts`. No invented ratings, credentials or paid-plan offers are published.
+Follow [Google's SEO guidance for AI features](https://developers.google.com/search/docs/appearance/ai-features):
+useful, crawlable content matters; special AI files and schema do not guarantee inclusion.
+After deployment, submit `/sitemap.xml` in Search Console and check the public URL in a social preview debugger.
+
 ### Design System and v1 verification
 
 Open `/design-system` for live tokens and component previews, with Light / Dark / System theme controls.

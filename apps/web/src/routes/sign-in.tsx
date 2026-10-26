@@ -3,6 +3,15 @@ import { authClient } from "../lib/auth";
 import { AuthFooter, AuthScreen, loadProviders } from "../components/auth/AuthScreen";
 
 export const Route = createFileRoute("/sign-in")({
+  head: () => ({
+    meta: [
+      { title: "Sign In | Fluently" },
+      {
+        name: "description",
+        content: "Sign in to Fluently to continue your English Lessons, Roleplays and personal Roadmap.",
+      },
+    ],
+  }),
   // Better Auth sends a failed Google sign-in back here with `?error=`.
   validateSearch: (search: Record<string, unknown>): { error?: string } =>
     typeof search.error === "string" ? { error: search.error } : {},

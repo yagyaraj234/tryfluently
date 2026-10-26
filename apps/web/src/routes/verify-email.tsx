@@ -1,7 +1,15 @@
 import { AuthLayout, Stack, Text, TextLink } from "@fluently/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/verify-email")({ component: VerifyEmail });
+export const Route = createFileRoute("/verify-email")({
+  head: () => ({
+    meta: [
+      { title: "Verify Your Email | Fluently" },
+      { name: "description", content: "Confirm your email address to start practising English with Fluently." },
+    ],
+  }),
+  component: VerifyEmail,
+});
 
 function VerifyEmail() {
   return (
