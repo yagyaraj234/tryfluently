@@ -1,4 +1,4 @@
-import { schema, type Db } from "@fluently/db";
+import { schema, type Db, type Tx } from "@fluently/db";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { localDay } from "./progress";
@@ -48,7 +48,7 @@ export function timingOf(text: string, seconds: number): Timing {
 const { aiUsage } = schema;
 
 // Seconds recorded today in the Learner's timezone.
-export async function recordedSecondsToday(db: Db, user: { id: string; timezone: string }, now: Date) {
+export async function recordedSecondsToday(db: Tx, user: { id: string; timezone: string }, now: Date) {
   const rows = await db
     .select({ startedAt: aiUsage.startedAt, seconds: aiUsage.seconds })
     .from(aiUsage)
@@ -76,5 +76,6 @@ export async function findRecording(db: Db, userId: string, lessonId: string, re
         sql`${aiUsage.usage}->>'lessonId' = ${lessonId}`,
       ),
     );
-  return row?.usage as { text: string; timing: Timing } | undefined;
+  if (typeof row?.usage?.text !== "string") return undefined;
+  return row.usage as { text: string; timing: Timing };
 }

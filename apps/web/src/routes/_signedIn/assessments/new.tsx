@@ -1,6 +1,7 @@
 import { Button, Card, CoachAvatar, Container, Grid, Heading, Notice, Screen, Stack, Text } from "@fluently/ui";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { MAX_ANSWERS } from "../../../components/assessment/assessment";
 import { VoiceAllowance } from "../../../components/voice/VoiceCredits";
 import { voiceMinutesQuery } from "../../../lib/queries";
 import { useState } from "react";
@@ -24,8 +25,7 @@ const modes: { mode: Mode; title: string; about: string }[] = [
   {
     mode: "written",
     title: "Written Assessment",
-    about:
-      "Type your answers to your coach's questions, plus a few short exercises. It takes up to 10 minutes. Fluency is measured later, once you speak in a Lesson.",
+    about: `Type your answers to your coach's questions, plus a few short exercises. It ends after ${MAX_ANSWERS} answers, usually within 10 minutes. Fluency is measured later, once you speak in a Lesson.`,
   },
 ];
 
@@ -106,8 +106,8 @@ function ChooseAssessment() {
             </Text>
             <Heading level={1}>Voice or written?</Heading>
             <Text>
-              Your coach will ask questions for up to 10 minutes to find your level and suggest Goals. Stay at least 4
-              minutes for the Assessment to count.
+              Your coach will ask questions to find your level and suggest Goals. A Voice Assessment runs for up to 10
+              minutes and needs at least 4 to count. A Written Assessment ends after {MAX_ANSWERS} answers.
             </Text>
           </Stack>
           <VoiceAllowance />

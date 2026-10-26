@@ -5,6 +5,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../../lib/api";
 import { signInWithGoogle } from "../../lib/auth";
+import { PublicLinks } from "../landing/PublicLinks";
 
 export const loadProviders = async () => (await api().api.auth.providers.$get()).json();
 
@@ -12,7 +13,11 @@ type Field = { name: string; label: string; type: string; autoComplete: string }
 
 const steps: AuthPoint[] = [
   { icon: Sparkle, title: "Set a Goal", body: "Tell us what you want English for." },
-  { icon: Microphone, title: "Take the Assessment", body: "Talk or type for up to 10 minutes." },
+  {
+    icon: Microphone,
+    title: "Take the Assessment",
+    body: "Voice: up to 10 minutes. Written: 12 answers, at your pace.",
+  },
   { icon: Path, title: "Follow your Roadmap", body: "Practice with Lessons made for you." },
 ];
 const waiting: AuthPoint = {
@@ -133,6 +138,22 @@ export function AuthScreen(props: {
           <Button type="submit" fullWidth disabled={pending}>
             {props.submitLabel}
           </Button>
+          {signingUp && (
+            <Text tone="muted">
+              Free beta. 10 live voice minutes/month; text practice remains available. No card or automatic charge.{" "}
+              <TextLink render={<Link to="/" hash="free" />}>See current limits</TextLink>.
+            </Text>
+          )}
+          <Text tone="muted">
+            {signingUp
+              ? "By creating an account, you agree to the Terms. See Privacy for voice processing, storage and deletion."
+              : "Read how Fluently handles your account and voice data."}
+          </Text>
+          <nav aria-label="Legal and support">
+            <Cluster gap={4}>
+              <PublicLinks />
+            </Cluster>
+          </nav>
         </Stack>
       </form>
     </AuthLayout>

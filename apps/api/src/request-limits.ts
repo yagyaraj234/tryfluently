@@ -4,12 +4,13 @@ import type { AppEnv } from "./app";
 export const PAID_REQUESTS_PER_MINUTE = 60;
 export const PAID_REQUESTS_IN_FLIGHT = 4;
 
-export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
+export function requestLimits(now: () => Date) {
   // shortcut: guards cover one API instance, move claims and rate windows to Postgres before scaling out.
   const windows = new Map<string, { until: number; count: number }>();
   const active = new Map<string, number>();
   const conversations = new Map<string, { count: number; exclusive: boolean }>();
-  return async (c, next) => {
+  const pending = new Set<Promise<void>>();
+  const middleware: MiddlewareHandler<AppEnv> = async (c, next) => {
     const userId = c.var.user.id;
     const path = c.req.path.replace(/\/$/, "");
     const turn = path.match(/^\/api\/(?:assessments|roleplays|lessons)\/([^/]+)\/(chat|call|end|finish)$/);
@@ -32,7 +33,9 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
       (c.req.method === "POST" &&
         (starting ||
           path === "/api/roadmap" ||
-          /\/(chat|call|end|finish|recordings|confirm|analyse|retry|next|outline|start)$/.test(path)));
+          /\/(chat|call|end|finish|recordings|confirm|answer|analyse|retry|next|outline|start|preparation)$/.test(
+            path,
+          )));
     if (paid) {
       const at = now().getTime();
       for (const [id, window] of windows) {
@@ -49,19 +52,47 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
       active.set(userId, (active.get(userId) ?? 0) + 1);
     }
     if (key) conversations.set(key, { count: (previous?.count ?? 0) + 1, exclusive });
+    const held = new Set(key ? [key] : []);
+    c.set("claimConversation", (id) => {
+      const key = `${userId}:${id}`;
+      if (held.has(key)) return true;
+      const previous = conversations.get(key);
+      if (previous?.exclusive) return false;
+      conversations.set(key, { count: (previous?.count ?? 0) + 1, exclusive: false });
+      held.add(key);
+      return true;
+    });
     let released = false;
+    let responseDone = false;
+    let tasks = 0;
+    const done = Promise.withResolvers<void>();
+    pending.add(done.promise);
     const release = () => {
-      if (released) return;
+      if (released || !responseDone || tasks) return;
       released = true;
       if (paid) {
         const left = active.get(userId)! - 1;
         if (left) active.set(userId, left);
         else active.delete(userId);
       }
-      if (key) {
+      for (const key of held) {
         const state = conversations.get(key)!;
         if (--state.count === 0) conversations.delete(key);
       }
+      pending.delete(done.promise);
+      done.resolve();
+    };
+    c.set("retainAiTask", (task) => {
+      tasks++;
+      const settled = () => {
+        tasks--;
+        release();
+      };
+      void task.then(settled, settled);
+    });
+    const finishResponse = () => {
+      responseDone = true;
+      release();
     };
     let streaming = false;
     let cancelling = false;
@@ -76,12 +107,12 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
                 const chunk = await reader.read();
                 if (cancelling) return;
                 if (chunk.done) {
-                  release();
+                  finishResponse();
                   controller.close();
                 } else controller.enqueue(chunk.value);
               } catch (error) {
                 if (cancelling) return;
-                release();
+                finishResponse();
                 controller.error(error);
               }
             },
@@ -90,7 +121,7 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
               try {
                 await reader.cancel(reason);
               } finally {
-                release();
+                finishResponse();
               }
             },
           }),
@@ -99,7 +130,12 @@ export function requestLimits(now: () => Date): MiddlewareHandler<AppEnv> {
         streaming = true;
       }
     } finally {
-      if (!streaming) release();
+      if (!streaming) finishResponse();
     }
   };
+  return Object.assign(middleware, {
+    async drain() {
+      while (pending.size) await Promise.all([...pending]);
+    },
+  });
 }

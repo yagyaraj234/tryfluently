@@ -11,7 +11,7 @@ import { cefrLevel } from "./goals";
 import { enqueueAssessmentJobs, practicePreparation, retryPracticePreparation } from "./assessment-jobs";
 import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 import { remember, addFocusItems } from "./learning-memory";
-import { fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
+import { cefr, fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
 
 const { assessment, goal } = schema;
@@ -65,6 +65,7 @@ const answersOf = (messages: UIMessage[]) =>
 // A Written Assessment passes `written`; a Voice Assessment has no items and is timed instead.
 const instructions = (goalTexts: string[], written?: { items: number; answers: number }) =>
   `You are Fluently, an English coach, running an Assessment of the Learner's English.
+Write plain text only: no markdown, no asterisks or bold.
 ${phases.replace(
   "{goals}",
   goalTexts.length
@@ -76,7 +77,9 @@ ${
     ? `During phases 2–4, also give 3–4 structured items, one at a time, using the fillGap and rewrite tools, pitched at the
 level they're showing. Don't tell them whether they got an item right. ${written.items} items answered so far.
 Aim to finish in about ${MAX_ANSWERS} questions; ${written.answers} answered so far.${
-        written.answers >= MAX_ANSWERS ? " That's enough: thank them and close now, with no further questions." : ""
+        written.answers >= MAX_ANSWERS
+          ? " That's enough: thank them and close now, with no further questions."
+          : " Don't thank them or close the conversation yet, even if you have covered every phase: keep asking new questions."
       }\n`
     : `Finish within 10 minutes. When you've closed the conversation, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.\n`
 }`;
@@ -174,8 +177,11 @@ export const assessments = ({
     const { grammar, vocabulary } = out.skills;
     const spoken = row.mode === "voice" ? out.skills.fluency : undefined;
     const fluency = spoken ? fluencyScore(speechSegments(row.transcript as UIMessage[]), spoken.score) : null;
+    // The overall level follows the skill scores the Learner sees, so the two can't disagree (the model's own guess did).
+    const measured = [grammar.score, vocabulary.score, ...(fluency === null ? [] : [fluency])];
     const report = {
       ...out,
+      overallLevel: cefr(measured.reduce((a, b) => a + b, 0) / measured.length),
       partial,
       skills: {
         fluency: fluency === null ? null : { ...scoreView(fluency), evidence: spoken!.evidence },
@@ -265,7 +271,11 @@ export const assessments = ({
         for (const row of open) {
           // A start created during this request belongs to the same overlapping attempt.
           if (row.startedAt >= c.var.requestStartedAt) return c.json(row, 200);
-          if ((await finish(row, user, { partial: true })).status === "failed")
+          if (!c.var.claimConversation(row.id))
+            return c.json({ error: "A turn is still in progress. Try again when it finishes." }, 409);
+          const current = await find(row.id, user.id);
+          if (!current || current.status !== "in_progress") continue;
+          if ((await finish(current, user, { partial: true })).status === "failed")
             return c.json({ error: "Your previous Assessment couldn't be finished. Try again." }, 502);
         }
 
@@ -329,7 +339,11 @@ export const assessments = ({
               .update(assessment)
               .set({ transcript })
               .where(
-                and(eq(assessment.id, row.id), unchanged(assessment.transcript, (row.transcript as unknown[]).length)),
+                and(
+                  eq(assessment.id, row.id),
+                  eq(assessment.status, "in_progress"),
+                  unchanged(assessment.transcript, (row.transcript as unknown[]).length),
+                ),
               )
               .returning({ id: assessment.id }),
         });
@@ -356,9 +370,14 @@ export const assessments = ({
           tools: [endCallTool],
           endTool: endCallTool.name,
           prior: row.transcript,
-          onTranscript: (transcript) => db.update(assessment).set({ transcript }).where(eq(assessment.id, row.id)),
+          onTranscript: (transcript) =>
+            db
+              .update(assessment)
+              .set({ transcript })
+              .where(and(eq(assessment.id, row.id), eq(assessment.status, "in_progress"))),
         });
         if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
+        if ("unavailable" in call) return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
         return c.body(call.answer, 201, { "content-type": "application/sdp" });
       })

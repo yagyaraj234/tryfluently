@@ -150,10 +150,12 @@ describe("starting a Roleplay", () => {
     const general = (await (await app.request("/api/goals", json({ kind: "general_fluency" }, cookie))).json()) as any;
 
     expect((await app.request("/api/roleplays", json({ goalId: general.id }, cookie))).status).toBe(400);
-    expect((await app.request("/api/roleplays", json({ goalId: general.id, kind: "custom" }, cookie))).status).toBe(400);
-    expect(
-      (await app.request("/api/roleplays", json({ goalId: general.id, kind: "small_talk" }, cookie))).status,
-    ).toBe(201);
+    expect((await app.request("/api/roleplays", json({ goalId: general.id, kind: "custom" }, cookie))).status).toBe(
+      400,
+    );
+    expect((await app.request("/api/roleplays", json({ goalId: general.id, kind: "small_talk" }, cookie))).status).toBe(
+      201,
+    );
   });
 
   test("a Learner can't start a Roleplay from someone else's Goal", async () => {

@@ -7,7 +7,7 @@ test("the API server keeps AI streams open before and between chunks", async () 
       process.execPath,
       "--eval",
       `
-    import config from "./src/index.ts";
+    import { serverOptions as config } from "./src/index.ts";
     const server = Bun.serve({ ...config, port: 0, fetch: (request) => new Response(new ReadableStream({
       start(controller) {
         if (!request.url.endsWith("cold")) controller.enqueue(new TextEncoder().encode("first"));

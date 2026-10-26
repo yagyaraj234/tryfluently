@@ -67,19 +67,39 @@ One topic on the Roadmap (for example, Tenses), with its own objective, made of 
 _Avoid_: Module, chapter, lesson
 
 **Lesson**:
-One short sitting inside a Unit: learning material followed by a short assessment made of Steps. Its complete content is prepared from earlier performance and Learner Memory, then stays fixed.
+One short sitting inside a Unit: Pages that teach, then a Quiz, then a choice of what's next. It completes when the Learner picks Next lesson or Learn more. Its content is prepared from earlier performance and Learner Memory, then stays fixed; Practice Rounds only add questions.
 _Avoid_: Sub-lesson, class, session
 
 **Page**:
-One screen of a Lesson's learning material: a single idea of at most about 150 words, usually with one Block for the Learner to try. A Lesson has 4–6 Pages and a recap.
+One screen of a Lesson's learning material: a single idea of at most about 150 words in short paragraphs and bullets, with an example set apart, Key Terms, Glossary Terms and sometimes a vocab card. Pages only teach; questions come in the Quiz. A Lesson has 4–6 Pages.
 _Avoid_: Slide, card, section
 
+**Key Term**:
+A phrase a Page teaches, shown in bold. Each Page has 2–4, written word for word in its body.
+_Avoid_: Keyword, highlight
+
+**Glossary Term**:
+A word on a Page the Learner may not know, shown with a dotted underline that opens a short definition when tapped or focused. A Page has 0–3.
+_Avoid_: Tooltip, definition, hint
+
 **Block**:
-A typed piece of a Page that the Learner reads or answers, such as an example, a fill-in-the-gap or a reorder. Each is rendered by a fixed component.
+A typed piece of a Lesson that the Learner reads or answers, such as a vocab card, a fill-in-the-gap or a reorder. Each is rendered by a fixed component. Question Blocks make up the Quiz and Practice Rounds.
 _Avoid_: Widget, component, exercise
 
+**Quiz**:
+The questions at the end of a Lesson, 1–3 per Page and at most 10, answered one at a time with no feedback in between, then shown together with every result.
+_Avoid_: Test, exam, assessment
+
+**Practice Round**:
+5 extra questions on a Lesson, written on request from its Pages and the Learner's wrong answers, answered like the Quiz. They count towards that Lesson's scores and XP.
+_Avoid_: Extra quiz, drill, retry
+
+**Follow-up Lesson**:
+A Lesson inserted right after the current one when the Learner picks Learn more. It re-teaches the same objective aimed at their mistakes and optional note, and is required like any other Lesson. At most 2 follow one original Lesson.
+_Avoid_: Remedial lesson, extra lesson, review lesson
+
 **Step**:
-A single prompt in a Lesson, together with the Learner's response and the feedback on it. A Step is either voice or text, and belongs to the Lesson’s saved assessment. Regular Lesson questions are fixed before the Lesson starts.
+A single prompt in a Lesson, together with the Learner's response and the feedback on it. A Step is either voice or text. In paged Lessons each answered Quiz or Practice Round question is saved as a Step.
 _Avoid_: Exercise, question, task, sub-lesson
 
 **Lesson Report**:
@@ -116,6 +136,9 @@ _Avoid_: Mistake, weak point, todo
 
 **Streak**:
 The number of consecutive days on which the Learner completed at least one Lesson.
+
+**Streak reminder**:
+An email sent once, in the last 6 hours of the Learner's local day, when they have a Streak but haven't completed a Lesson yet today. Learners can turn it off from the email.
 
 **XP**:
 Points the Learner earns by completing Steps and Lessons.

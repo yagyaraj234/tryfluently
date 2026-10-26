@@ -120,6 +120,34 @@
       "when": 1792510321287,
       "tag": "0016_smart_firelord",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792770435173,
+      "tag": "0017_flaky_adam_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792908843687,
+      "tag": "0018_perpetual_chronomancer",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792909439718,
+      "tag": "0019_colorful_zodiak",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792935310795,
+      "tag": "0020_loud_warpath",
+      "breakpoints": true
     }
   ]
 }

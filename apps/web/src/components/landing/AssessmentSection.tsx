@@ -6,18 +6,18 @@ export function AssessmentSection() {
     <Feature
       id="assessment"
       pill="Assessment"
-      title="See where you stand in 10 minutes"
-      description="Have a short conversation by voice or text. Get estimated CEFR levels for grammar and vocabulary, plus fluency when you speak."
+      title="Find your starting point"
+      description="An AI estimate of your English, with examples of what to practise next. It is not an official CEFR test."
       points={[
         {
           icon: ChartBar,
           title: "Your level and what to fix",
-          body: "Estimated levels from A1 to C2, plus the specific mistakes to correct first.",
+          body: "Estimated levels for measured skills, with specific corrections.",
         },
         {
           icon: Microphone,
           title: "Voice or written",
-          body: "Speak if you want fluency measured. Type if you are somewhere quiet.",
+          body: "Voice estimates spoken fluency. Written assesses grammar and vocabulary.",
         },
       ]}
     >
@@ -32,7 +32,7 @@ export function AssessmentSection() {
         bottom={
           <>
             <Check aria-hidden />
-            Takes up to 10 minutes
+            Voice: up to 10 minutes
           </>
         }
       >

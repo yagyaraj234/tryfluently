@@ -1,10 +1,11 @@
 import { schema } from "@fluently/db";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import type { Deps } from "./app";
-import { questionBlocks, questionSchema, type Question } from "./lesson-blocks";
+import { promptOf, questionAt, questionBlocks, questionSchema, type Question } from "./lesson-blocks";
 import { judgeRewrite } from "./rewrite-judge";
 import { speakResult, startAnalysis } from "./speech-answers";
+import { savePageFeedback } from "./paged-finish";
 
 const { lesson, step } = schema;
 
@@ -86,14 +87,13 @@ export function pageResult(q: Question, answer: unknown, verdict: Verdict | null
 export type PageResult = ReturnType<typeof pageResult>;
 
 type Verdict = "correct" | "almost" | "incorrect";
-type Stored = { question?: Question };
 type StepRow = typeof step.$inferSelect;
 
 /** Results of the answered Pages, by Page index, for the player to show again after a refresh. */
 export function answeredPages(l: typeof lesson.$inferSelect, rows: StepRow[]) {
   const out = new Map<number, PageResult>();
   for (const s of rows) {
-    const q = (l.material?.[s.position] as Stored | undefined)?.question;
+    const q = questionAt(l, s.position);
     if (q?.block === "speakPrompt" && s.answeredAt) out.set(s.position, speakResult(s.output?.answer, s));
     else if (q && s.answeredAt)
       out.set(s.position, pageResult(q, s.output?.answer, s.feedback?.verdict ?? null, s.feedback));
@@ -101,39 +101,54 @@ export function answeredPages(l: typeof lesson.$inferSelect, rows: StepRow[]) {
   return out;
 }
 
+/** The questions the Learner got wrong or nearly right, with their answer and the correct one. */
+export function mistakesOf(l: typeof lesson.$inferSelect, steps: StepRow[]) {
+  return [...answeredPages(l, steps)].flatMap(([i, r]) =>
+    r.verdict === "incorrect" || r.verdict === "almost"
+      ? [{ prompt: promptOf(questionAt(l, i)!), answer: r.answer, correctAnswer: r.correctAnswer }]
+      : [],
+  );
+}
+
 /**
  * Saves one Page's answer. Graded Blocks get a verdict at once, with no AI call. A second submit returns the first result.
  * The answer is a `step` row (position = Page index), so the finish and analysis step reads it like any other Step.
  */
 export async function answerPage(
-  ctx: Pick<Deps, "db" | "now" | "models">,
+  ctx: Pick<Deps, "db" | "now" | "models" | "settings">,
   userId: string,
   lessonId: string,
   index: number,
   answer: unknown,
+  retainAiTask?: (task: Promise<unknown>) => void,
 ) {
   const r = await save(ctx, userId, lessonId, index, answer);
   // A spoken answer's transcript is analysed in the background, once it is safely saved.
-  if (r.status === 201 && r.result.block === "speakPrompt") startAnalysis(ctx, userId, lessonId, index);
+  if (r.status === 201 && r.result.block === "speakPrompt") {
+    const task = startAnalysis(ctx, userId, lessonId, index);
+    retainAiTask?.(task);
+  }
   return r;
 }
 
 async function save(
-  { db, now, models }: Pick<Deps, "db" | "now" | "models">,
+  { db, now, models, settings }: Pick<Deps, "db" | "now" | "models" | "settings">,
   userId: string,
   lessonId: string,
   index: number,
   answer: unknown,
 ) {
   const saved = await db.transaction(async (tx) => {
+    await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
     const [l] = await tx
       .select()
       .from(lesson)
-      .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), eq(lesson.contentVersion, 2)))
+      .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), gte(lesson.contentVersion, 2)))
       .for("update");
     if (!l) return { status: 404 as const, error: "Lesson not found" };
-    const q = (l.material?.[index] as Stored | undefined)?.question;
-    if (!q || l.pageStatus?.[index]?.question !== "ready" || !questionBlocks.includes(q.block))
+    const q = questionAt(l, index);
+    const ready = l.contentVersion >= 3 || l.pageStatus?.[index]?.question === "ready";
+    if (!q || !ready || !questionBlocks.includes(q.block))
       return { status: 409 as const, error: "This Page has no question yet" };
     const [prev] = await tx
       .select()
@@ -204,7 +219,7 @@ async function save(
   const { stepId, q, text } = saved.judge!;
   try {
     const feedback = await judgeRewrite({ db, now, models }, userId, q, text);
-    await db.update(step).set({ feedback, timing: null }).where(eq(step.id, stepId));
+    await savePageFeedback({ db, now, settings }, userId, lessonId, stepId, feedback);
     return { status: 201 as const, result: pageResult(q, text, feedback.verdict, feedback) };
   } catch {
     await db.update(step).set({ timing: null }).where(eq(step.id, stepId));
@@ -220,7 +235,7 @@ export async function setCurrentPage(db: Deps["db"], userId: string, lessonId: s
   const [l] = await db
     .select({ n: lesson.pageStatus })
     .from(lesson)
-    .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), eq(lesson.contentVersion, 2)));
+    .where(and(eq(lesson.id, lessonId), eq(lesson.userId, userId), gte(lesson.contentVersion, 2)));
   if (!l || page > (l.n?.length ?? 0)) return false;
   await db.update(lesson).set({ currentPage: page }).where(eq(lesson.id, lessonId));
   return true;

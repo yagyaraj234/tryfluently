@@ -7,8 +7,8 @@ export const Route = createFileRoute("/sign-up")({
   head: () =>
     publicPageHead(
       "/sign-up",
-      "Start Your Free English Assessment | Fluently",
-      "Create a free Fluently account to assess your English speaking or writing. Set a Goal and start adaptive Lessons and Roleplays with your AI coach.",
+      "Create a free account",
+      "Start with a Voice or Written Assessment. Free beta with 10 live voice minutes per month and no card needed.",
     ),
   loader: loadProviders,
   component: SignUp,

@@ -9,15 +9,16 @@ export const siteOrigin = createIsomorphicFn()
 /** Only public, indexable routes opt in; account and Learner pages inherit noindex from the root. */
 export function publicPageHead(path: string, title: string, description: string) {
   const origin = siteOrigin();
+  const pageTitle = title === site.title ? title : `${title} | ${site.name}`;
   const image = `${origin}${site.image}`;
   return {
     meta: [
-      { title },
+      { title: pageTitle },
       { name: "description", content: description },
       { name: "robots", content: "index, follow, max-image-preview:large" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: site.name },
-      { property: "og:title", content: title },
+      { property: "og:title", content: pageTitle },
       { property: "og:description", content: description },
       { property: "og:url", content: `${origin}${path}` },
       { property: "og:image", content: image },
@@ -26,7 +27,7 @@ export function publicPageHead(path: string, title: string, description: string)
       { property: "og:image:height", content: "630" },
       { property: "og:image:alt", content: site.imageAlt },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: title },
+      { name: "twitter:title", content: pageTitle },
       { name: "twitter:description", content: description },
       { name: "twitter:image", content: image },
       { name: "twitter:image:alt", content: site.imageAlt },

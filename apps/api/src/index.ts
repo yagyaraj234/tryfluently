@@ -2,10 +2,12 @@ import { createDb } from "@fluently/db";
 import { createApp, type Deps, type Env } from "./app";
 import { resendMailer } from "./mailer";
 import { startAssessmentJobs } from "./assessment-jobs";
+import { startStreakReminders } from "./streak-reminders";
 import { modelsFromSettings } from "./models";
 import { kenpathSpeech } from "./pronunciation";
 import { openaiRealtime } from "./realtime";
 import { openaiTranscriber } from "./recordings";
+import { installShutdown } from "./shutdown";
 
 const env = process.env as Record<string, string>;
 const required = [
@@ -32,11 +34,16 @@ const deps = {
   realtime: openaiRealtime(env.OPENAI_API_KEY!, env.MODEL_REALTIME || undefined),
   transcriber: openaiTranscriber(env.OPENAI_API_KEY!),
 } satisfies Deps;
-if (import.meta.main) startAssessmentJobs(deps);
+const app = createApp(deps);
 
-export default {
+export const serverOptions = {
   port: Number(env.PORT ?? 3000),
   // AI streams can pause while the model thinks; Bun's default closes idle sockets after 10 seconds.
   idleTimeout: 120,
-  fetch: createApp(deps).fetch,
+  fetch: app.fetch,
 };
+
+if (import.meta.main) {
+  const server = Bun.serve(serverOptions);
+  installShutdown(server, app, deps.db, [startAssessmentJobs(deps), startStreakReminders(deps)]);
+}

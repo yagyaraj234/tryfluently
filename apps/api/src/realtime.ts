@@ -6,6 +6,7 @@ import type { AppEnv, Deps, Schedule } from "./app";
 
 export type RealtimeEvent = { type: string; [key: string]: any };
 export type RealtimeSession = Record<string, unknown>;
+// Hangup confirms provider teardown; it must not wait for the socket's onClose handler.
 export type Sideband = { send(event: object): void; hangup(): Promise<void> };
 
 // Thin client over OpenAI Realtime, faked in tests.
@@ -42,11 +43,13 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
     attach(callId, { onEvent, onClose }) {
       // Bun's WebSocket takes headers, which browsers' doesn't.
       const ws = new WebSocket(`${API}?call_id=${callId}`, { headers: { authorization } } as any);
+      let hungUp = false;
       ws.onmessage = (m) =>
         void Promise.resolve(onEvent(JSON.parse(String(m.data)))).catch((error) =>
           console.error("realtime event failed", error),
         );
       ws.onclose = () => {
+        if (hungUp) return;
         void Promise.resolve()
           .then(onClose)
           .catch((error) => console.error("realtime close failed", error));
@@ -64,6 +67,7 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
             signal: AbortSignal.timeout(30_000),
           });
           if (!res.ok) throw new Error(`OpenAI Realtime hangup ${res.status}: ${await res.text()}`);
+          hungUp = true;
           ws.close();
         },
       };
@@ -100,6 +104,7 @@ const wrapUp =
 type SaveFailure = { error: unknown };
 type Live = {
   sideband?: Sideband;
+  stop?: () => Promise<void>;
   ready: Promise<void>;
   closed: Promise<SaveFailure | undefined>;
   targetId?: string;
@@ -116,6 +121,7 @@ export function realtimeBroker({
 }: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule; limitMinutes: number }) {
   // shortcut: call slots and timers live in memory; use a durable registry before scaling out or requiring restart recovery.
   const live = new Map<string, Live>();
+  let closing: Promise<void> | undefined;
 
   // Count only the portion of each live call inside this UTC calendar month.
   async function voiceMinutes(userId: string) {
@@ -166,12 +172,13 @@ export function realtimeBroker({
       onTranscript(t: UIMessage[]): Promise<unknown>;
     },
   ) {
+    if (closing) return { unavailable: true as const };
     if (live.has(userId)) return { busy: true as const };
-    let closed!: (failure?: SaveFailure) => void;
     let ready!: () => void;
+    const closed = Promise.withResolvers<SaveFailure | undefined>();
     const entry: Live = {
       ready: new Promise((r) => (ready = r)),
-      closed: new Promise((r) => (closed = r)),
+      closed: closed.promise,
       targetId: opts.targetId,
     };
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
@@ -184,14 +191,14 @@ export function realtimeBroker({
       budgetSeconds = Math.min(budget.remainingSeconds, opts.budgetSeconds ?? Infinity);
       if (budgetSeconds <= 0) {
         live.delete(userId);
-        closed();
+        closed.resolve(undefined);
         ready();
         return { capped: budget };
       }
       call = await realtime.createCall(opts.sdp, opts.tools ? { ...sessionConfig, tools: opts.tools } : sessionConfig);
     } catch (e) {
       live.delete(userId);
-      closed();
+      closed.resolve(undefined);
       ready();
       throw e;
     }
@@ -206,7 +213,9 @@ export function realtimeBroker({
     const timing = new Map<string, { speechStartMs?: number; speechEndMs?: number }>();
     const usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
     let saving: Promise<SaveFailure | undefined> = Promise.resolve(undefined);
-    let ended = false;
+    let stopping: Promise<void> | undefined;
+    let cancelRetry: (() => void) | undefined;
+    let retries = 0;
     let ending = false;
     let endResponseId: string | undefined;
     let cancelEndFallback: (() => void) | undefined;
@@ -228,6 +237,44 @@ export function realtimeBroker({
           return { error };
         }
       });
+    };
+
+    entry.stop = () => {
+      if (stopping) return stopping;
+      cancelRetry?.();
+      stopping = Promise.resolve().then(async () => {
+        try {
+          await entry.sideband!.hangup();
+        } catch (error) {
+          stopping = undefined;
+          // A dropped sideband does not prove the browser's call ended. Keep its slot and meter until teardown succeeds.
+          cancelRetry = schedule(Math.min(30_000, 1_000 * 2 ** retries++), () =>
+            entry.stop!().catch((error) => console.error("realtime hangup retry failed", error)),
+          );
+          throw error;
+        }
+        const endedAt = now();
+        for (const cancel of timers) cancel();
+        cancelEndFallback?.();
+        let failure = await saving;
+        try {
+          await db.insert(schema.aiUsage).values({
+            userId,
+            kind: "realtime",
+            callId: call.callId,
+            startedAt,
+            seconds: (endedAt.getTime() - startedAt.getTime()) / 1000,
+            usage: { ...usage, purpose: opts.purpose },
+          });
+        } catch (error) {
+          failure ??= { error };
+        } finally {
+          live.delete(userId);
+          closed.resolve(failure);
+        }
+        if (failure) throw failure.error;
+      });
+      return stopping;
     };
 
     entry.sideband = realtime.attach(call.callId, {
@@ -264,30 +311,8 @@ export function realtimeBroker({
         }
       },
       async onClose() {
-        if (ended) {
-          const failure = await entry.closed;
-          if (failure) throw failure.error;
-          return;
-        }
-        ended = true;
-        for (const cancel of timers) cancel();
-        let failure = await saving;
-        try {
-          await db.insert(schema.aiUsage).values({
-            userId,
-            kind: "realtime",
-            callId: call.callId,
-            startedAt,
-            seconds: (now().getTime() - startedAt.getTime()) / 1000,
-            usage: { ...usage, purpose: opts.purpose },
-          });
-        } catch (error) {
-          failure ??= { error };
-        } finally {
-          live.delete(userId);
-          closed(failure);
-        }
-        if (failure) throw failure.error;
+        await entry.ready;
+        await entry.stop!();
       },
     });
     ready();
@@ -315,12 +340,28 @@ export function realtimeBroker({
     const entry = live.get(userId);
     if (!entry || (targetId !== undefined && entry.targetId !== targetId)) return;
     await entry.ready;
-    await entry.sideband?.hangup();
-    const failure = await entry.closed;
-    if (failure) throw failure.error;
+    await entry.stop?.();
   }
 
-  return { start, hangup, voiceMinutes };
+  function shutdown() {
+    return (closing ??= Promise.resolve().then(async () => {
+      const results = await Promise.all(
+        [...live].map(async ([userId, entry]) => {
+          try {
+            await hangup(userId);
+          } catch (error) {
+            console.error("Realtime shutdown failed", error);
+          }
+          // Failed hangups keep their slot and existing retry timer until provider teardown succeeds.
+          return entry.closed;
+        }),
+      );
+      const failures = results.flatMap((result) => (result ? [result.error] : []));
+      if (failures.length) throw new AggregateError(failures, "Failed to save closing voice calls");
+    }));
+  }
+
+  return { start, hangup, voiceMinutes, shutdown };
 }
 export type RealtimeBroker = ReturnType<typeof realtimeBroker>;
 

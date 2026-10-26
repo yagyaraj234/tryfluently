@@ -107,7 +107,15 @@ export { ReportStrengths, ReportWeakness, type ReportStrengthsProps, type Report
 export { ScoreHistory, type ScoreHistoryEntry, type ScoreHistoryProps } from "./ScoreHistory";
 export { Screen, type ScreenProps } from "./Screen";
 export { type SpeechControl } from "./SpeakAnswer";
-export { PageBlock, PageDots, QuestionSkeleton, ReadingCard, type PageQuestion, type PageResult } from "./PagedLesson";
+export {
+  PageBlock,
+  PageDots,
+  QuestionSkeleton,
+  ReadingCard,
+  type GlossaryTerm,
+  type PageQuestion,
+  type PageResult,
+} from "./PagedLesson";
 export { Select, type SelectProps } from "./Select";
 export { Sheet, type SheetProps } from "./Sheet";
 export { Skeleton, type SkeletonProps } from "./Skeleton";
@@ -144,6 +152,8 @@ export { XpChip, type XpChipProps } from "./XpChip";
 export {
   CoachAvatar,
   CoachCall,
+  LessonFrame,
+  LessonNav,
   LessonStage,
   RoadmapNode,
   RoadmapUnit,
@@ -153,3 +163,6 @@ export {
 } from "./Learning";
 
 export { ProgressOverview, ProgressCheckIn, SkillProgressCard, type SkillProgressCardProps } from "./ProgressOverview";
+
+export { MarketingOffer } from "./MarketingOffer";
+export { MarketingDocument, MarketingCaption } from "./Marketing";

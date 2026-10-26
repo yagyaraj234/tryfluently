@@ -226,3 +226,11 @@ test("worker claims a lesson job; existing Lessons stay on the old format", asyn
   // An old-format Lesson has nothing to generate, so the claimed job just finishes.
   expect(claimed).toMatchObject({ kind: "lesson", status: "done", attempts: 1, assessmentId: null });
 });
+
+test("the Roadmap is asked to start with the first Unit the Report showed the Learner", async () => {
+  const { app, userId, models } = await complete();
+  await app.runJobs(userId);
+  const prompt = JSON.stringify(models.roadmap.doGenerateCalls[0]!.prompt);
+  expect(prompt).toContain("Talking about past projects");
+  expect(prompt).toContain("Make it Unit 1");
+});

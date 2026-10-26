@@ -71,6 +71,7 @@ test("the Learner can sign out or delete their account", async () => {
   const html = await page();
   assert.ok(buttons(html).includes("Sign out"));
   assert.ok(buttons(html).includes("Delete your account"));
+  for (const path of ["privacy", "terms", "contact"]) assert.match(html, new RegExp(`href="/${path}"`));
 });
 
 test("Profile includes the shared learning summary", async () => {

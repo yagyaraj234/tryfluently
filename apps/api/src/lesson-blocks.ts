@@ -56,12 +56,26 @@ export const questionSchema = z.discriminatedUnion("block", [
   speakPromptQuestion,
 ]);
 export type Question = z.infer<typeof questionSchema>;
+/** The question answered at `index`: a Page's in content version 2, a Quiz or Practice Round question's after that. */
+export function questionAt(
+  l: { contentVersion: number; material: unknown[] | null; quiz: { question: unknown }[] | null },
+  index: number,
+) {
+  const q =
+    l.contentVersion >= 3 ? l.quiz?.[index]?.question : (l.material?.[index] as { question?: unknown })?.question;
+  return q as Question | undefined;
+}
+
+/** What a question asks, for comparing questions and telling the model about them. */
+export const promptOf = (q: Question) => ("prompt" in q ? q.prompt : q.term);
+
 /** Blocks that carry a question. `reading` has none. */
 export const questionBlocks: string[] = questionSchema.options.map((o) => o.shape.block.value);
 
-/** What the question agent returns: one question per interactive Page, by Page index (0-based). */
+/** What the question agent returns: one question per interactive Page, by Page index (0-based).
+ * A plain union, not questionSchema: a discriminated union becomes `oneOf`, which OpenAI structured output rejects. */
 export const questionsOutput = z.object({
-  questions: z.array(z.object({ page: z.number().int().min(0), question: questionSchema })),
+  questions: z.array(z.object({ page: z.number().int().min(0), question: z.union(questionSchema.options) })),
 });
 
 /** Whether `phrase` appears in `text` as whole words, so `is` isn't found inside `This`. */
@@ -74,7 +88,10 @@ export function hasPhrase(text: string, phrase: string) {
 export function questionProblem(q: Question) {
   if (q.block === "multipleChoice" && q.answerIndex >= q.options.length) return "answerIndex out of range";
   if (q.block === "multipleChoice" && new Set(q.options).size !== q.options.length) return "duplicate options";
-  if (q.block === "fillGap" && !q.prompt.includes("___")) return "fillGap prompt has no gap";
+  // One gap, one answer box: with two gaps the Learner could never match the key.
+  if (q.block === "fillGap" && q.prompt.split("___").length !== 2) return "fillGap prompt must have exactly one gap";
+  if (q.block === "vocabCard" && q.answer.trim().toLowerCase() === q.term.trim().toLowerCase())
+    return "vocabCard answer repeats the term";
   if (q.block === "fillGap" && hasPhrase(q.prompt, q.answer)) return "answer is in the prompt";
 }
 

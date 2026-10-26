@@ -9,8 +9,10 @@ import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { answerPage, setCurrentPage, stepsOf } from "./page-answers";
 import { retryAnalysis } from "./speech-answers";
-import { publicPages, retryLesson, startLesson } from "./paged-lessons";
+import { publicPages, publicQuiz, retryLesson, startLesson } from "./paged-lessons";
 import { prepareNext } from "./preparation";
+import { canLearnMore, learnMore } from "./follow-up-lessons";
+import { requestPracticeRound } from "./practice-rounds";
 import { completeLesson } from "./completion";
 import { finishPagedLesson } from "./paged-finish";
 import { countFocusHits } from "./learning-memory";
@@ -80,17 +82,40 @@ export const lessons = ({
       return { ...s, input, feedback: l.status === "completed" ? s.feedback : null };
     });
     const { preparationToken, ...view } = l;
-    if (l.contentVersion === 2) return { ...view, material: publicPages(l, rows), questions: [], steps: [] };
+    if (l.contentVersion >= 2)
+      return {
+        ...view,
+        material: publicPages(l, rows),
+        quiz: publicQuiz(l, rows),
+        learnMore: l.contentVersion >= 3 && (await canLearnMore(db, l)),
+        questions: [],
+        steps: [],
+      };
     return { ...view, questions: safe, steps: safe };
   };
 
-  const pagesView = async (l: typeof lesson.$inferSelect) => ({
-    id: l.id,
-    preparation: l.preparation,
-    currentPage: l.currentPage,
-    status: l.status,
-    pages: publicPages(l, await stepsOf(db, l.id)),
-  });
+  const pagesView = async (l: typeof lesson.$inferSelect) => {
+    const steps = await stepsOf(db, l.id);
+    return {
+      id: l.id,
+      preparation: l.preparation,
+      currentPage: l.currentPage,
+      status: l.status,
+      pages: publicPages(l, steps),
+      quiz: publicQuiz(l, steps),
+      practice: l.practice,
+      learnMore: l.contentVersion >= 3 && (await canLearnMore(db, l)),
+    };
+  };
+
+  type Vars = Pick<AppEnv["Variables"], "user" | "retainAiTask">;
+  const submit = ({ user, retainAiTask }: Vars, id: string, index: number, answer: unknown) =>
+    answerPage({ db, now, models, settings }, user.id, id, index, answer, retainAiTask);
+  const reanalyse = async ({ user, retainAiTask }: Vars, id: string, index: number) => {
+    const l = await find(id, user.id);
+    if (l && l.contentVersion >= 2)
+      return retryAnalysis({ db, now, models, settings }, user.id, l.id, index, retainAiTask);
+  };
 
   const openFocus = (userId: string) =>
     db
@@ -181,6 +206,25 @@ export const lessons = ({
         if ("error" in r) return c.json({ error: r.error }, 409);
         return c.json(await pagesView(r.lesson), r.created ? 201 : 200);
       })
+      // Practice more: queues a Practice Round of 5 new questions, or queues a failed one again.
+      .post("/:id/practice", async (c) => {
+        const r = await requestPracticeRound({ db, now }, c.var.user.id, c.req.param("id"));
+        return r.status === 202
+          ? c.json(await pagesView((await find(c.req.param("id"), c.var.user.id))!), 202)
+          : c.json({ error: r.error }, r.status);
+      })
+      // Learn more: completes this Lesson and starts a Follow-up Lesson right after it, aimed at the Learner's
+      // mistakes and their optional note on what confused them.
+      .post(
+        "/:id/learn-more",
+        zValidator("json", z.object({ note: z.string().trim().max(500).optional() })),
+        async (c) => {
+          const note = c.req.valid("json").note || null;
+          const r = await learnMore({ db, now, settings }, c.var.user.id, c.req.param("id"), note);
+          if (r.status !== 201) return c.json({ error: r.error }, r.status);
+          return c.json({ ...(await pagesView(r.lesson)), position: r.lesson.position }, 201);
+        },
+      )
       .post("/:id/retry", async (c) => {
         const r = await retryLesson({ db, now }, c.var.user.id, c.req.param("id"));
         return r ? c.json(await pagesView(r), 202) : c.json({ error: "Only a failed Lesson can be retried" }, 409);
@@ -188,12 +232,14 @@ export const lessons = ({
       // Polled while Pages are written: which are ready, with their content so far (never answer keys).
       .get("/:id/pages", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
-        return row?.contentVersion === 2 ? c.json(await pagesView(row)) : c.json({ error: "Lesson not found" }, 404);
+        return row && row.contentVersion >= 2
+          ? c.json(await pagesView(row))
+          : c.json({ error: "Lesson not found" }, 404);
       })
       // The end screen polls this: the background analysis status and, once it is done, the short summary.
       .get("/:id/analysis", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
-        if (row?.contentVersion !== 2) return c.json({ error: "Lesson not found" }, 404);
+        if (!row || row.contentVersion < 2) return c.json({ error: "Lesson not found" }, 404);
         const [work] = await db
           .select({ status: schema.assessmentJob.status })
           .from(schema.assessmentJob)
@@ -203,23 +249,22 @@ export const lessons = ({
       // Grades a paged Lesson's Page on the server and returns the verdict, correct answer and explanation straight away.
       // The `answer` shape depends on the Block (see page-answers.ts). Sending it again returns the first result.
       .post("/:id/pages/:index{[0-9]+}/answer", zValidator("json", z.object({ answer: z.unknown() })), async (c) => {
-        const r = await answerPage(
-          { db, now, models },
-          c.var.user.id,
-          c.req.param("id"),
-          Number(c.req.param("index")),
-          c.req.valid("json").answer,
-        );
+        const r = await submit(c.var, c.req.param("id"), Number(c.req.param("index")), c.req.valid("json").answer);
+        return "error" in r ? c.json({ error: r.error }, r.status) : c.json(r.result, r.status);
+      })
+      // A Quiz or Practice Round answer (content version 3), by its index in the Quiz, under the same rules.
+      .post("/:id/quiz/:index{[0-9]+}/answer", zValidator("json", z.object({ answer: z.unknown() })), async (c) => {
+        const r = await submit(c.var, c.req.param("id"), Number(c.req.param("index")), c.req.valid("json").answer);
         return "error" in r ? c.json({ error: r.error }, r.status) : c.json(r.result, r.status);
       })
       // Tries a spoken answer's text analysis again after it failed. The saved transcript is kept as it was.
       .post("/:id/pages/:index{[0-9]+}/analyse", async (c) => {
-        const l = await find(c.req.param("id"), c.var.user.id);
-        const r =
-          l?.contentVersion === 2
-            ? await retryAnalysis({ db, now, models }, c.var.user.id, l.id, Number(c.req.param("index")))
-            : undefined;
+        const r = await reanalyse(c.var, c.req.param("id"), Number(c.req.param("index")));
         return r ? c.json(r, 202) : c.json({ error: "Nothing to analyse on this Page" }, 404);
+      })
+      .post("/:id/quiz/:index{[0-9]+}/analyse", async (c) => {
+        const r = await reanalyse(c.var, c.req.param("id"), Number(c.req.param("index")));
+        return r ? c.json(r, 202) : c.json({ error: "Nothing to analyse on this question" }, 404);
       })
       // Remembers which Page the Learner is on (0-based; the recap is one past the last Page) so a return visit resumes there.
       .patch("/:id/page", zValidator("json", z.object({ page: z.number().int().min(0) })), async (c) => {
@@ -317,7 +362,7 @@ export const lessons = ({
       .post("/:id/finish", async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
         if (!row) return c.json({ error: "Lesson not found" }, 404);
-        const paged = row.contentVersion === 2;
+        const paged = row.contentVersion >= 2;
         if (paged) {
           const result = await finishPagedLesson({ db, now, settings }, row.id, row.userId);
           if (result.status === "incomplete")
@@ -340,27 +385,42 @@ export const lessons = ({
         const row = await find(c.req.param("id"), user.id);
         if (!row) return c.json({ error: "Lesson not found" }, 404);
         if (row.status !== "in_progress") return c.json({ error: "This Lesson has ended" }, 409);
-        if ((await recordedSecondsToday(db, user, now())) >= settings.recordingMinutesPerDay * 60)
-          return c.json({ error: "You've used today's recorded minutes. Answer in text, or come back tomorrow." }, 429);
-
         const { audio, seconds } = c.req.valid("form");
+        const recordingId = crypto.randomUUID();
+        const reserved = await db.transaction(async (tx) => {
+          await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, user.id)).for("update");
+          const at = now();
+          if ((await recordedSecondsToday(tx, user, at)) + seconds > settings.recordingMinutesPerDay * 60) return false;
+          await tx.insert(schema.aiUsage).values({
+            userId: user.id,
+            kind: "recording",
+            callId: recordingId,
+            startedAt: at,
+            seconds,
+            usage: { lessonId: row.id },
+          });
+          return true;
+        });
+        if (!reserved)
+          return c.json(
+            { error: "This clip exceeds today's remaining recorded minutes. Answer in text, or come back tomorrow." },
+            429,
+          );
         let text: string;
         try {
           ({ text } = await transcriber.transcribe(audio));
         } catch (e) {
+          await db
+            .delete(schema.aiUsage)
+            .where(and(eq(schema.aiUsage.userId, user.id), eq(schema.aiUsage.callId, recordingId)));
           console.error("transcription failed", e);
           return c.json({ error: "The recording couldn't be transcribed. Try again." }, 502);
         }
-        const recordingId = crypto.randomUUID();
         const timing = timingOf(text, seconds);
-        await db.insert(schema.aiUsage).values({
-          userId: user.id,
-          kind: "recording",
-          callId: recordingId,
-          startedAt: now(),
-          seconds,
-          usage: { lessonId: row.id, text, timing },
-        });
+        await db
+          .update(schema.aiUsage)
+          .set({ usage: { lessonId: row.id, text, timing } })
+          .where(and(eq(schema.aiUsage.userId, user.id), eq(schema.aiUsage.callId, recordingId)));
         return c.json({ recordingId, text, timing }, 201);
       })
       // One turn. The body carries the newest message: a user message, or the last assistant message with the Step answered.

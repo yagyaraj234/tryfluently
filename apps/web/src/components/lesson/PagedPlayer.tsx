@@ -1,7 +1,8 @@
 import {
   Button,
-  Cluster,
+  LessonNav,
   Heading,
+  LessonFrame,
   Notice,
   PageBlock,
   PageDots,
@@ -9,6 +10,7 @@ import {
   ReadingCard,
   Stack,
   Text,
+  type GlossaryTerm,
   type PageQuestion,
   type SpeechControl,
   type PageResult,
@@ -23,7 +25,7 @@ import { PagedComplete } from "./PagedComplete";
 import { PagedReview } from "./PagedReview";
 import { lessonXp, type Lesson } from "./lesson";
 
-type PageData = {
+export type PageData = {
   page: number;
   status: "pending" | "ready" | "failed";
   question: "pending" | "ready" | "failed";
@@ -32,9 +34,12 @@ type PageData = {
   title?: string;
   body?: string;
   example?: string | null;
+  keyTerms?: string[];
+  glossary?: GlossaryTerm[];
+  vocab?: { term: string; meaning: string };
   block?: string;
 };
-type PagedData = {
+export type PagedData = {
   id: string;
   preparation: "failed" | "preparing" | "ready" | null;
   currentPage: number;
@@ -43,7 +48,7 @@ type PagedData = {
 };
 
 /** Wraps the speaking Block with the browser's speech recognition. Recordings stay in browser memory until the Lesson is left. */
-function SpeakingBlock(props: {
+export function SpeakingBlock(props: {
   question: PageQuestion;
   result?: PageResult;
   pending: boolean;
@@ -92,9 +97,11 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   }, []);
 
   // Move focus to the new Page, but not on the first render so the browser keeps its own starting point.
+  // Scroll to the top ourselves: letting focus scroll leaves the new Page's title under the sticky header.
   useEffect(() => {
-    if (first.current) first.current = false;
-    else heading.current?.focus();
+    if (first.current) return void (first.current = false);
+    heading.current?.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
   }, [index]);
 
   const go = (to: number) => {
@@ -174,7 +181,11 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
       />
     );
 
-  const broken = !page ? false : page.status === "failed" || (hasQuestion(page) && page.question === "failed");
+  // Questions are written only after every Page, so when another Page failed this one's question never arrives.
+  const stuck = data!.preparation === "failed" && page?.question === "pending";
+  const broken = !page
+    ? false
+    : page.status === "failed" || (hasQuestion(page) && (page.question === "failed" || stuck));
   const ready = Boolean(page && page.status === "ready" && (!hasQuestion(page) || page.result));
 
   let body;
@@ -188,9 +199,6 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
             : "You reached the end of this Lesson."}
         </Text>
         {finish.isError && <Notice tone="error">{finish.error.message}</Notice>}
-        <Button disabled={finish.isPending} onClick={() => finish.mutate()}>
-          {finish.isPending ? "Finishing…" : "Finish Lesson"}
-        </Button>
       </Stack>
     );
   else if (broken)
@@ -198,6 +206,7 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
       <Notice tone="error">
         <Stack gap={3}>
           <span>This page couldn't be written.</span>
+          {retry.isError && <span>{retry.error.message}</span>}
           <div>
             <Button size="sm" disabled={retry.isPending} onClick={() => retry.mutate()}>
               Try again
@@ -210,7 +219,13 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
   else
     body = (
       <Stack gap={4}>
-        <ReadingCard title={page.title ?? ""} body={page.body ?? ""} example={page.example} />
+        <ReadingCard
+          title={page.title ?? ""}
+          body={page.body ?? ""}
+          example={page.example}
+          keyTerms={page.keyTerms}
+          glossary={page.glossary}
+        />
         {hasQuestion(page) &&
           (page.question === "ready" && page.questionData ? (
             page.questionData.block === "speakPrompt" ? (
@@ -242,21 +257,32 @@ export function PagedPlayer({ lesson }: { lesson: Lesson }) {
     );
 
   return (
-    <Stack gap={6}>
+    <LessonFrame
+      actions={
+        <LessonNav
+          back={
+            <Button fullWidth variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
+              Back
+            </Button>
+          }
+          next={
+            index < recap ? (
+              <Button fullWidth disabled={!ready} onClick={() => go(index + 1)}>
+                {index === recap - 1 ? "Recap" : "Next"}
+              </Button>
+            ) : (
+              <Button fullWidth disabled={finish.isPending} onClick={() => finish.mutate()}>
+                {finish.isPending ? "Finishing…" : "Finish Lesson"}
+              </Button>
+            )
+          }
+        />
+      }
+    >
       <PageDots current={index} total={recap + 1} />
       <div ref={heading} tabIndex={-1} aria-label={index === recap ? "Recap" : `Page ${index + 1} of ${recap}`}>
         {body}
       </div>
-      <Cluster justify="between">
-        <Button variant="secondary" disabled={index === 0} onClick={() => go(index - 1)}>
-          Back
-        </Button>
-        {index < recap && (
-          <Button disabled={!ready} onClick={() => go(index + 1)}>
-            {index === recap - 1 ? "Recap" : "Next"}
-          </Button>
-        )}
-      </Cluster>
-    </Stack>
+    </LessonFrame>
   );
 }

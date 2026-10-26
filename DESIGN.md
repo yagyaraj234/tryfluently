@@ -58,6 +58,18 @@ Cobalt panels (the auth story panel, the Roleplay preview, the closing call to a
 | `on-brand`        | `#FFFFFF`             | Text and glass on a panel (`bg-on-brand/12`, `border-on-brand/24`) |
 | `white` / `black` | `#FFFFFF` / `#0E0E0F` | Pills that sit on a panel (`Button variant="inverse"`)             |
 
+### Roadmap path
+
+The Roadmap is the one game-like screen. Its Lesson buttons are raised brand-coloured buttons on a road: the Lesson up next is solid `brand-mid` with a sky ring and a bobbing "Start" tag, finished Lessons are a soft brand tint with their stars, and locked Lessons are grey with a lock on grey dots. Finished Lessons use brand colours rather than `correct`, because finishing a Lesson isn't a verdict.
+
+| Token                   | Light                 | Dark             | Use                                                                                        |
+| ----------------------- | --------------------- | ---------------- | ------------------------------------------------------------------------------------------ |
+| `brand-soft`            | `#E3EAFF`             | `#2B3A8F`        | A finished Lesson's button                                                                 |
+| `brand-soft-edge`       | `#B3C3FA`             | `#1A2266`        | Its rim and lip                                                                            |
+| `path-locked`           | `#DCDEE3`             | `#33332F`        | The dotted road ahead, and a locked Lesson's rim                                           |
+| `star`                  | `#E0A400`             | `#FFD24D`        | The 1–3 stars under a finished Lesson (from its objective progress: 90+ is three, 80+ two) |
+| `bevel-hi` / `bevel-lo` | white 30% / black 12% | white 14% / same | Light on a raised button's top edge, shade on its foot                                     |
+
 ### Live voice
 
 Use these **only** while the microphone is recording or a Realtime call is connected.
@@ -130,6 +142,7 @@ Display type on the landing page and auth panels uses Tailwind's scale and steps
 | `shadow-frame` | a long, low shadow                                                                                                                                                                                                        | The product frame under the hero                                                               |
 | `shadow-float` | black at 35%                                                                                                                                                                                                              | Pills sitting on a cobalt panel                                                                |
 | `shadow-glow`  | tinted with `shadow-primary/55`                                                                                                                                                                                           | The one call to action on a page, with a `ring-2 ring-primary ring-offset-2`                   |
+| `shadow-coin`  | a solid 6px lip in `--coin-edge` plus the bevel; `-lift` (8px) on hover, `-pressed` (none) on press                                                                                                                       | Roadmap Lesson buttons, which set `[--coin-edge:var(--color-…)]`                               |
 | Spacing        | Tailwind's 4px scale (`p-4`, `gap-3.5`, `pt-14`)                                                                                                                                                                          | Use `gap` on flex and grid, not margins between siblings                                       |
 | Touch target   | `min-h-11` / `size-11` (44px)                                                                                                                                                                                             | The smallest touch target                                                                      |
 | Layers         | `z-behind` (−1) · `z-sticky` (10) · `z-overlay` (20) · `z-toast` (30)                                                                                                                                                     | The only stacking levels. `z-behind` sits decoration behind content inside an `isolate` parent |
@@ -173,6 +186,7 @@ Long pasted text wraps inside its container (`wrap-anywhere` on `body`). App nav
 | `animate-celebrate`                                            | 800ms, once                             | Lesson complete, current CEFR cell, Streak milestones              |
 | `animate-rise`                                                 | 520ms fade up                           | The landing hero, staggered with `[animation-delay:60ms]` steps    |
 | `animate-draw`, `animate-bob`, `animate-wave`, `animate-blink` |                                         | The hero underline, floating chips, the waveform, the typing caret |
+| `animate-cue`                                                  | 1.8s bob                                | The "Start" / "Continue" tag over the Roadmap's next Lesson        |
 
 - **Press:** buttons shrink to 97% on `:active`. It feels like a physical key without moving the layout.
 - **Celebrations** happen at brand moments, never during practice, and last under 1.2s.
@@ -221,7 +235,7 @@ Form controls work controlled or uncontrolled (`defaultValue`, `defaultChecked`)
 
 How they look:
 
-- **Button:** a pill, semibold, at least 44px tall. `primary` is cobalt with `on-primary` text; `secondary` is paper with a hairline and `shadow-card`; `inverse` is white on a cobalt panel. `size="sm"` is the nav size. `glow` adds the ring and cobalt glow for a page's one main call to action.
+- **Button:** a pill, semibold, at least 44px tall. `primary` is cobalt with `on-primary` text; `secondary` is paper with a hairline and `shadow-card`; `inverse` is white on a cobalt panel. `size="sm"` is the nav size. `glow` adds the ring and cobalt glow for a page's one main call to action. A Lesson's Back / Next are plain buttons in `LessonNav` at the foot of the screen, Back a quarter of the row and Next the rest; the raised, game-like look stays on the Roadmap.
 - **Card:** paper, `rounded-3xl`, hairline, `shadow-card`. The same classes (`cardClasses`) build the landing page's cards, so they can't drift.
 - **TextField / TextArea / Select:** paper fill, `line-strong` border, `rounded-xl`. Focus shows the global 2px cobalt ring, offset by 2px.
 - **ChoiceChips:** outlined pills; a picked chip fills with `primary-soft` and takes a cobalt border.
@@ -234,9 +248,10 @@ The shipped domain components include `AppShell`, `PracticeShell`, `UnitCard`, `
 | Component            | Spec                                                                                                                                                                                                                                                                                                                                                                                              |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **App bar**          | A sticky top bar: the page's `h1` in `title` on the left (from the route's `staticData.title`), Streak and XP chips on the right, a hairline below. Pages with their own heading, like a Unit, leave the title out.                                                                                                                                                                               |
-| **Sidebar**          | The landing page's lowercase cobalt "fluently" logo, a muted "MENU" label, then compact `caption` rows with an icon. The current row fills with `primary-soft` and turns cobalt.                                                                                                                                                                                                                 |
+| **Sidebar**          | The landing page's lowercase cobalt "fluently" logo, a muted "MENU" label, then compact `caption` rows with an icon. The current row fills with `primary-soft` and turns cobalt.                                                                                                                                                                                                                  |
 | **Rail tiles**       | On Home's white rail, the profile card, week strip and stat tiles are `subtle` tiles with a hairline and `rounded-2xl` (`railTileClasses`), like cards in a tray.                                                                                                                                                                                                                                 |
 | **Practice bar**     | The close button, and beside it what's being practised (a Lesson's Unit) in muted `caption`. It sticks to the top.                                                                                                                                                                                                                                                                                |
+| **Lesson frame**     | `LessonFrame` keeps a Lesson's navigation (Back / Next, Recap, Finish Lesson, Back to summary) in one place on every Page: at the foot of the screen when the Page is short, and pinned to the bottom while a long Page scrolls under it, which fades out behind the buttons.                                                                                                                     |
 | **Unit card**        | A dense card (`Card size="sm"`): the icon tile, the title in semibold `body` with "UNIT 3 · GRAMMAR" below, the status tag, and the objective in two lines. The active Unit adds a thick bar with "2 Lessons done" and "58% to the objective" under it. `cover` adds a cobalt brand cover with the Unit's icon, standing in for a thumbnail. With an action (Resume), only the title is the link. |
 | **Profile card**     | A cobalt avatar with the initial, the name, the CEFR Level of each measured skill as small cobalt pills (a link to Progress), and Streak · XP · Units mastered with icons on a white strip.                                                                                                                                                                                                       |
 | **Week strip**       | "This week" with "4/7 days", then seven day pills, Monday to Sunday, each with the weekday and date. Practised days fill cobalt, earlier days are white, later days are muted, and today has an offset cobalt ring. Screen readers hear "practised" and "today".                                                                                                                                  |
@@ -291,5 +306,7 @@ The working [Design System guide](http://localhost:3001/design-system) renders t
 ## First Assessment Report email
 
 The first completed Report is delivered as responsive HTML plus plain text. A heading introduces the overall CEFR Level; the body includes measured skills, strengths, quoted weaknesses, better versions and the first Unit. Written Assessments explicitly leave fluency unmeasured; partial Reports say so. One cobalt action opens Home, which confirms proposed Goals before offering the first Lesson. Email clients don't run Tailwind, so the email uses inline styles, system fonts and layout tables, with no remote images, scripts or tracking pixels, and doesn't depend on the app's CSS. Untrusted Report text is escaped.
+
+Every email (verification, Report, Streak reminder) shares one layout in `apps/api/src/mailer.ts`: a cobalt brand-panel header with white text on the `canvas` background, a white body, and one cobalt pill button with the link repeated as text below it. Email has no dark mode of its own, so the layout stays light. The Streak reminder shows this week as seven day dots (practised days filled cobalt, today dashed) and carries a one-click unsubscribe link and header.
 
 Haptics, share images and translations remain outside v1 as specified in #86.

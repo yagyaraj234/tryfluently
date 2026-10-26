@@ -39,6 +39,14 @@
   --color-brand-deep: #181c8c;
   --color-brand-hi: #8cc4ff;
   --color-on-brand: #ffffff;
+  /* The Roadmap path: finished Lessons are a soft brand tint, the road ahead is a light grey. */
+  --color-brand-soft: #e3eaff;
+  --color-brand-soft-edge: #b3c3fa;
+  --color-path-locked: #dcdee3;
+  --color-star: #e0a400; /* the stars a finished Lesson earned */
+  /* Light on the top inside edge and shade on the bottom one make a raised button. */
+  --color-bevel-hi: rgb(255 255 255 / 0.3);
+  --color-bevel-lo: rgb(0 0 0 / 0.12);
   --color-white: #ffffff;
   --color-black: #0e0e0f;
   --color-live: #ff2e6e;
@@ -108,6 +116,7 @@
   --animate-grow: grow 400ms var(--ease-press) backwards;
   --animate-draw: draw 700ms var(--ease-press) 650ms backwards;
   --animate-bob: bob 5s ease-in-out infinite;
+  --animate-cue: bob 1.8s ease-in-out infinite;
   --animate-polly-bob: polly-bob 0.6s ease-in-out infinite;
   --animate-polly-step: polly-step 0.6s ease-in-out infinite;
   --animate-polly-tail: polly-tail 0.6s ease-in-out infinite;
@@ -230,6 +239,18 @@
   }
 }
 
+/*
+ * A raised Roadmap button: a solid lip under it plus the bevel. `inline` keeps var(--coin-edge) unresolved until
+ * it reaches the element, which sets its own lip colour with [--coin-edge:var(--color-…)].
+ */
+@theme inline {
+  --shadow-coin: 0 6px 0 var(--coin-edge), inset 0 3px 0 var(--color-bevel-hi), inset 0 -3px 0 var(--color-bevel-lo);
+  --shadow-coin-lift:
+    0 8px 0 var(--coin-edge), inset 0 3px 0 var(--color-bevel-hi), inset 0 -3px 0 var(--color-bevel-lo);
+  --shadow-coin-pressed:
+    0 0 0 var(--coin-edge), inset 0 3px 0 var(--color-bevel-hi), inset 0 -3px 0 var(--color-bevel-lo);
+}
+
 /* App type stays compact without changing the marketing scale. */
 @utility type-app {
   --text-label: 0.75rem;
@@ -292,6 +313,11 @@
       --color-primary: #8cc4ff;
       --color-on-primary: #0b1240;
       --color-primary-soft: #1d2550;
+      --color-brand-soft: #2b3a8f;
+      --color-brand-soft-edge: #1a2266;
+      --color-bevel-hi: rgb(255 255 255 / 0.14);
+      --color-path-locked: #33332f;
+      --color-star: #ffd24d;
       --color-live: #ff6b98;
       --color-live-text: #ff6b98;
       --color-streak: #ffb86b;

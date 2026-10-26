@@ -7,38 +7,32 @@ export function RoadmapSection() {
       id="roadmap"
       flip
       pill="Roadmap"
-      title="A Roadmap that changes as you improve"
-      description="Your Roadmap is a list of Units, each made of short Lessons. Your coach builds each Lesson from your Goals and how you did in earlier Lessons."
+      title="Lessons with a clear next step"
+      description="Your Goals shape the outline. Each Lesson uses earlier performance to prepare short reading Pages and a Quiz."
       points={[
         {
           icon: Path,
-          title: "Progress through each Unit",
-          body: "Complete all the outlined Lessons to finish a Unit. Your next Lesson adapts to what needs practice.",
+          title: "Complete at your own pace",
+          body: "A Unit completes when you finish every Lesson in its outline.",
         },
         {
           icon: ChatCircle,
-          title: "Voice and text Steps",
-          body: "Each Lesson mixes speaking and writing prompts with feedback on every response.",
+          title: "Practice where you need it",
+          body: "Review your Quiz feedback, try a Practice Round or request a Follow-up Lesson.",
         },
       ]}
     >
       <MarketingPanel
         road
-        label="A Roadmap with one completed Unit, one in progress and one up next"
+        label="An example Roadmap with one completed Unit, one in progress and one up next"
         top={
           <>
             <Sparkle aria-hidden weight="fill" />
-            Updated after every Lesson
+            Lesson content adapts to earlier practice
           </>
         }
       >
-        <UnitRow
-          state="done"
-          index={1}
-          title="Introducing yourself"
-          detail="All Lessons completed"
-          status="Completed"
-        />
+        <UnitRow state="done" index={1} title="Introducing yourself" detail="All Lessons finished" status="Completed" />
         <UnitRow
           state="now"
           index={2}

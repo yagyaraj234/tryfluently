@@ -5,50 +5,78 @@ export const site = {
   name: "Fluently",
   title: "Fluently | AI English Coach for Speaking and Writing",
   description:
-    "Practise English speaking and writing with an AI coach. Start a free assessment, then follow adaptive Lessons and Roleplays for real conversations.",
+    "Practise English speaking and writing with an AI coach. Take a voice or written assessment, then follow a Roadmap of short Lessons and conversation practice.",
   summary:
-    "Fluently is an AI English coach for speaking and writing. Practise with voice or text, get feedback, and follow Lessons and Roleplays that adapt to your answers.",
+    "Fluently is an AI coach that helps people speak and write English. It assesses a learner's skills, then builds a stable Roadmap of Units and Lessons. Each Lesson's content adapts to earlier practice. English today, with more languages planned.",
   image: "/og-image.png",
   imageAlt: "Fluently: Your English. Your pace. An AI coach for speaking, writing and real conversations.",
+};
+
+export const assessmentTiming =
+  "Voice Assessments take up to 10 minutes. Written Assessments have 12 answers with no time limit.";
+
+export const freeAccess = {
+  includes: [
+    "Written Assessments, a personalised Roadmap, text Lessons and text Roleplays during beta.",
+    "10 live voice minutes per month, shared by Voice Assessments and voice Roleplays. Both sides of the call and silence count. Resets on the first at 00:00 UTC.",
+    "Uploaded Lesson recordings have a separate 30-minute daily cap in your Profile timezone, with up to 3 minutes per clip. Reference Pronunciation is separate from live voice minutes.",
+  ],
+  afterLimit:
+    "When live voice minutes run out, keep practising by text, wait for the monthly reset, or email us to request more credits during beta. Extra credits are not automatic.",
+  pricing:
+    "No paid plan is available yet. Future pricing is undecided. Beta access and limits may change; any paid offer will show its price before you choose it. No automatic charge.",
 };
 
 export const faqs = [
   { question: "What is Fluently?", answer: site.summary },
   {
     question: "How long is the assessment?",
-    answer: "Up to 10 minutes. It is a conversation, not an exam. Your Assessment Report is prepared after you finish.",
+    answer: `${assessmentTiming} It is a conversation, not an exam. Your report is prepared after you finish.`,
   },
   {
     question: "Do I have to speak?",
     answer:
-      "No. You can take a Voice Assessment or a Written Assessment. Voice measures fluency and gives you speaking practice. Written works anywhere.",
+      "No. You can take a Voice Assessment or a Written Assessment. Voice estimates spoken fluency. Written estimates grammar and vocabulary; it does not measure spoken fluency.",
   },
   {
-    question: "What is a Goal?",
-    answer:
-      "A Goal is the situation you want English for, such as work conversations or everyday fluency. Your Goal sets your target level and the Roleplays you get.",
+    question: "What is free, and what happens when I reach the limit?",
+    answer: [...freeAccess.includes, freeAccess.afterLimit, freeAccess.pricing].join(" "),
   },
   {
-    question: "Who is Fluently for?",
+    question: "Are the levels certified or the results guaranteed?",
     answer:
-      "Anyone who wants to communicate better in English, whether for work, study or everyday life. You choose a Goal and Fluently builds Lessons around it.",
+      "No. CEFR levels are AI estimates based on a short sample of your answers, not an official test or certificate. Feedback can be inaccurate. We do not promise a particular level or time to improve. Product previews are illustrative examples, not learner testimonials.",
   },
   {
-    question: "What happens after the assessment?",
+    question: "What happens to my voice recordings?",
     answer:
-      "You get an Assessment Report with scores and CEFR levels for grammar and vocabulary, plus fluency when you take a Voice Assessment. Your Roadmap is built from the Report, and each Lesson adapts to how you did in the one before.",
-  },
-  {
-    question: "What do the CEFR levels mean?",
-    answer:
-      "CEFR is the Common European Framework of Reference for Languages. It describes language ability from A1 (beginner) to C2 (proficient). Fluently uses AI to estimate your level for practice guidance; this is not an official language certificate.",
-  },
-  {
-    question: "What is a Roleplay?",
-    answer:
-      "A Roleplay is a Lesson where the AI plays someone else, such as a colleague or a new friend, and stays in character. When it ends you get feedback with corrections and a recording of how the correct phrase sounds.",
+      "Fluently does not store raw learner audio on its servers. Live voice and uploaded recordings are processed by voice providers; transcripts and feedback are saved with your account. Browser speech recognition may use your browser provider. Delete your account from Profile to remove linked learning records. Provider retention and backups are separate; see Privacy or contact us for details.",
   },
 ];
 
+export const learningPages = {
+  assessment: {
+    path: "/english-level-assessment",
+    label: "Assessment",
+    title: "English Level Assessment",
+    description:
+      "Understand your English level with a voice or written assessment. Explore example prompts, AI-estimated CEFR skills and what your report means.",
+  },
+  interview: {
+    path: "/english-interview-practice",
+    label: "Interview practice",
+    title: "English for Job Interviews: Practice and Examples",
+    description:
+      "Practise English for job interviews with worked introductions, project answers and conversation roleplay. Build a practice Roadmap around your Goals.",
+  },
+} as const;
+
 /** Public pages, for the sitemap. Signed-in screens are not listed. */
-export const publicPaths = ["/", "/sign-up"];
+export const publicPaths = [
+  "/",
+  "/sign-up",
+  "/privacy",
+  "/terms",
+  "/contact",
+  ...Object.values(learningPages).map((page) => page.path),
+];

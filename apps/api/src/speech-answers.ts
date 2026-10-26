@@ -4,10 +4,11 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { generate } from "./ai";
 import type { Deps } from "./app";
-import type { Question } from "./lesson-blocks";
+import { questionAt, type Question } from "./lesson-blocks";
+import { savePageFeedback } from "./paged-finish";
 
 const { lesson, step } = schema;
-type Ctx = Pick<Deps, "db" | "now" | "models">;
+type Ctx = Pick<Deps, "db" | "now" | "models" | "settings">;
 type Speak = Extract<Question, { block: "speakPrompt" }>;
 type StepRow = typeof step.$inferSelect;
 type Analysis = { state: "analysing"; at: number } | { state: "failed" };
@@ -43,13 +44,19 @@ export function speakResult(answer: unknown, row?: Pick<StepRow, "feedback" | "o
 }
 
 /** Analyses that are running right now. Tests wait on this; the server never needs to. */
-const running = new Set<Promise<unknown>>();
-export const settleAnalyses = async () => void (await Promise.allSettled([...running]));
+const running = new Map<string, Promise<unknown>>();
+export const settleAnalyses = async () => void (await Promise.allSettled([...running.values()]));
 
 /** Starts the analysis in the background. The Learner is not kept waiting and can move on. */
 export function startAnalysis(ctx: Ctx, userId: string, lessonId: string, index: number) {
-  const p: Promise<unknown> = analyse(ctx, userId, lessonId, index).finally(() => running.delete(p));
-  running.add(p);
+  const key = `${lessonId}:${index}`;
+  const previous = running.get(key);
+  if (previous) return previous;
+  const p = analyse(ctx, userId, lessonId, index)
+    .catch((error) => console.error(`Lesson ${lessonId} speech analysis for Page ${index + 1} failed`, error))
+    .finally(() => running.delete(key));
+  running.set(key, p);
+  return p;
 }
 
 /**
@@ -59,7 +66,7 @@ export function startAnalysis(ctx: Ctx, userId: string, lessonId: string, index:
 async function analyse(ctx: Ctx, userId: string, lessonId: string, index: number) {
   const { db, models } = ctx;
   const [l] = await db.select().from(lesson).where(eq(lesson.id, lessonId));
-  const q = (l?.material?.[index] as { question?: Speak } | undefined)?.question;
+  const q = l && (questionAt(l, index) as Speak | undefined);
   const [row] = await db
     .select()
     .from(step)
@@ -84,10 +91,11 @@ async function analyse(ctx: Ctx, userId: string, lessonId: string, index: number
       output: Output.object({ schema: analysisOutput }),
     });
     const r = analysisOutput.parse(output);
-    await db
-      .update(step)
-      .set({ feedback: { verdict: r.verdict, corrected: "", explanation: r.feedback } })
-      .where(eq(step.id, row.id));
+    await savePageFeedback(ctx, userId, lessonId, row.id, {
+      verdict: r.verdict,
+      corrected: "",
+      explanation: r.feedback,
+    });
   } catch (error) {
     console.error(`Lesson ${lessonId} speech analysis for Page ${index + 1} failed`, error);
     await mark({ state: "failed" });
@@ -95,18 +103,36 @@ async function analyse(ctx: Ctx, userId: string, lessonId: string, index: number
 }
 
 /** Retries a failed or lost analysis. Already finished or still running ones are left alone. */
-export async function retryAnalysis(ctx: Ctx, userId: string, lessonId: string, index: number) {
-  const [row] = await ctx.db
-    .select()
-    .from(step)
-    .where(
-      and(eq(step.lessonId, lessonId), eq(step.position, index), eq(step.userId, userId), eq(step.type, "speakPrompt")),
-    );
-  if (!row) return undefined;
-  const result = speakResult(row.output?.answer, row);
-  if (result.analysis !== "failed") return result;
-  const output = { ...row.output, analysis: { state: "analysing", at: Date.now() } };
-  await ctx.db.update(step).set({ output }).where(eq(step.id, row.id));
-  startAnalysis(ctx, userId, lessonId, index);
-  return speakResult(row.output?.answer, { feedback: null, output });
+export async function retryAnalysis(
+  ctx: Ctx,
+  userId: string,
+  lessonId: string,
+  index: number,
+  retainAiTask?: (task: Promise<unknown>) => void,
+) {
+  const claimed = await ctx.db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(step)
+      .where(
+        and(
+          eq(step.lessonId, lessonId),
+          eq(step.position, index),
+          eq(step.userId, userId),
+          eq(step.type, "speakPrompt"),
+        ),
+      )
+      .for("update");
+    if (!row) return undefined;
+    const result = speakResult(row.output?.answer, row);
+    if (result.analysis !== "failed") return { result, start: false };
+    const output = { ...row.output, analysis: { state: "analysing", at: Date.now() } };
+    await tx.update(step).set({ output }).where(eq(step.id, row.id));
+    return { result: speakResult(row.output?.answer, { feedback: null, output }), start: true };
+  });
+  if (claimed?.start) {
+    const task = startAnalysis(ctx, userId, lessonId, index);
+    retainAiTask?.(task);
+  }
+  return claimed?.result;
 }

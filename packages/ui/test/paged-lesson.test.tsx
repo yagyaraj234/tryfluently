@@ -1,6 +1,6 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { PageBlock, PageDots, type PageQuestion, type PageResult } from "@fluently/ui";
+import { PageBlock, PageDots, ReadingCard, type PageQuestion, type PageResult } from "@fluently/ui";
 
 afterEach(cleanup);
 
@@ -112,4 +112,46 @@ test("a rewrite that could not be checked keeps the answer and offers Try again"
 test("progress dots name the current Page", () => {
   render(<PageDots current={1} total={4} />);
   expect(screen.getByRole("list", { name: "Page 2 of 4" })).toBeTruthy();
+});
+
+test("a formatted Page shows paragraphs, bullets, bold Key Terms and Glossary Terms that open their definition", async () => {
+  render(
+    <ReadingCard
+      title="Habits"
+      body={"Use the present simple for habits.\n\nFor example:\n- I commute by bus.\n- She works late."}
+      example="Maya commutes at eight."
+      keyTerms={["present simple", "habits"]}
+      glossary={[{ term: "commute", definition: "travel to work" }]}
+    />,
+  );
+  const paragraphs = document.querySelectorAll("p");
+  expect([...paragraphs].map((p) => p.textContent)).toEqual(["Use the present simple for habits.", "For example:"]);
+  expect([...document.querySelectorAll("li")].map((li) => li.textContent)).toEqual([
+    "I commute by bus.",
+    "She works late.",
+  ]);
+  expect([...document.querySelectorAll("strong")].map((b) => b.textContent)).toEqual(["present simple", "habits"]);
+  expect(screen.getByText("Maya commutes at eight.")).toBeTruthy();
+  expect(screen.queryByText("travel to work")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "commute" }));
+  expect(await screen.findByText("travel to work")).toBeTruthy();
+});
+
+test("a Page saved before Key Terms keeps its plain reading", () => {
+  render(<ReadingCard title="Old" body={"One line.\n\n- not a bullet"} example={null} />);
+  expect([...document.querySelectorAll("p")].map((p) => p.textContent)).toEqual(["One line.\n\n- not a bullet"]);
+  expect(document.querySelector("li")).toBeNull();
+});
+
+test("a Page can carry a vocab card that teaches a term and its meaning", () => {
+  render(
+    <ReadingCard
+      title="Commuting"
+      body="People commute."
+      keyTerms={[]}
+      vocab={{ term: "commute", meaning: "the trip to work" }}
+    />,
+  );
+  const card = screen.getByRole("group", { name: "Vocabulary: commute" });
+  expect(card.textContent).toContain("the trip to work");
 });

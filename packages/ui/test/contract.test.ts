@@ -193,13 +193,7 @@ describe("ui package lint config", () => {
   });
 
   test("router, API, database and state-library imports fail", async () => {
-    for (const lib of [
-      "@tanstack/react-router",
-      "@tanstack/react-query",
-      "@fluently/api",
-      "@fluently/db",
-      "zustand",
-    ]) {
+    for (const lib of ["@tanstack/react-router", "@tanstack/react-query", "@fluently/api", "@fluently/db", "zustand"]) {
       expect({ lib, rules: await lintUi(`import { x } from "${lib}";`) }).toEqual({
         lib,
         rules: ["no-restricted-imports"],

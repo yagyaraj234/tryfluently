@@ -1,3 +1,4 @@
+import { Popover } from "@base-ui/react/popover";
 import { cva } from "class-variance-authority";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "./Button";
@@ -39,8 +40,8 @@ const dot = cva("block size-3 rounded-full border border-line-strong", {
   variants: { state: { done: "bg-primary border-primary", current: "bg-ink border-ink", todo: "bg-paper" } },
 });
 
-/** One dot per Page, plus one for the recap. */
-export function PageDots({ current, total }: { current: number; total: number }) {
+/** One dot per Page, plus one for the recap (or whatever `last` names, such as the Quiz). */
+export function PageDots({ current, total, last = "Recap" }: { current: number; total: number; last?: string }) {
   return (
     <ol aria-label={`Page ${current + 1} of ${total}`} className="flex items-center justify-center gap-2">
       {Array.from({ length: total }, (_, i) => (
@@ -49,21 +50,126 @@ export function PageDots({ current, total }: { current: number; total: number })
           aria-current={i === current ? "step" : undefined}
           className={dot({ state: i < current ? "done" : i === current ? "current" : "todo" })}
         >
-          <span className="sr-only">{i === total - 1 ? "Recap" : `Page ${i + 1}`}</span>
+          <span className="sr-only">{i === total - 1 ? last : `Page ${i + 1}`}</span>
         </li>
       ))}
     </ol>
   );
 }
 
-export function ReadingCard({ title, body, example }: { title: string; body: string; example?: string | null }) {
+export type GlossaryTerm = { term: string; definition: string };
+
+/** A word the Learner may not know: dotted underline, and its definition in a popover on tap, click or Enter. */
+function Glossary({ term, children }: { term: GlossaryTerm; children: ReactNode }) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger className="cursor-help underline decoration-dotted underline-offset-4">
+        {children}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner className="z-overlay" sideOffset={6}>
+          <Popover.Popup className="max-w-xs rounded-xl border border-line bg-paper p-3 text-body text-ink shadow-card">
+            {term.definition}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Text with the first use of each Key Term in bold and each Glossary Term marked. `marked` spans the whole Page. */
+function withTerms(text: string, keyTerms: string[], glossary: GlossaryTerm[], marked: Set<string>) {
+  const terms = [...keyTerms, ...glossary.map((g) => g.term)].sort((a, b) => b.length - a.length);
+  if (!terms.length) return text;
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(${terms.map(escape).join("|")})(?![\\p{L}\\p{N}])`, "giu");
+  return text.split(pattern).map((part, i) => {
+    const key = part.toLowerCase();
+    if (i % 2 === 0 || marked.has(key)) return part;
+    marked.add(key);
+    const entry = glossary.find((g) => g.term.toLowerCase() === key);
+    return entry ? (
+      <Glossary key={i} term={entry}>
+        {part}
+      </Glossary>
+    ) : (
+      <strong key={i}>{part}</strong>
+    );
+  });
+}
+
+/** Blank lines split paragraphs; a run of lines starting with "- " is a bullet list. */
+function FormattedBody({ body, keyTerms, glossary }: { body: string; keyTerms: string[]; glossary: GlossaryTerm[] }) {
+  const marked = new Set<string>();
+  const show = (text: string) => withTerms(text, keyTerms, glossary, marked);
+  const runs: { bullets: boolean; lines: string[] }[] = [];
+  for (const block of body.split(/\n\s*\n/)) {
+    let last: (typeof runs)[number] | undefined;
+    for (const raw of block.split("\n")) {
+      const line = raw.trim();
+      if (!line) continue;
+      const bullets = line.startsWith("- ");
+      const text = bullets ? line.slice(2) : line;
+      if (last?.bullets === bullets) last.lines.push(text);
+      else runs.push((last = { bullets, lines: [text] }));
+    }
+  }
+  return runs.map((run, i) =>
+    run.bullets ? (
+      <ul key={i} className="flex list-disc flex-col gap-1 pl-6 text-body leading-relaxed text-ink">
+        {run.lines.map((line, j) => (
+          <li key={j}>{show(line)}</li>
+        ))}
+      </ul>
+    ) : (
+      <p key={i} className="text-body leading-relaxed text-ink">
+        {show(run.lines.join(" "))}
+      </p>
+    ),
+  );
+}
+
+export function ReadingCard({
+  title,
+  body,
+  example,
+  keyTerms,
+  glossary = [],
+  vocab,
+}: {
+  title: string;
+  body: string;
+  example?: string | null;
+  /** Pages written before Key Terms existed have none and keep their plain reading. */
+  keyTerms?: string[];
+  glossary?: GlossaryTerm[];
+  /** A vocab card that teaches a term on the Page; it is not a question. */
+  vocab?: { term: string; meaning: string } | null;
+}) {
   return (
     <Card>
       <Stack gap={4}>
         <Heading level={2}>{title}</Heading>
-        <p className="whitespace-pre-line text-body leading-relaxed text-ink">{body}</p>
+        {keyTerms ? (
+          <FormattedBody body={body} keyTerms={keyTerms} glossary={glossary} />
+        ) : (
+          <p className="whitespace-pre-line text-body leading-relaxed text-ink">{body}</p>
+        )}
         {example && (
           <blockquote className="rounded-2xl border border-line bg-subtle p-4 text-body text-ink">{example}</blockquote>
+        )}
+        {vocab && (
+          <div
+            role="group"
+            aria-label={`Vocabulary: ${vocab.term}`}
+            className="rounded-2xl border border-line bg-subtle p-4"
+          >
+            <Stack gap={1}>
+              <Heading level={3}>{vocab.term}</Heading>
+              <Text>{vocab.meaning}</Text>
+            </Stack>
+          </div>
         )}
       </Stack>
     </Card>
@@ -71,10 +177,10 @@ export function ReadingCard({ title, body, example }: { title: string; body: str
 }
 
 /** A short placeholder while the question is still being written. */
-export function QuestionSkeleton() {
+export function QuestionSkeleton({ label = "Getting your question ready" }: { label?: string }) {
   return (
     <Card>
-      <div role="status" aria-label="Getting your question ready" className="flex flex-col gap-3">
+      <div role="status" aria-label={label} className="flex flex-col gap-3">
         <Skeleton shape="text" size="title" />
         <Skeleton shape="block" size={10} />
       </div>

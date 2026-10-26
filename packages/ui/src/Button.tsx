@@ -13,7 +13,8 @@ const button = cva(`${pressableClasses} min-w-0 max-w-full`, {
     variant: {
       primary: "bg-primary text-on-primary not-data-disabled:hover:bg-primary/90",
       secondary: "border border-line bg-subtle text-ink not-data-disabled:hover:bg-line",
-      danger: "border border-incorrect/30 bg-incorrect-tint text-incorrect not-data-disabled:hover:bg-incorrect/25 data-disabled:bg-incorrect-tint! data-disabled:text-incorrect! data-disabled:opacity-60",
+      danger:
+        "border border-incorrect/30 bg-incorrect-tint text-incorrect not-data-disabled:hover:bg-incorrect/25 data-disabled:bg-incorrect-tint! data-disabled:text-incorrect! data-disabled:opacity-60",
       inverse: "bg-white text-black",
     },
     size: { md: "min-h-11 px-5.5 py-2 text-caption", sm: "min-h-11 px-4 text-caption" },

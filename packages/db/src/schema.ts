@@ -2,6 +2,7 @@ import {
   boolean,
   bigserial,
   customType,
+  doublePrecision,
   integer,
   index,
   jsonb,
@@ -25,6 +26,9 @@ export const user = pgTable("user", {
   emailVerified: boolean().notNull().default(false),
   image: text(),
   timezone: text().notNull().default("UTC"),
+  streakReminders: boolean().notNull().default(true),
+  // The Learner's local day (YYYY-MM-DD) of their last Streak reminder, so they get at most one a day.
+  streakRemindedOn: text(),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
 });
@@ -166,7 +170,7 @@ export const assessmentJob = pgTable(
     assessmentId: text().references(() => assessment.id, { onDelete: "cascade" }),
     lessonId: text().references(() => lesson.id, { onDelete: "cascade" }),
     userId: learner(),
-    kind: text().$type<"report_email" | "practice" | "lesson" | "lesson_analysis">().notNull(),
+    kind: text().$type<"report_email" | "practice" | "lesson" | "lesson_analysis" | "practice_round">().notNull(),
     status: text().$type<"pending" | "running" | "done" | "failed">().notNull().default("pending"),
     attempts: integer().notNull().default(0),
     availableAt: timestamp().notNull().defaultNow(),
@@ -184,7 +188,7 @@ export const assessmentJob = pgTable(
 export const skill = pgEnum("skill", ["fluency", "grammar", "vocabulary"]);
 export const scoreSource = pgEnum("score_source", ["assessment", "lesson"]);
 
-// Append-only. The Skill Profile is the latest row per skill.
+// One row per measurement, in write order. Late feedback can revise a measurement and its later averages.
 export const skillScore = pgTable(
   "skill_score",
   {
@@ -193,6 +197,8 @@ export const skillScore = pgTable(
     userId: learner(),
     skill: skill().notNull(),
     score: real().notNull(),
+    result: doublePrecision(),
+    alpha: doublePrecision(),
     source: scoreSource().notNull(),
     sourceId: text().notNull(),
     createdAt: timestamp().notNull(),
@@ -243,6 +249,9 @@ export const unit = pgTable(
           position: number;
           estimatedMinutes?: number;
           pageCount?: number;
+          // A Follow-up Lesson: the Lesson it follows, its place in the chain (1 or 2), the Learner's note and the
+          // original Lesson's title.
+          followUp?: { of: string; depth: number; note: string | null; root: string };
         }[]
       >()
       .notNull()
@@ -295,10 +304,16 @@ export const lesson = pgTable(
     phase: text().$type<"learning" | "assessment">(),
     report: jsonb().$type<Record<string, unknown>>(),
     // 1 = Lessons prepared before paged Lessons (material + Steps). 2 = Pages generated when the Learner presses Start.
+    // 3 = Pages that only teach, then an end-of-Lesson Quiz.
     contentVersion: integer().notNull().default(1),
     currentPage: integer().notNull().default(0),
     // Paged Lessons only: status of each Page and of its question slot, in Page order.
     pageStatus: jsonb().$type<{ page: "pending" | "ready" | "failed"; question: "pending" | "ready" | "failed" }[]>(),
+    // Content version 3: the Quiz and Practice Round questions, in the order asked. `page` is the Page a question tests
+    // (null for Practice Rounds), `round` 0 is the Quiz. Answers are Steps at the same index.
+    quiz: jsonb().$type<{ page: number | null; round: number; question: Record<string, unknown> }[]>(),
+    // The Practice Round the Learner asked for is being written, or its writing failed; null otherwise.
+    practice: text().$type<"preparing" | "failed">(),
     startedAt: timestamp(),
     completedAt: timestamp(),
   },
