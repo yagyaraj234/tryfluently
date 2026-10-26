@@ -6,7 +6,8 @@
       "outputs": ["dist/**"]
     },
     "test": {
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["TEST_DATABASE_URL"]
     },
     "dev": {
       "cache": false,

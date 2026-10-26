@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, stage]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Formatting and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: impromptu
+          POSTGRES_PASSWORD: impromptu
+          POSTGRES_DB: impromptu_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U impromptu -d impromptu_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://impromptu:impromptu@localhost:5432/impromptu_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.3"
+      - run: bun install --frozen-lockfile
+      - run: bun run format:check
+      - name: Migrate fresh test database
+        run: bun scripts/migrate.ts
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+      - run: bun run test --concurrency=1
