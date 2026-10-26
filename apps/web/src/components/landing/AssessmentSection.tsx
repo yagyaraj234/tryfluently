@@ -32,7 +32,7 @@ export function AssessmentSection() {
         bottom={
           <>
             <Check aria-hidden />
-            Takes up to 10 minutes
+            Voice: up to 10 minutes
           </>
         }
       >

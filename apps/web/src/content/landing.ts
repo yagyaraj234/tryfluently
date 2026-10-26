@@ -5,16 +5,19 @@ export const site = {
   name: "Fluently",
   title: "Fluently | AI English Coach for Speaking and Writing",
   description:
-    "Practise English speaking and writing with an AI coach. Take a 10-minute assessment, then follow a Roadmap of short Lessons and conversation practice.",
+    "Practise English speaking and writing with an AI coach. Take a voice or written assessment, then follow a Roadmap of short Lessons and conversation practice.",
   summary:
-    "Fluently is an AI coach that helps people speak and write English. It assesses how a learner speaks and writes, then builds a Roadmap of Lessons and Roleplays that changes with their answers. English today, with more languages planned.",
+    "Fluently is an AI coach that helps people speak and write English. It assesses a learner's skills, then builds a stable Roadmap of Units and Lessons. Each Lesson's content adapts to earlier practice. English today, with more languages planned.",
 };
+
+export const assessmentTiming =
+  "Voice Assessments take up to 10 minutes. Written Assessments have 12 answers with no time limit.";
 
 export const freeAccess = {
   includes: [
     "Written Assessments, a personalised Roadmap, text Lessons and text Roleplays during beta.",
     "10 live voice minutes per month, shared by Voice Assessments and voice Roleplays. Both sides of the call and silence count. Resets on the first at 00:00 UTC.",
-    "Recorded Lesson answers have a separate 30-minute daily cap in your Profile timezone, with up to 3 minutes per uploaded clip. Reference Pronunciation is separate from live voice minutes.",
+    "Uploaded Lesson recordings have a separate 30-minute daily cap in your Profile timezone, with up to 3 minutes per clip. Reference Pronunciation is separate from live voice minutes.",
   ],
   afterLimit:
     "When live voice minutes run out, keep practising by text, wait for the monthly reset, or email us to request more credits during beta. Extra credits are not automatic.",
@@ -25,7 +28,7 @@ export const freeAccess = {
 export const faqs = [
   {
     question: "How long is the assessment?",
-    answer: "Up to 10 minutes. It is a conversation, not an exam. Your report is prepared after you finish.",
+    answer: `${assessmentTiming} It is a conversation, not an exam. Your report is prepared after you finish.`,
   },
   {
     question: "Do I have to speak?",
@@ -48,5 +51,30 @@ export const faqs = [
   },
 ];
 
+export const learningPages = {
+  assessment: {
+    path: "/english-level-assessment",
+    label: "Assessment",
+    title: "English Level Assessment",
+    description:
+      "Understand your English level with a voice or written assessment. Explore example prompts, AI-estimated CEFR skills and what your report means.",
+  },
+  interview: {
+    path: "/english-interview-practice",
+    label: "Interview practice",
+    title: "English for Job Interviews: Practice and Examples",
+    description:
+      "Practise English for job interviews with worked introductions, project answers and conversation roleplay. Try a free sample before creating an account.",
+  },
+} as const;
+
 /** Public pages, for the sitemap. Signed-in screens are not listed. */
-export const publicPaths = ["/", "/sign-up", "/demo", "/privacy", "/terms", "/contact"];
+export const publicPaths = [
+  "/",
+  "/sign-up",
+  "/demo",
+  "/privacy",
+  "/terms",
+  "/contact",
+  ...Object.values(learningPages).map((page) => page.path),
+];

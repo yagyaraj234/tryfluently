@@ -32,7 +32,10 @@ test("a signed-out visitor gets the full landing page as server-rendered HTML", 
   assert.match(html, /<h1[^>]*>[\s\S]*Speak English confidently/);
   assert.equal(html.match(/<main\b/g).length, 1);
   // Every FAQ answer is in the HTML, with no script needed to reveal it.
-  assert.match(text(html), /Up to 10 minutes\. It is a conversation, not an exam/);
+  assert.match(
+    text(html),
+    /Voice Assessments take up to 10 minutes\. Written Assessments have 12 answers with no time limit/,
+  );
   assert.equal(html.match(/<details\b/g).length, 5);
   for (const section of ["Assessment", "Roadmap", "Roleplay"]) assert.match(text(html), new RegExp(section));
 });
@@ -88,6 +91,10 @@ test("free beta limits and AI limitations are visible before signup", async () =
   assert.match(copy, /Written Assessments measure grammar and vocabulary, not spoken fluency/);
   assert.match(copy, /not an official test or certificate/);
   assert.match(html, /href="\/demo"/);
+  assert.match(html, /href="\/english-level-assessment"/);
+  assert.match(html, /href="\/english-interview-practice"/);
+  assert.doesNotMatch(copy, /Try one answer before you sign up/);
+  assert.doesNotMatch(html, /<fieldset\b/);
   for (const path of ["privacy", "terms", "contact"]) assert.match(html, new RegExp(`href="/${path}"`));
   assert.doesNotMatch(copy, /Mastered after two Lessons|Mastered in 2 Lessons/);
 });
@@ -132,8 +139,68 @@ test("signup and sign-in expose legal links, signup exposes demo and limits", as
 test("new public routes appear in sitemap and assistant summary", async () => {
   const sitemap = await (await visit("/sitemap.xml")).text();
   const llms = await (await visit("/llms.txt")).text();
-  for (const path of ["demo", "privacy", "terms", "contact"]) {
+  for (const path of [
+    "demo",
+    "privacy",
+    "terms",
+    "contact",
+    "english-level-assessment",
+    "english-interview-practice",
+  ]) {
     assert.match(sitemap, new RegExp(`<loc>http://localhost:3001/${path}</loc>`));
     assert.match(llms, new RegExp(`http://localhost:3001/${path}`));
   }
+});
+
+test("learning guides render useful examples with distinct metadata, related links and signup CTAs", async () => {
+  const pages = [
+    ["/english-level-assessment", "English Level Assessment | Fluently", /What might you be asked\?/],
+    [
+      "/english-interview-practice",
+      "English for Job Interviews: Practice and Examples | Fluently",
+      /How to introduce yourself in an interview/,
+    ],
+  ];
+  for (const [path, title, example] of pages) {
+    const response = await visit(path, "down=1");
+    assert.equal(response.status, 200, path);
+    const html = await response.text();
+    assert.equal(html.match(/<h1\b/g)?.length, 1, path);
+    assert.equal(html.match(/<main\b/g)?.length, 1, path);
+    assert.ok(html.includes(`<title>${title}</title>`), path);
+    assert.ok(html.includes(`rel="canonical" href="http://localhost:3001${path}"`), path);
+    assert.ok(html.includes(`property="og:url" content="http://localhost:3001${path}"`), path);
+    assert.match(html, /name="robots" content="index, follow"/);
+    assert.match(html, /name="description" content="[^"]+"/);
+    assert.match(text(html), example);
+    for (const href of [
+      "/sign-up",
+      "/demo",
+      "/english-level-assessment",
+      "/english-interview-practice",
+      "/privacy",
+      "/terms",
+      "/contact",
+    ]) {
+      assert.ok(html.includes(`href="${href}"`), `${path} links ${href}`);
+    }
+  }
+});
+
+test("assessment timing stays accurate in visible copy, signup and machine-readable content", async () => {
+  const home = await (await visit("/")).text();
+  const ld = JSON.parse(home.match(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/)[1]);
+  const app = ld["@graph"].find((node) => node["@type"] === "SoftwareApplication");
+  assert.match(app.featureList.join(" "), /Written Assessments have 12 answers with no time limit/);
+  assert.doesNotMatch(
+    home,
+    /Take a 10-minute assessment|Talk or type for up to 10 minutes|Voice or written English assessment of up to 10 minutes/,
+  );
+  const guide = text(await (await visit("/english-level-assessment")).text());
+  assert.match(guide, /Voice Assessments take up to 10 minutes/);
+  assert.match(guide, /Written Assessments have 12 answers with no time limit/);
+  const signup = text(await (await visit("/sign-up")).text());
+  assert.match(signup, /Voice: up to 10 minutes\. Written: 12 answers, at your pace/);
+  const llms = await (await visit("/llms.txt")).text();
+  assert.match(llms, /Written Assessments have 12 answers with no time limit/);
 });

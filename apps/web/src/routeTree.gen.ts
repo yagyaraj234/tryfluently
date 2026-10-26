@@ -14,6 +14,8 @@ import { Route as SignedInRouteImport } from './routes/_signedIn'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
+import { Route as EnglishInterviewPracticeRouteImport } from './routes/english-interview-practice'
+import { Route as EnglishLevelAssessmentRouteImport } from './routes/english-level-assessment'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
@@ -63,6 +65,17 @@ const DemoRoute = DemoRouteImport.update({
 const DesignSystemRoute = DesignSystemRouteImport.update({
   id: '/design-system',
   path: '/design-system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnglishInterviewPracticeRoute =
+  EnglishInterviewPracticeRouteImport.update({
+    id: '/english-interview-practice',
+    path: '/english-interview-practice',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const EnglishLevelAssessmentRoute = EnglishLevelAssessmentRouteImport.update({
+  id: '/english-level-assessment',
+  path: '/english-level-assessment',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
@@ -205,6 +218,8 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/design-system': typeof DesignSystemRoute
+  '/english-interview-practice': typeof EnglishInterviewPracticeRoute
+  '/english-level-assessment': typeof EnglishLevelAssessmentRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
@@ -235,6 +250,8 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/design-system': typeof DesignSystemRoute
+  '/english-interview-practice': typeof EnglishInterviewPracticeRoute
+  '/english-level-assessment': typeof EnglishLevelAssessmentRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
@@ -267,6 +284,8 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/design-system': typeof DesignSystemRoute
+  '/english-interview-practice': typeof EnglishInterviewPracticeRoute
+  '/english-level-assessment': typeof EnglishLevelAssessmentRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
@@ -301,6 +320,8 @@ export interface FileRouteTypes {
     | '/contact'
     | '/demo'
     | '/design-system'
+    | '/english-interview-practice'
+    | '/english-level-assessment'
     | '/llms.txt'
     | '/privacy'
     | '/robots.txt'
@@ -331,6 +352,8 @@ export interface FileRouteTypes {
     | '/contact'
     | '/demo'
     | '/design-system'
+    | '/english-interview-practice'
+    | '/english-level-assessment'
     | '/llms.txt'
     | '/privacy'
     | '/robots.txt'
@@ -362,6 +385,8 @@ export interface FileRouteTypes {
     | '/contact'
     | '/demo'
     | '/design-system'
+    | '/english-interview-practice'
+    | '/english-level-assessment'
     | '/llms.txt'
     | '/privacy'
     | '/robots.txt'
@@ -396,6 +421,8 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DemoRoute: typeof DemoRoute
   DesignSystemRoute: typeof DesignSystemRoute
+  EnglishInterviewPracticeRoute: typeof EnglishInterviewPracticeRoute
+  EnglishLevelAssessmentRoute: typeof EnglishLevelAssessmentRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   PrivacyRoute: typeof PrivacyRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
@@ -442,6 +469,20 @@ declare module '@tanstack/react-router' {
       path: '/design-system'
       fullPath: '/design-system'
       preLoaderRoute: typeof DesignSystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/english-interview-practice': {
+      id: '/english-interview-practice'
+      path: '/english-interview-practice'
+      fullPath: '/english-interview-practice'
+      preLoaderRoute: typeof EnglishInterviewPracticeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/english-level-assessment': {
+      id: '/english-level-assessment'
+      path: '/english-level-assessment'
+      fullPath: '/english-level-assessment'
+      preLoaderRoute: typeof EnglishLevelAssessmentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/llms.txt': {
@@ -701,6 +742,8 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DemoRoute: DemoRoute,
   DesignSystemRoute: DesignSystemRoute,
+  EnglishInterviewPracticeRoute: EnglishInterviewPracticeRoute,
+  EnglishLevelAssessmentRoute: EnglishLevelAssessmentRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
   PrivacyRoute: PrivacyRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,

@@ -1,10 +1,12 @@
 import { useRender } from "@base-ui/react/use-render";
-import { CaretDown, type Icon } from "@phosphor-icons/react";
+import { CaretDown, List, type Icon } from "@phosphor-icons/react";
 import type { ReactElement, ReactNode } from "react";
 import { Button } from "./Button";
 import { cardClasses } from "./Card";
 import { Heading } from "./Heading";
+import { IconButton } from "./IconButton";
 import { LogoMark } from "./Logo";
+import { Menu } from "./Menu";
 import { Stack } from "./Stack";
 import { Text } from "./Text";
 
@@ -49,8 +51,20 @@ const rise = [
   "motion-safe:animate-rise motion-safe:[animation-delay:180ms]",
 ];
 
+type MarketingLinkItem = { label: string; href: string; render?: ReactElement };
+
+function MarketingLink({ item, compact }: { item: MarketingLinkItem; compact?: boolean }) {
+  return useRender({
+    render: item.render ?? <a href={item.href} />,
+    props: {
+      className: `${compact ? "hidden lg:inline-flex" : "inline-flex"} min-h-11 items-center rounded-lg font-medium whitespace-nowrap text-muted transition-colors hover:text-ink`,
+      children: item.label,
+    },
+  });
+}
+
 export type MarketingShellProps = {
-  links: { label: string; href: string }[];
+  links: MarketingLinkItem[];
   start: ReactElement;
   startLabel: string;
   home: ReactElement;
@@ -87,23 +101,23 @@ export function MarketingShell({
 
 function MarketingNav({ links, start, startLabel, home }: Omit<MarketingShellProps, "footerText" | "children">) {
   const homeLink = useRender({ render: home, props: { className: logo, children: wordmark } });
-  const anchors = links.map((l) => (
-    <a
-      key={l.href}
-      className="hidden min-h-8 items-center font-medium whitespace-nowrap text-muted transition-colors hover:text-ink md:inline-flex"
-      href={l.href}
-    >
-      {l.label}
-    </a>
-  ));
+  const anchors = links.map((item) => <MarketingLink key={item.href} item={item} compact />);
   return (
     <header className="sticky top-0 z-sticky flex justify-center pt-3.5">
       <nav
-        className="flex items-center justify-between gap-4 rounded-full border border-line bg-paper/72 py-2 pr-2 pl-5 text-sm shadow-card backdrop-blur-lg backdrop-saturate-180 max-md:w-full md:gap-7 reduce-transparency:bg-paper reduce-transparency:backdrop-blur-none"
+        className="flex items-center justify-between gap-2 rounded-full border border-line bg-paper/72 py-2 pr-2 pl-4 text-sm shadow-card backdrop-blur-lg backdrop-saturate-180 max-lg:w-full lg:gap-7 lg:pl-5 reduce-transparency:bg-paper reduce-transparency:backdrop-blur-none"
         aria-label="Main"
       >
         {homeLink}
         {anchors}
+        {links.length > 0 && (
+          <div className="ml-auto lg:hidden">
+            <Menu
+              trigger={<IconButton icon={List} label="Explore pages" />}
+              items={links.map(({ label, href, render }) => ({ label, render: render ?? <a href={href} /> }))}
+            />
+          </div>
+        )}
         <Button size="sm" render={start}>
           {startLabel}
         </Button>
@@ -117,11 +131,7 @@ function MarketingFooter({
   footerText,
   footerLinks,
 }: Pick<MarketingShellProps, "links" | "footerText" | "footerLinks">) {
-  const anchors = links.map((l) => (
-    <a key={l.href} className="transition-colors hover:text-ink" href={l.href}>
-      {l.label}
-    </a>
-  ));
+  const anchors = links.map((item) => <MarketingLink key={item.href} item={item} />);
   return (
     <footer className={`${wrap} flex flex-wrap justify-between gap-x-6 gap-y-3 pt-8 pb-10 text-sm text-muted`}>
       <div className="grid max-w-[36ch] gap-1">

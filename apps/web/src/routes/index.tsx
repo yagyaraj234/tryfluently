@@ -21,16 +21,10 @@ import { TrustSection } from "../components/landing/TrustSection";
 import { PublicLinks } from "../components/landing/PublicLinks";
 import { RoadmapSection } from "../components/landing/RoadmapSection";
 import { RoleplaySection } from "../components/landing/RoleplaySection";
-import { faqs, site } from "../content/landing";
+import { assessmentTiming, faqs, site } from "../content/landing";
+import { publicNavigation } from "../components/landing/PublicPage";
 import { api } from "../lib/api";
 import { siteOrigin } from "../lib/site";
-
-const nav = [
-  { label: "How it works", href: "#how" },
-  { label: "Free beta", href: "#free" },
-  { label: "Why Fluently", href: "#trust" },
-  { label: "FAQ", href: "#faq" },
-];
 
 function structuredData(origin: string) {
   return {
@@ -59,9 +53,9 @@ function structuredData(origin: string) {
           audienceType: "Anyone who wants to communicate better in English",
         },
         featureList: [
-          "Voice or written English assessment of up to 10 minutes",
+          assessmentTiming,
           "Estimated CEFR levels for measured skills; written Assessments do not measure spoken fluency",
-          "Adaptive Roadmap of Units and Lessons",
+          "Stable Roadmap outlines with Lesson content adapted to earlier practice",
           "Roleplays that stay in character, with a Debrief",
           "Reference pronunciation for words and corrections",
         ],
@@ -114,7 +108,7 @@ function Landing() {
   const start = <Link to="/sign-up" />;
   return (
     <MarketingShell
-      links={nav}
+      links={publicNavigation}
       home={<Link to="/" />}
       start={start}
       startLabel="Start free"
@@ -159,7 +153,7 @@ function Landing() {
           },
           {
             title: "Take the Assessment",
-            body: "Talk or type for up to 10 minutes to find your starting point.",
+            body: assessmentTiming,
           },
           { title: "Follow your Roadmap", body: "Short Lessons and Roleplays. Each one uses how you did in the last." },
         ]}

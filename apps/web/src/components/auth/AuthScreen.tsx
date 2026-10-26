@@ -13,7 +13,11 @@ type Field = { name: string; label: string; type: string; autoComplete: string }
 
 const steps: AuthPoint[] = [
   { icon: Sparkle, title: "Set a Goal", body: "Tell us what you want English for." },
-  { icon: Microphone, title: "Take the Assessment", body: "Talk or type for up to 10 minutes." },
+  {
+    icon: Microphone,
+    title: "Take the Assessment",
+    body: "Voice: up to 10 minutes. Written: 12 answers, at your pace.",
+  },
   { icon: Path, title: "Follow your Roadmap", body: "Practice with Lessons made for you." },
 ];
 const waiting: AuthPoint = {

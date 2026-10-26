@@ -16,6 +16,10 @@ export function publicPageHead(path: string, title: string, description: string)
       { property: "og:description", content: description },
       { property: "og:url", content: url },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Fluently" },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: `${title} | Fluently` },
+      { name: "twitter:description", content: description },
     ],
     links: [{ rel: "canonical", href: url }],
   };
