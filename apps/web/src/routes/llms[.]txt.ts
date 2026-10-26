@@ -19,7 +19,6 @@ export const Route = createFileRoute("/llms.txt")({
             (page) => `- [${page.title}](${origin}${page.path}): ${page.description}`,
           ),
           `- [Sign up](${origin}/sign-up): create a free account and start the assessment`,
-          `- [Sample](${origin}/demo): interactive scripted practice; no account needed`,
           `- [Privacy](${origin}/privacy): voice processing, transcripts and account deletion`,
           `- [Terms](${origin}/terms): beta access, usage limits and AI feedback limitations`,
           `- [Contact](${origin}/contact): support and beta voice credit requests`,

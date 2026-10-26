@@ -83,7 +83,7 @@ export function MarketingShell({
   children,
 }: MarketingShellProps) {
   return (
-    <div className="min-h-dvh overflow-x-clip bg-canvas px-4 text-ink">
+    <div className="flex min-h-dvh flex-col overflow-x-clip bg-canvas px-4 text-ink">
       <a
         className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-4 focus:z-overlay focus:rounded-full focus:bg-paper focus:px-4 focus:py-2"
         href="#main"
@@ -91,7 +91,7 @@ export function MarketingShell({
         Skip to content
       </a>
       <MarketingNav links={links} start={start} startLabel={startLabel} home={home} />
-      <main id="main" className={wrap}>
+      <main id="main" className={`${wrap} flex-1`}>
         {children}
       </main>
       <MarketingFooter links={links} footerText={footerText} footerLinks={footerLinks} />
@@ -154,7 +154,6 @@ export type MarketingHeroProps = {
   cta: ReactElement;
   ctaLabel: string;
   note: string;
-  secondaryCta?: ReactNode;
   children?: ReactNode;
 };
 
@@ -212,7 +211,6 @@ export function MarketingHero({
   cta,
   ctaLabel,
   note,
-  secondaryCta,
   children,
 }: MarketingHeroProps) {
   return (
@@ -234,7 +232,6 @@ export function MarketingHero({
           <Button glow render={cta}>
             {ctaLabel}
           </Button>
-          {secondaryCta}
           <span className={fine}>{note}</span>
         </div>
       </section>

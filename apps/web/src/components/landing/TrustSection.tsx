@@ -9,8 +9,8 @@ export function TrustSection() {
       items={[
         {
           icon: Eye,
-          title: "See the feedback first",
-          body: "Try the interactive sample before signing up. Product previews use illustrative examples, not learner results or testimonials.",
+          title: "See what practice looks like",
+          body: "Product previews illustrate Lessons, feedback and Roleplays. They are examples, not learner results or testimonials.",
         },
         {
           icon: ChartBar,

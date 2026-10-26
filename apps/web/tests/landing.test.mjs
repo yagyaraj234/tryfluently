@@ -90,7 +90,6 @@ test("free beta limits and AI limitations are visible before signup", async () =
   assert.match(copy, /No automatic charge/);
   assert.match(copy, /Written Assessments measure grammar and vocabulary, not spoken fluency/);
   assert.match(copy, /not an official test or certificate/);
-  assert.match(html, /href="\/demo"/);
   assert.match(html, /href="\/english-level-assessment"/);
   assert.match(html, /href="\/english-interview-practice"/);
   assert.doesNotMatch(copy, /Try one answer before you sign up/);
@@ -99,9 +98,8 @@ test("free beta limits and AI limitations are visible before signup", async () =
   assert.doesNotMatch(copy, /Mastered after two Lessons|Mastered in 2 Lessons/);
 });
 
-test("demo and policy routes are public, server-rendered and survive an API outage", async () => {
+test("policy routes are public, server-rendered and survive an API outage", async () => {
   for (const [path, title] of [
-    ["/demo", "Try a 1-minute sample"],
     ["/privacy", "Privacy"],
     ["/terms", "Terms"],
     ["/contact", "Talk to the builder"],
@@ -113,16 +111,13 @@ test("demo and policy routes are public, server-rendered and survive an API outa
     assert.match(text(html), new RegExp(title));
     assert.match(html, new RegExp(`rel="canonical" href="http://localhost:3001${path}"`));
   }
-  const demo = text(await (await visit("/demo")).text());
-  assert.match(demo, /Question 1 of 2/);
-  assert.match(demo, /Scripted examples/);
   const privacy = text(await (await visit("/privacy")).text());
   assert.match(privacy, /does not store raw learner audio/);
   assert.match(privacy, /Delete your account/);
   assert.match(privacy, /does not itself delete provider logs/);
 });
 
-test("signup and sign-in expose legal links, signup exposes demo and limits", async () => {
+test("signup and sign-in expose legal links, signup exposes voice limits", async () => {
   for (const path of ["/sign-up", "/sign-in"]) {
     const response = await visit(path);
     assert.equal(response.status, 200);
@@ -130,7 +125,6 @@ test("signup and sign-in expose legal links, signup exposes demo and limits", as
     for (const policy of ["privacy", "terms", "contact"]) assert.match(html, new RegExp(`href="/${policy}"`));
     if (path === "/sign-up") {
       assert.match(text(html), /10 live voice minutes\/month/);
-      assert.match(html, /href="\/demo"/);
       assert.match(html, /href="\/#free"/);
     }
   }
@@ -139,14 +133,7 @@ test("signup and sign-in expose legal links, signup exposes demo and limits", as
 test("new public routes appear in sitemap and assistant summary", async () => {
   const sitemap = await (await visit("/sitemap.xml")).text();
   const llms = await (await visit("/llms.txt")).text();
-  for (const path of [
-    "demo",
-    "privacy",
-    "terms",
-    "contact",
-    "english-level-assessment",
-    "english-interview-practice",
-  ]) {
+  for (const path of ["privacy", "terms", "contact", "english-level-assessment", "english-interview-practice"]) {
     assert.match(sitemap, new RegExp(`<loc>http://localhost:3001/${path}</loc>`));
     assert.match(llms, new RegExp(`http://localhost:3001/${path}`));
   }
@@ -175,7 +162,6 @@ test("learning guides render useful examples with distinct metadata, related lin
     assert.match(text(html), example);
     for (const href of [
       "/sign-up",
-      "/demo",
       "/english-level-assessment",
       "/english-interview-practice",
       "/privacy",
@@ -203,4 +189,28 @@ test("assessment timing stays accurate in visible copy, signup and machine-reada
   assert.match(signup, /Voice: up to 10 minutes\. Written: 12 answers, at your pace/);
   const llms = await (await visit("/llms.txt")).text();
   assert.match(llms, /Written Assessments have 12 answers with no time limit/);
+});
+
+test("the removed demo returns 404 and public pages no longer advertise it", async () => {
+  assert.equal((await visit("/demo")).status, 404);
+  for (const path of [
+    "/",
+    "/sign-up",
+    "/contact",
+    "/privacy",
+    "/terms",
+    "/english-level-assessment",
+    "/english-interview-practice",
+  ]) {
+    const html = await (await visit(path)).text();
+    assert.doesNotMatch(html, /href="\/demo"/, path);
+    assert.doesNotMatch(
+      text(html),
+      /Try a sample|Try the sample|Try a free sample|Try the interactive sample|Try a 1-minute sample/,
+      path,
+    );
+  }
+  for (const path of ["/sitemap.xml", "/llms.txt"]) {
+    assert.doesNotMatch(await (await visit(path)).text(), /\/demo\b/, path);
+  }
 });

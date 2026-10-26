@@ -64,7 +64,7 @@ export const learningPages = {
     label: "Interview practice",
     title: "English for Job Interviews: Practice and Examples",
     description:
-      "Practise English for job interviews with worked introductions, project answers and conversation roleplay. Try a free sample before creating an account.",
+      "Practise English for job interviews with worked introductions, project answers and conversation roleplay. Build a practice Roadmap around your Goals.",
   },
 } as const;
 
@@ -72,7 +72,6 @@ export const learningPages = {
 export const publicPaths = [
   "/",
   "/sign-up",
-  "/demo",
   "/privacy",
   "/terms",
   "/contact",

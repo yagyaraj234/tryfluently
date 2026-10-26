@@ -28,10 +28,7 @@ function AssessmentGuide() {
         <div>
           <Button render={<Link to="/sign-up" />}>Start your free assessment</Button>
         </div>
-        <p>
-          An account is required for the assessment. You can{" "}
-          <TextLink render={<Link to="/demo" />}>try a sample without signing up</TextLink>.
-        </p>
+        <p>An account is required for the assessment.</p>
       </section>
       <section aria-labelledby="assessment-examples-title">
         <h2 id="assessment-examples-title">What might you be asked?</h2>

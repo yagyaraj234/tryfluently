@@ -16,7 +16,6 @@ function InterviewGuide() {
       title="Practise English for your next job interview"
       description="A useful answer explains your work clearly. Start with your role, add one concrete example, then practise answering the next question without a script."
     >
-      <TextLink render={<Link to="/demo" />}>Try the free English practice sample</TextLink>
       <section aria-labelledby="introduction-title">
         <h2 id="introduction-title">How to introduce yourself in an interview</h2>
         <p>Use a simple structure: what you do, what you have worked on, and what you want to do next.</p>

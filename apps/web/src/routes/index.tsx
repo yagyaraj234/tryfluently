@@ -1,7 +1,6 @@
 import {
   Faq,
   MarketingCaption,
-  TextLink,
   FinalCta,
   floatChips,
   GoalsStrip,
@@ -123,7 +122,6 @@ function Landing() {
         cta={start}
         ctaLabel="Start your free assessment"
         note="Free beta. 10 live voice minutes/month. No card needed."
-        secondaryCta={<TextLink render={<Link to="/demo" />}>Try a 1-minute sample — no signup</TextLink>}
       >
         <ProductFrame
           label="Fluently preview: a Roleplay, an Assessment Report and a Roadmap"

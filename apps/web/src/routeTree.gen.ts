@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SignedInRouteImport } from './routes/_signedIn'
 import { Route as ContactRouteImport } from './routes/contact'
-import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as EnglishInterviewPracticeRouteImport } from './routes/english-interview-practice'
 import { Route as EnglishLevelAssessmentRouteImport } from './routes/english-level-assessment'
@@ -55,11 +54,6 @@ const SignedInRoute = SignedInRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoRoute = DemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesignSystemRoute = DesignSystemRouteImport.update({
@@ -216,7 +210,6 @@ const SignedInAssessmentsAssessmentIdReportRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/contact': typeof ContactRoute
-  '/demo': typeof DemoRoute
   '/design-system': typeof DesignSystemRoute
   '/english-interview-practice': typeof EnglishInterviewPracticeRoute
   '/english-level-assessment': typeof EnglishLevelAssessmentRoute
@@ -248,7 +241,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contact': typeof ContactRoute
-  '/demo': typeof DemoRoute
   '/design-system': typeof DesignSystemRoute
   '/english-interview-practice': typeof EnglishInterviewPracticeRoute
   '/english-level-assessment': typeof EnglishLevelAssessmentRoute
@@ -282,7 +274,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_signedIn': typeof SignedInRouteWithChildren
   '/contact': typeof ContactRoute
-  '/demo': typeof DemoRoute
   '/design-system': typeof DesignSystemRoute
   '/english-interview-practice': typeof EnglishInterviewPracticeRoute
   '/english-level-assessment': typeof EnglishLevelAssessmentRoute
@@ -318,7 +309,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/contact'
-    | '/demo'
     | '/design-system'
     | '/english-interview-practice'
     | '/english-level-assessment'
@@ -350,7 +340,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/contact'
-    | '/demo'
     | '/design-system'
     | '/english-interview-practice'
     | '/english-level-assessment'
@@ -383,7 +372,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_signedIn'
     | '/contact'
-    | '/demo'
     | '/design-system'
     | '/english-interview-practice'
     | '/english-level-assessment'
@@ -419,7 +407,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SignedInRoute: typeof SignedInRouteWithChildren
   ContactRoute: typeof ContactRoute
-  DemoRoute: typeof DemoRoute
   DesignSystemRoute: typeof DesignSystemRoute
   EnglishInterviewPracticeRoute: typeof EnglishInterviewPracticeRoute
   EnglishLevelAssessmentRoute: typeof EnglishLevelAssessmentRoute
@@ -455,13 +442,6 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo': {
-      id: '/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/design-system': {
@@ -740,7 +720,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SignedInRoute: SignedInRouteWithChildren,
   ContactRoute: ContactRoute,
-  DemoRoute: DemoRoute,
   DesignSystemRoute: DesignSystemRoute,
   EnglishInterviewPracticeRoute: EnglishInterviewPracticeRoute,
   EnglishLevelAssessmentRoute: EnglishLevelAssessmentRoute,

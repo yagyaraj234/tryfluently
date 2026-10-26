@@ -25,7 +25,6 @@ function Contact() {
         publishing your feedback with your name.
       </p>
       <TextLink render={<Link to="/privacy" />}>How to delete your account and learning data</TextLink>
-      <TextLink render={<Link to="/demo" />}>Try the sample before signing up</TextLink>
     </PublicPage>
   );
 }
