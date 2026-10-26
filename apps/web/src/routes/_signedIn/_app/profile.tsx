@@ -1,5 +1,6 @@
-import { Card, Dashboard, Heading, Stack } from "@fluently/ui";
+import { Card, Cluster, Dashboard, Heading, Stack } from "@fluently/ui";
 import { createFileRoute } from "@tanstack/react-router";
+import { PublicLinks } from "../../../components/landing/PublicLinks";
 import { AccountCard } from "../../../components/profile/AccountCard";
 import { PreferencesCard } from "../../../components/profile/PreferencesCard";
 import { ProfileSummary } from "../../../components/profile/ProfileSummary";
@@ -33,6 +34,11 @@ function Profile() {
             </Stack>
           </Card>
           <AccountCard />
+          <nav aria-label="Legal and support">
+            <Cluster gap={4}>
+              <PublicLinks />
+            </Cluster>
+          </nav>
         </Stack>
       }
       rail={<ProfileSummary name={learner.name} />}

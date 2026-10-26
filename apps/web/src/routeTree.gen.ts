@@ -11,12 +11,17 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SignedInRouteImport } from './routes/_signedIn'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
+import { Route as EnglishInterviewPracticeRouteImport } from './routes/english-interview-practice'
+import { Route as EnglishLevelAssessmentRouteImport } from './routes/english-level-assessment'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as SignedInAppRouteImport } from './routes/_signedIn/_app'
 import { Route as SignedInPracticeRouteImport } from './routes/_signedIn/_practice'
@@ -46,14 +51,35 @@ const SignedInRoute = SignedInRouteImport.update({
   id: '/_signedIn',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DesignSystemRoute = DesignSystemRouteImport.update({
   id: '/design-system',
   path: '/design-system',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EnglishInterviewPracticeRoute =
+  EnglishInterviewPracticeRouteImport.update({
+    id: '/english-interview-practice',
+    path: '/english-interview-practice',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const EnglishLevelAssessmentRoute = EnglishLevelAssessmentRouteImport.update({
+  id: '/english-level-assessment',
+  path: '/english-level-assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
   id: '/llms.txt',
   path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
@@ -74,6 +100,11 @@ const SignUpRoute = SignUpRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
@@ -178,12 +209,17 @@ const SignedInAssessmentsAssessmentIdReportRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
   '/design-system': typeof DesignSystemRoute
+  '/english-interview-practice': typeof EnglishInterviewPracticeRoute
+  '/english-level-assessment': typeof EnglishLevelAssessmentRoute
   '/llms.txt': typeof LlmsDottxtRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/home': typeof SignedInAppHomeRoute
@@ -204,12 +240,17 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
   '/design-system': typeof DesignSystemRoute
+  '/english-interview-practice': typeof EnglishInterviewPracticeRoute
+  '/english-level-assessment': typeof EnglishLevelAssessmentRoute
   '/llms.txt': typeof LlmsDottxtRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/home': typeof SignedInAppHomeRoute
@@ -232,12 +273,17 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_signedIn': typeof SignedInRouteWithChildren
+  '/contact': typeof ContactRoute
   '/design-system': typeof DesignSystemRoute
+  '/english-interview-practice': typeof EnglishInterviewPracticeRoute
+  '/english-level-assessment': typeof EnglishLevelAssessmentRoute
   '/llms.txt': typeof LlmsDottxtRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_signedIn/_app': typeof SignedInAppRouteWithChildren
   '/_signedIn/_practice': typeof SignedInPracticeRouteWithChildren
@@ -262,12 +308,17 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/contact'
     | '/design-system'
+    | '/english-interview-practice'
+    | '/english-level-assessment'
     | '/llms.txt'
+    | '/privacy'
     | '/robots.txt'
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
+    | '/terms'
     | '/verify-email'
     | '/api/$'
     | '/home'
@@ -288,12 +339,17 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/contact'
     | '/design-system'
+    | '/english-interview-practice'
+    | '/english-level-assessment'
     | '/llms.txt'
+    | '/privacy'
     | '/robots.txt'
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
+    | '/terms'
     | '/verify-email'
     | '/api/$'
     | '/home'
@@ -315,12 +371,17 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_signedIn'
+    | '/contact'
     | '/design-system'
+    | '/english-interview-practice'
+    | '/english-level-assessment'
     | '/llms.txt'
+    | '/privacy'
     | '/robots.txt'
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
+    | '/terms'
     | '/verify-email'
     | '/_signedIn/_app'
     | '/_signedIn/_practice'
@@ -345,12 +406,17 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SignedInRoute: typeof SignedInRouteWithChildren
+  ContactRoute: typeof ContactRoute
   DesignSystemRoute: typeof DesignSystemRoute
+  EnglishInterviewPracticeRoute: typeof EnglishInterviewPracticeRoute
+  EnglishLevelAssessmentRoute: typeof EnglishLevelAssessmentRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
+  PrivacyRoute: typeof PrivacyRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   ApiSplatRoute: typeof ApiSplatRoute
 }
@@ -371,6 +437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignedInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/design-system': {
       id: '/design-system'
       path: '/design-system'
@@ -378,11 +451,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesignSystemRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/english-interview-practice': {
+      id: '/english-interview-practice'
+      path: '/english-interview-practice'
+      fullPath: '/english-interview-practice'
+      preLoaderRoute: typeof EnglishInterviewPracticeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/english-level-assessment': {
+      id: '/english-level-assessment'
+      path: '/english-level-assessment'
+      fullPath: '/english-level-assessment'
+      preLoaderRoute: typeof EnglishLevelAssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/llms.txt': {
       id: '/llms.txt'
       path: '/llms.txt'
       fullPath: '/llms.txt'
       preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/robots.txt': {
@@ -411,6 +505,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify-email': {
@@ -618,12 +719,17 @@ const SignedInRouteWithChildren = SignedInRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SignedInRoute: SignedInRouteWithChildren,
+  ContactRoute: ContactRoute,
   DesignSystemRoute: DesignSystemRoute,
+  EnglishInterviewPracticeRoute: EnglishInterviewPracticeRoute,
+  EnglishLevelAssessmentRoute: EnglishLevelAssessmentRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
+  PrivacyRoute: PrivacyRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   ApiSplatRoute: ApiSplatRoute,
 }

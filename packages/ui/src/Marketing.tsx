@@ -1,14 +1,38 @@
 import { useRender } from "@base-ui/react/use-render";
-import { CaretDown, type Icon } from "@phosphor-icons/react";
+import { CaretDown, List, type Icon } from "@phosphor-icons/react";
 import type { ReactElement, ReactNode } from "react";
 import { Button } from "./Button";
 import { cardClasses } from "./Card";
 import { Heading } from "./Heading";
+import { IconButton } from "./IconButton";
 import { LogoMark } from "./Logo";
+import { Menu } from "./Menu";
 import { Stack } from "./Stack";
 import { Text } from "./Text";
 
 export const liftCardClasses = `${cardClasses} min-w-0 motion-safe:transition motion-safe:duration-ui motion-safe:ease-press hover:-translate-y-0.5 hover:shadow-lift`;
+
+export function MarketingDocument({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mx-auto grid max-w-180 gap-6 py-12 sm:py-16 [&_h2]:text-2xl [&_h2]:font-bold [&_p]:leading-relaxed [&_section]:grid [&_section]:gap-3">
+      <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">{title}</h1>
+      <p className="text-lg text-muted">{description}</p>
+      {children}
+    </div>
+  );
+}
+
+export function MarketingCaption({ children }: { children: ReactNode }) {
+  return <p className="mt-5 text-center text-sm text-muted">{children}</p>;
+}
 const wrap = "mx-auto w-full max-w-page";
 const h2 = "mx-auto max-w-[20ch] text-center text-4xl leading-none font-bold tracking-tight text-balance sm:text-5xl";
 const h3 = "text-xl font-bold tracking-tight";
@@ -27,18 +51,39 @@ const rise = [
   "motion-safe:animate-rise motion-safe:[animation-delay:180ms]",
 ];
 
+type MarketingLinkItem = { label: string; href: string; render?: ReactElement };
+
+function MarketingLink({ item, compact }: { item: MarketingLinkItem; compact?: boolean }) {
+  return useRender({
+    render: item.render ?? <a href={item.href} />,
+    props: {
+      className: `${compact ? "hidden lg:inline-flex" : "inline-flex"} min-h-11 items-center rounded-lg font-medium whitespace-nowrap text-muted transition-colors hover:text-ink`,
+      children: item.label,
+    },
+  });
+}
+
 export type MarketingShellProps = {
-  links: { label: string; href: string }[];
+  links: MarketingLinkItem[];
   start: ReactElement;
   startLabel: string;
   home: ReactElement;
   footerText: string;
+  footerLinks?: ReactNode;
   children?: ReactNode;
 };
 
-export function MarketingShell({ links, start, startLabel, home, footerText, children }: MarketingShellProps) {
+export function MarketingShell({
+  links,
+  start,
+  startLabel,
+  home,
+  footerText,
+  footerLinks,
+  children,
+}: MarketingShellProps) {
   return (
-    <div className="min-h-dvh overflow-x-clip bg-canvas px-4 text-ink">
+    <div className="flex min-h-dvh flex-col overflow-x-clip bg-canvas px-4 text-ink">
       <a
         className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-4 focus:z-overlay focus:rounded-full focus:bg-paper focus:px-4 focus:py-2"
         href="#main"
@@ -46,33 +91,33 @@ export function MarketingShell({ links, start, startLabel, home, footerText, chi
         Skip to content
       </a>
       <MarketingNav links={links} start={start} startLabel={startLabel} home={home} />
-      <main id="main" className={wrap}>
+      <main id="main" className={`${wrap} flex-1`}>
         {children}
       </main>
-      <MarketingFooter links={links} footerText={footerText} />
+      <MarketingFooter links={links} footerText={footerText} footerLinks={footerLinks} />
     </div>
   );
 }
 
 function MarketingNav({ links, start, startLabel, home }: Omit<MarketingShellProps, "footerText" | "children">) {
   const homeLink = useRender({ render: home, props: { className: logo, children: wordmark } });
-  const anchors = links.map((l) => (
-    <a
-      key={l.href}
-      className="hidden min-h-8 items-center font-medium text-muted transition-colors hover:text-ink sm:inline-flex"
-      href={l.href}
-    >
-      {l.label}
-    </a>
-  ));
+  const anchors = links.map((item) => <MarketingLink key={item.href} item={item} compact />);
   return (
     <header className="sticky top-0 z-sticky flex justify-center pt-3.5">
       <nav
-        className="flex items-center justify-between gap-4 rounded-full border border-line bg-paper/72 py-2 pr-2 pl-5 text-sm shadow-card backdrop-blur-lg backdrop-saturate-180 max-sm:w-full sm:gap-7 reduce-transparency:bg-paper reduce-transparency:backdrop-blur-none"
+        className="flex items-center justify-between gap-2 rounded-full border border-line bg-paper/72 py-2 pr-2 pl-4 text-sm shadow-card backdrop-blur-lg backdrop-saturate-180 max-lg:w-full lg:gap-7 lg:pl-5 reduce-transparency:bg-paper reduce-transparency:backdrop-blur-none"
         aria-label="Main"
       >
         {homeLink}
         {anchors}
+        {links.length > 0 && (
+          <div className="ml-auto lg:hidden">
+            <Menu
+              trigger={<IconButton icon={List} label="Explore pages" />}
+              items={links.map(({ label, href, render }) => ({ label, render: render ?? <a href={href} /> }))}
+            />
+          </div>
+        )}
         <Button size="sm" render={start}>
           {startLabel}
         </Button>
@@ -81,12 +126,12 @@ function MarketingNav({ links, start, startLabel, home }: Omit<MarketingShellPro
   );
 }
 
-function MarketingFooter({ links, footerText }: Pick<MarketingShellProps, "links" | "footerText">) {
-  const anchors = links.map((l) => (
-    <a key={l.href} className="transition-colors hover:text-ink" href={l.href}>
-      {l.label}
-    </a>
-  ));
+function MarketingFooter({
+  links,
+  footerText,
+  footerLinks,
+}: Pick<MarketingShellProps, "links" | "footerText" | "footerLinks">) {
+  const anchors = links.map((item) => <MarketingLink key={item.href} item={item} />);
   return (
     <footer className={`${wrap} flex flex-wrap justify-between gap-x-6 gap-y-3 pt-8 pb-10 text-sm text-muted`}>
       <div className="grid max-w-[36ch] gap-1">
@@ -95,6 +140,7 @@ function MarketingFooter({ links, footerText }: Pick<MarketingShellProps, "links
       </div>
       <nav className="flex flex-wrap items-start gap-x-4 gap-y-2 sm:gap-x-5.5" aria-label="Footer">
         {anchors}
+        {footerLinks}
       </nav>
     </footer>
   );
@@ -130,7 +176,7 @@ function HeroTitle({ title, emphasis }: { title: string; emphasis: string }) {
   return (
     <h1
       id="hero-title"
-      className={`max-w-[14ch] text-5xl leading-none font-bold tracking-tighter text-balance sm:text-6xl lg:text-7xl ${rise[1]}`}
+      className={`max-w-[22ch] text-5xl leading-none font-bold tracking-tighter text-balance sm:text-6xl lg:text-7xl ${rise[1]}`}
     >
       {title}{" "}
       <em className="relative inline-block text-primary not-italic">
@@ -297,7 +343,7 @@ export function Feature({ id, pill, title, description, points, flip, children }
   const copyOrder = flip ? "md:order-2" : "";
   return (
     <section
-      className="grid items-center gap-6 py-10 sm:gap-12 sm:py-16 md:grid-cols-2 lg:gap-18 lg:py-20"
+      className="grid items-center gap-6 py-8 sm:gap-10 sm:py-10 md:grid-cols-2 lg:gap-14 lg:py-12"
       id={id}
       aria-labelledby={`${id}-title`}
     >
