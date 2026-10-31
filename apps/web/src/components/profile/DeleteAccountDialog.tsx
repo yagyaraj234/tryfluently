@@ -2,7 +2,8 @@ import { Button, Cluster, Dialog, Notice, Stack, TextField } from "@fluently/ui"
 import { Link } from "@tanstack/react-router";
 import type { FormEvent } from "react";
 
-const description = "Everything you've done in Fluently is deleted, and it can't be undone.";
+const description =
+  "Your learning history and remaining minutes will be permanently deleted. We cancel future subscription charges before deleting your account. This can't be undone.";
 
 type Props = {
   open: boolean;

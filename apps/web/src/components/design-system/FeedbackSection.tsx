@@ -31,7 +31,7 @@ export function FeedbackSection() {
       <ErrorState title="Your Step couldn't be loaded" description="Your answers so far are saved." onRetry={sample} />
       <EmptyState
         title="You've used this month's voice minutes"
-        description="Your free voice minutes renew on the first of each month at 00:00 UTC. Email hey@yagyaraj.com for more credits during beta, or type instead."
+        description="Your free voice minutes renew on the first of each month at 00:00 UTC. Add a minute pack from Profile, subscribe to Pro, or type instead."
         action={<Button onClick={sample}>Type instead</Button>}
       />
       <Notice tone="info">Your next Assessment opens in 7 days. Keep practising with Lessons.</Notice>

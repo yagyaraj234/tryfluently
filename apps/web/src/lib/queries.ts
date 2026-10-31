@@ -68,6 +68,13 @@ export const voiceMinutesQuery = queryOptions({
   staleTime: 0,
 });
 
+export const billingQuery = queryOptions({
+  queryKey: ["billing"],
+  retry: false,
+  queryFn: () => json(api().api.billing.$get(), "plan and allowances"),
+  staleTime: 0,
+});
+
 export const roleplaysQuery = queryOptions({
   queryKey: ["roleplays"],
   queryFn: () => json(api().api.roleplays.$get(), "Roleplays"),

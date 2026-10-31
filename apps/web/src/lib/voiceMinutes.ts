@@ -8,7 +8,10 @@ export function resetsOn(iso: string) {
       day: "numeric",
       year: "numeric",
       timeZone: "UTC",
-    }).format(new Date(iso)) + " at 00:00 UTC"
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(iso)) + " UTC"
   );
 }
 

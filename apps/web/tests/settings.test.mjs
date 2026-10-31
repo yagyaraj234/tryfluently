@@ -9,6 +9,17 @@ before(async () => {
     const json = (status, body) =>
       res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
     if (!/learner=/.test(req.headers.cookie ?? "")) return json(401, { error: "Unauthorized" });
+    if (req.url === "/api/billing")
+      return json(200, {
+        enabled: true,
+        hasPro: false,
+        source: "free",
+        purchasedSeconds: 0,
+        paidUntil: null,
+        subscription: null,
+        canManage: false,
+        lessons: { limit: 5, used: 2, resetsAt: "2026-11-01T04:00:00.000Z" },
+      });
     if (req.url === "/api/voice-minutes")
       return json(200, {
         limitMinutes: 10,
@@ -99,12 +110,16 @@ test("old Settings links redirect to Profile", async () => {
   assert.equal(response.headers.get("location"), "/profile");
 });
 
-test("Profile shows Free plan, monthly allowance, renewal and beta email link", async () => {
+test("Profile shows Free allowance, tax-inclusive plans and explicit pack purchase", async () => {
   const html = await page();
   const body = text(html);
   assert.match(body, /Free plan/);
-  assert.match(body, /8:00 of 10 minutes left this month/);
+  assert.match(body, /8:00 of 10 monthly minutes left/);
   assert.match(body, /Renews November 1, 2026 at 00:00 UTC/);
-  assert.match(body, /beta/);
+  assert.match(body, /Pro · \$9\/month/);
+  assert.match(body, /Minute pack · \$29 once/);
+  assert.match(body, /Tax included/);
+  assert.match(body, /3 of 5 new Lessons left today/);
+  assert.match(body, /No automatic top-up/);
   assert.match(html, /href="mailto:hey@yagyaraj.com"/);
 });

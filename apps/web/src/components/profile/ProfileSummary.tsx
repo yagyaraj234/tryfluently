@@ -3,6 +3,7 @@ import { Books, CheckCircle } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { progressQuery, roadmapQuery, skillProfileQuery } from "../../lib/queries";
+import { StreakRecovery } from "../progress/StreakRecovery";
 
 const skills = ["fluency", "grammar", "vocabulary"] as const;
 
@@ -33,6 +34,7 @@ export function ProfileSummary({ name }: { name: string }) {
         unitsMastered={roadmap.data.filter((unit) => unit.status === "mastered").length}
       />
       <WeekStrip week={progress.data.week} />
+      <StreakRecovery />
       <Grid columns={2}>
         <StatTile icon={CheckCircle} value={lessonsDone} label={lessonsDone === 1 ? "Lesson done" : "Lessons done"} />
         <StatTile

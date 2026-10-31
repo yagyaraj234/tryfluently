@@ -5,10 +5,12 @@ import { lessonRoute } from "../../lib/lessons";
 import type { Unit } from "../../lib/queries";
 import type { Selected } from "./StartLessonDialog";
 import type { Starting } from "./StartingLesson";
+import { SkipControl } from "./SkipControl";
 
 type Lesson = Unit["lessons"][number];
 
 function lessonDescription(lesson: Lesson) {
+  if (lesson.status === "skipped") return "Skipped · no completion credit";
   if (lesson.status === "completed") return "Completed";
   if (lesson.quizDone) return "Quiz done — choose what's next";
   if (lesson.preparation === "failed") return "Preparation failed. Retry";
@@ -34,13 +36,13 @@ function KnownLessonNode({ unit, lesson, onRetry, onResume }: NodeProps) {
   const paged = lesson.contentVersion >= 2 && retry;
   return (
     <RoadmapNode
-      state={lesson.status === "completed" ? "complete" : "active"}
+      state={lesson.status === "completed" ? "complete" : lesson.status === "skipped" ? "locked" : "active"}
       title={lesson.title}
       skill={skill}
       description={lessonDescription(lesson)}
       stars={starsFor(lesson)}
-      cue={retry ? undefined : "Continue"}
-      render={retry ? undefined : <Link {...lessonRoute(lesson)} />}
+      cue={retry || lesson.status === "skipped" ? undefined : "Continue"}
+      render={retry || lesson.status === "skipped" ? undefined : <Link {...lessonRoute(lesson)} />}
       onClick={
         paged
           ? () => onResume({ id: lesson.id, title: lesson.title, objective: planned?.objective ?? "" })
@@ -60,7 +62,12 @@ type Props = {
 };
 
 export function UnitSection({ unit, onSelect, onRetry, onResume }: Props) {
-  const known = unit.lessons.filter((l) => l.status === "completed" || l.status === "in_progress");
+  const known = unit.lessons.filter(
+    (l) => l.status === "completed" || l.status === "in_progress" || l.status === "skipped",
+  );
+  const next = unit.lessonOutline.find(
+    (p) => !known.some((l) => l.position === p.position && (l.status === "completed" || l.status === "skipped")),
+  );
   const current = known.some((l) => l.status === "in_progress");
   const count = unit.lessons.filter((l) => l.kind === "practice").length;
   const future = (unit.lessonOutline ?? []).filter((l) => l.kind === "practice" && l.position >= count);
@@ -123,6 +130,7 @@ export function UnitSection({ unit, onSelect, onRetry, onResume }: Props) {
       {futureNodes}
       {roleplayNode}
       {placeholder}
+      {active && next && <SkipControl target={{ position: next.position }} title={next.title} />}
     </RoadmapUnit>
   );
 }
