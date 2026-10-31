@@ -101,6 +101,21 @@ const WRAP_UP_SECONDS = 60;
 const wrapUp =
   "\n\nAbout a minute is left. Start to wrap up now: ask no new questions, and close the conversation politely.";
 
+// A call that replaces a dropped one carries on from the saved transcript instead of greeting the Learner again.
+// ponytail: keeps the last 12k characters; summarise older turns if long Roleplays lose their opening.
+export const resumeFrom = (prior: UIMessage[]) => {
+  const lines = prior.flatMap((m) => {
+    const text = m.parts
+      .flatMap((p) => (p.type === "text" ? [p.text] : []))
+      .join(" ")
+      .trim();
+    return text ? [`${m.role === "user" ? "Learner" : "You"}: ${text}`] : [];
+  });
+  return lines.length
+    ? `\n\nThe call dropped and has reconnected. The conversation so far:\n${lines.join("\n").slice(-12_000)}\nContinue from where it stopped: don't greet the Learner again or start over.`
+    : "";
+};
+
 type SaveFailure = { error: unknown };
 type Live = {
   sideband?: Sideband;
@@ -209,6 +224,7 @@ export function realtimeBroker({
     const timers: (() => void)[] = [];
     const transcript: UIMessage[] = [];
     const prior = (opts.prior ?? []) as UIMessage[];
+    const instructions = opts.instructions + resumeFrom(prior);
     const priorIds = new Set(prior.map((m) => m.id));
     const timing = new Map<string, { speechStartMs?: number; speechEndMs?: number }>();
     const usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
@@ -316,7 +332,7 @@ export function realtimeBroker({
       },
     });
     ready();
-    entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions } });
+    entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions } });
     {
       const remainingSeconds = Math.max(0, (entry.endsAt.getTime() - now().getTime()) / 1000);
       const sideband = entry.sideband;
@@ -324,7 +340,7 @@ export function realtimeBroker({
         schedule(Math.max(0, remainingSeconds - WRAP_UP_SECONDS) * 1000, () =>
           sideband.send({
             type: "session.update",
-            session: { type: "realtime", instructions: opts.instructions + wrapUp },
+            session: { type: "realtime", instructions: instructions + wrapUp },
           }),
         ),
         schedule(remainingSeconds * 1000, () =>
