@@ -17,11 +17,12 @@ export type BrowserSocket = { send(data: string): void; close(code?: number): vo
 export type Realtime = {
   // Starts a call with the owner's key. OpenAI answers the browser's SDP offer over WebRTC; Rime has no answer,
   // and the browser joins over the API's WebSocket instead. The call id stays here. `avoid` is the provider a resumed
-  // call dropped from.
+  // call dropped from; `voiceKey` picks the voice, so a call that reconnects keeps the voice it started with.
   createCall(
     sdp: string,
     session: RealtimeSession,
     avoid?: Provider,
+    voiceKey?: string,
   ): Promise<{ answer?: string; callId: string; provider: Provider }>;
   // Opens the server's sideband connection to a live call. `failed` is false when the provider ended it normally.
   attach(
@@ -32,8 +33,12 @@ export type Realtime = {
   join?(callId: string, browser: BrowserSocket): { message(data: string): void; close(): void } | undefined;
 };
 
-export function pick<T>(list: readonly T[]) {
-  return list[Math.floor(Math.random() * list.length)]!;
+// Random, or the same item every time for the same key.
+export function pick<T>(list: readonly T[], key?: string) {
+  if (!key) return list[Math.floor(Math.random() * list.length)]!;
+  let hash = 0;
+  for (const c of key) hash = (hash * 31 + c.charCodeAt(0)) | 0;
+  return list[Math.abs(hash) % list.length]!;
 }
 const openaiVoices = ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"];
 
@@ -42,7 +47,7 @@ const API = "https://api.openai.com/v1/realtime";
 export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Realtime => {
   const authorization = `Bearer ${apiKey}`;
   return {
-    async createCall(sdp, session) {
+    async createCall(sdp, session, _avoid, voiceKey) {
       const body = new FormData();
       body.set("sdp", sdp);
       body.set(
@@ -50,7 +55,7 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
         JSON.stringify({
           ...session,
           model,
-          audio: { ...(session.audio as object), output: { voice: pick(openaiVoices) } },
+          audio: { ...(session.audio as object), output: { voice: pick(openaiVoices, voiceKey) } },
         }),
       );
       const res = await fetch(`${API}/calls`, {
@@ -249,6 +254,7 @@ export function realtimeBroker({
         opts.sdp,
         opts.tools ? { ...sessionConfig, tools: opts.tools } : sessionConfig,
         opts.after,
+        opts.targetId,
       );
     } catch (e) {
       live.delete(userId);

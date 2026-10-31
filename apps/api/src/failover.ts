@@ -18,11 +18,11 @@ export function failover(providers: Record<Provider, Realtime>, primary: Provide
   };
 
   return {
-    async createCall(sdp, session, avoid) {
+    async createCall(sdp, session, avoid, voiceKey) {
       let error: unknown;
       for (const p of order(avoid)) {
         try {
-          const call = await providers[p].createCall(sdp, session);
+          const call = await providers[p].createCall(sdp, session, undefined, voiceKey);
           owner.set(call.callId, p);
           return call;
         } catch (e) {

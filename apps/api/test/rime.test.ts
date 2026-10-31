@@ -100,6 +100,21 @@ describe("Rime Prism provider", () => {
     await expect(failing).rejects.toThrow("setup error unauthorized");
   });
 
+  test("calls with the same key get the same voice", async () => {
+    const rime = rimeRealtime("rime-key");
+    const voiceOf = async (key: string) => {
+      const pending = rime.createCall("", {}, undefined, key);
+      await settle();
+      const prism = FakePrism.all.at(-1)!;
+      prism.emit({ type: "session.updated" });
+      await pending;
+      return prism.sent[0].session.voice;
+    };
+    const voices = [];
+    for (let i = 0; i < 6; i++) voices.push(await voiceOf("a1"));
+    expect(new Set(voices).size).toBe(1);
+  });
+
   test("session updates keep the call's voice and drop OpenAI's session type", async () => {
     const { prism, sideband } = await rimeCall();
     const voice = prism.sent[0].session.voice;
