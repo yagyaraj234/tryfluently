@@ -27,6 +27,21 @@ function Privacy() {
           unsubscribe link in a reminder email.
         </p>
       </section>
+      <section aria-labelledby="billing-privacy-title">
+        <h2 id="billing-privacy-title">Payments</h2>
+        <p>
+          Dodo Payments processes checkout and payment details. We send your account name, email and internal account
+          identifier to link purchases to your account. Fluently stores provider customer/subscription identifiers,
+          payment grants, balances, reservations and refund adjustments. Card details are entered with the payment
+          provider and are not stored by Fluently.
+        </p>
+        <p>
+          Deleting your Fluently account removes its linked billing records. If billing credentials are unavailable, we
+          temporarily retain the provider customer identifier to retry subscription cancellation when access returns.
+          Dodo Payments retains its own payment and invoice records under its retention rules. Webhook delivery
+          identifiers may remain to prevent duplicate processing.
+        </p>
+      </section>
       <section aria-labelledby="voice-title">
         <h2 id="voice-title">Voice recording and AI processing</h2>
         <p>

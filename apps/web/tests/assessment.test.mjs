@@ -298,9 +298,9 @@ test("voice quota exhaustion offers Written Assessment without connecting", asyn
   remainingSeconds = 0;
   try {
     const html = await page("/assessments/voice");
-    assert.match(html, /used this month/);
+    assert.match(html, /used your available/);
     assert.match(html, /Choose Written Assessment/);
-    assert.match(html, /mailto:hey@yagyaraj.com/);
+    assert.match(html, /View plans or add minutes/);
     assert.doesNotMatch(html, /Connecting/);
   } finally {
     remainingSeconds = 600;

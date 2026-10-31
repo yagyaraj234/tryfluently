@@ -30,6 +30,7 @@ export function requestLimits(now: () => Date) {
 
     const paid =
       path === "/api/pronunciation" ||
+      (c.req.method === "POST" && /^\/api\/billing\/(checkout|portal|cancel)$/.test(path)) ||
       (c.req.method === "POST" &&
         (starting ||
           path === "/api/roadmap" ||

@@ -6,6 +6,8 @@ import { z } from "zod";
 import { generate } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { skillProfile, skills } from "./scoring";
+import { requirePro } from "./billing-credits";
+import type { RealtimeBroker } from "./realtime";
 
 const { unit, goal, focusItem, lesson, assessment, step } = schema;
 
@@ -68,7 +70,7 @@ a concrete objective the Learner can meet, the skills it practises (fluency, gra
 with a Roleplay (a Mock Interview for interview practice, a Client Call for client work).
 Fit the Units to the Learner's Goal statements and work from their weaknesses toward their Target Levels. ${outlineInstructions}`;
 
-type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal };
+type Ctx = Pick<Deps, "db" | "now" | "models" | "billingEnabled"> & { signal?: AbortSignal };
 
 export const focusItemsRoute = (db: Deps["db"]) =>
   new Hono<AppEnv>().get("/", async (c) =>
@@ -164,16 +166,18 @@ export async function buildRoadmap(ctx: Ctx, userId: string) {
 export async function finishUnit(ctx: Ctx, id: string, status: "mastered" | "skipped") {
   const [owner] = await ctx.db.select({ userId: unit.userId }).from(unit).where(eq(unit.id, id));
   if (!owner) return;
-  const changed = await ctx.db.transaction(async (tx) => {
+  return ctx.db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, owner.userId)).for("update");
+    if (status === "skipped") await requirePro(tx, owner.userId, ctx.now(), ctx.billingEnabled);
     const [before] = await tx.select().from(unit).where(eq(unit.id, id));
-    if (!before || (before.status !== "active" && before.status !== "planned")) return false;
+    if (!before || (before.status !== "active" && before.status !== "planned")) return undefined;
     await tx.update(unit).set({ status }).where(eq(unit.id, id));
-    if (before.status !== "active") return false;
-    await tx
+    if (before.status !== "active") return [];
+    const abandoned = await tx
       .update(lesson)
       .set({ status: "abandoned", preparationToken: null })
-      .where(and(eq(lesson.unitId, id), eq(lesson.status, "in_progress")));
+      .where(and(eq(lesson.unitId, id), eq(lesson.status, "in_progress")))
+      .returning({ id: lesson.id });
     const [next] = await tx
       .select()
       .from(unit)
@@ -181,11 +185,11 @@ export async function finishUnit(ctx: Ctx, id: string, status: "mastered" | "ski
       .orderBy(asc(unit.position))
       .limit(1);
     if (next) await tx.update(unit).set({ status: "active" }).where(eq(unit.id, next.id));
-    return true;
+    return abandoned;
   });
 }
 
-export const roadmap = (deps: Deps) =>
+export const roadmap = (deps: Deps & { broker: RealtimeBroker }) =>
   new Hono<AppEnv>()
     // Upgrade existing Roadmaps without rewriting Units, completed Lessons or active practice.
     .post("/outline", async (c) => {
@@ -283,8 +287,12 @@ export const roadmap = (deps: Deps) =>
           return {
             ...u,
             roleplayReady: u.lessonOutline.length
-              ? u.lessonOutline.find((p) => !inUnit.some((l) => l.position === p.position && l.status === "completed"))
-                  ?.kind === "roleplay"
+              ? u.lessonOutline.find(
+                  (p) =>
+                    !inUnit.some(
+                      (l) => l.position === p.position && (l.status === "completed" || l.status === "skipped"),
+                    ),
+                )?.kind === "roleplay"
               : readyForRoleplay(u.endsWithRoleplay, inUnit),
             lessons: inUnit,
           };
@@ -299,7 +307,9 @@ export const roadmap = (deps: Deps) =>
       if (!row) return c.json({ error: "Unit not found" }, 404);
       if (row.status !== "active" && row.status !== "planned")
         return c.json({ error: "This Unit is already finished" }, 409);
-      await finishUnit(deps, row.id, "skipped");
+      const abandoned = await finishUnit(deps, row.id, "skipped");
+      if (!abandoned) return c.json({ error: "This Unit is already finished" }, 409);
+      for (const lesson of abandoned) await deps.broker.hangup(c.var.user.id, lesson.id);
       return c.json({ status: "skipped" });
     })
     .post("/", async (c) => {

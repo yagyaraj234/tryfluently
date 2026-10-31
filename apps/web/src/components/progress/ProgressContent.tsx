@@ -15,6 +15,7 @@ import { FocusItems } from "./FocusItems";
 import { LearningStats } from "./LearningStats";
 import { Reports } from "./Reports";
 import { RetakeCheckIn } from "./RetakeCheckIn";
+import { StreakRecovery } from "./StreakRecovery";
 
 const skills: { skill: Skill; name: string; unmeasured: string }[] = [
   {
@@ -71,6 +72,7 @@ export function ProgressContent({ timeZone }: { timeZone: string }) {
         <Text tone="muted">Current levels, every score behind them, and the Focus Items still open.</Text>
       </Stack>
       <LearningStats />
+      <StreakRecovery />
       <ProgressOverview
         skills={skillCards}
         focus={<FocusItems items={focusItems.data} />}

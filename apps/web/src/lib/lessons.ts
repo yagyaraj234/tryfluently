@@ -1,7 +1,7 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { api } from "./api";
-import { roadmapQuery } from "./queries";
+import { api, errorOf } from "./api";
+import { billingQuery, roadmapQuery } from "./queries";
 
 /** A Roleplay Lesson opens on the Roleplay screen, any other on the Lesson player. */
 export const lessonRoute = (l: { id: string; kind: "practice" | "roleplay" }) =>
@@ -50,10 +50,11 @@ export function useStartLesson() {
       const response = await api().api.lessons[":position{[0-9]+}"].start.$post({
         param: { position: String(position) },
       });
-      if (!response.ok) throw new Error(`Couldn't start your Lesson (${response.status})`);
+      if (!response.ok) throw await errorOf(response, `Couldn't start your Lesson (${response.status})`);
       return response.json();
     },
-    onSuccess: () => queryClient.invalidateQueries(roadmapQuery),
+    onSuccess: () =>
+      Promise.all([queryClient.invalidateQueries(roadmapQuery), queryClient.invalidateQueries(billingQuery)]),
   });
 }
 
@@ -64,7 +65,7 @@ export function useNextLesson() {
   return useMutation({
     mutationFn: async () => {
       const response = await api().api.lessons.next.$post();
-      if (!response.ok) throw new Error(`Couldn't start your Lesson (${response.status})`);
+      if (!response.ok) throw await errorOf(response, `Couldn't start your Lesson (${response.status})`);
       return response.json();
     },
     onSuccess: async (lesson) => {

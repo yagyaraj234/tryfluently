@@ -148,6 +148,27 @@
       "when": 1792935310795,
       "tag": "0020_loud_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793428460518,
+      "tag": "0021_faithful_sage",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793439037979,
+      "tag": "0022_giant_squadron_sinister",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793439102481,
+      "tag": "0023_brainy_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

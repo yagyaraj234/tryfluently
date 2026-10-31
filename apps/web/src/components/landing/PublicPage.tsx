@@ -6,7 +6,7 @@ import { learningPages } from "../../content/landing";
 
 export const publicNavigation = [
   ...Object.values(learningPages).map(({ label, path }) => ({ label, href: path, render: <Link to={path} /> })),
-  { label: "Free beta", href: "/#free", render: <Link to="/" hash="free" /> },
+  { label: "Plans", href: "/#free", render: <Link to="/" hash="free" /> },
 ];
 
 export function PublicPage({

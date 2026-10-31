@@ -6,9 +6,10 @@ import { generate } from "./ai";
 import type { Deps } from "./app";
 import { createRoleplay, roleplayKindFor } from "./roleplays";
 import { skillProfile } from "./scoring";
+import { claimLesson } from "./billing-credits";
 
 const { lesson, step, unit, user, goal, focusItem, learnerMemory } = schema;
-type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal };
+type Ctx = Pick<Deps, "db" | "now" | "models" | "billingEnabled"> & { signal?: AbortSignal };
 const text = z.string().trim().min(1).max(2000);
 export const contentOutput = z.object({
   material: z
@@ -64,7 +65,9 @@ export async function prepareNext(ctx: Ctx, userId: string) {
       return { row: current };
     const planned = current
       ? active.lessonOutline.find((p) => p.position === current.position)
-      : active.lessonOutline.find((p) => !rows.some((l) => l.position === p.position && l.status === "completed"));
+      : active.lessonOutline.find(
+          (p) => !rows.some((l) => l.position === p.position && (l.status === "completed" || l.status === "skipped")),
+        );
     if (!planned) return;
     // Paged outlines never generate ahead: a new practice Lesson is only created by startLesson.
     if (!current && planned.kind === "practice" && planned.pageCount !== undefined) return;
@@ -81,6 +84,9 @@ export async function prepareNext(ctx: Ctx, userId: string) {
       };
     }
     const token = crypto.randomUUID();
+    const allowanceResetsAt = !current
+      ? await claimLesson(tx, userId, now(), ctx.billingEnabled)
+      : current.allowanceResetsAt;
     const values = { preparation: "preparing" as const, preparationToken: token, preparationAt: now() };
     const [row] = current
       ? await tx.update(lesson).set(values).where(eq(lesson.id, current.id)).returning()
@@ -94,6 +100,8 @@ export async function prepareNext(ctx: Ctx, userId: string) {
             title: planned.title,
             objective: planned.objective,
             phase: "learning",
+            startedAt: now(),
+            allowanceResetsAt,
             ...values,
           })
           .returning();

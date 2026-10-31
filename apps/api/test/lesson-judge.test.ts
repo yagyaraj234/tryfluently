@@ -1,3 +1,6 @@
+import { schema } from "@fluently/db";
+import { eq } from "drizzle-orm";
+import { testDb } from "./setup";
 import { describe, expect, test } from "bun:test";
 import {
   answerStep,
@@ -7,7 +10,18 @@ import {
   lessonPlan,
   unitsReply,
 } from "./fixtures";
-import { get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, type TestApp, type Turn } from "./helpers";
+import {
+  get,
+  grantPro,
+  json,
+  makeApp,
+  makeClock,
+  mockModel,
+  mockTurns,
+  userMessage,
+  type TestApp,
+  type Turn,
+} from "./helpers";
 
 const judgeReply = (
   objectiveProgress: number,
@@ -56,6 +70,32 @@ const roadmapOf = async (app: TestApp, cookie: string) =>
   (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
 const profileOf = async (app: TestApp, cookie: string) =>
   (await (await app.request("/api/skill-profile", get(cookie))).json()) as any;
+
+test("legacy planning retries a crashed reservation without starting another Lesson", async () => {
+  const clock = makeClock();
+  const { cookie, id, units } = await learnerWithRoadmap(clock);
+  const [crashed] = await testDb
+    .insert(schema.lesson)
+    .values({
+      userId: id,
+      unitId: units[0].id,
+      position: 0,
+      kind: "practice",
+      title: "Planning",
+      objective: "Practice",
+      startedAt: clock(),
+      preparation: "preparing",
+      preparationToken: crypto.randomUUID(),
+      preparationAt: new Date(clock().getTime() - 180000),
+    })
+    .returning();
+  const app = makeApp({ now: clock, models: { step: mockModel(lessonPlan()) } });
+  const res = await app.request("/api/lessons/next", json({}, cookie));
+  expect(res.status).toBe(201);
+  expect((await res.json()).id).toBe(crashed!.id);
+  expect(await testDb.select().from(schema.lesson).where(eq(schema.lesson.userId, id))).toHaveLength(1);
+  expect(await (await app.request("/api/billing", get(cookie))).json()).toMatchObject({ lessons: { used: 1 } });
+});
 
 describe("lesson judge", () => {
   test("completing a Lesson stores objective progress and a summary, and moves only the skills it practised", async () => {
@@ -121,7 +161,8 @@ describe("roadmap lessons", () => {
 describe("unit progression", () => {
   test("skipping the active Unit marks it skipped, not mastered, and activates the next one", async () => {
     const app = makeApp({ models: { step: mockModel(lessonPlan()), roadmap: mockModel(unitsReply(3, "Revised")) } });
-    const { cookie, units } = await learnerWithRoadmap();
+    const { cookie, units, id } = await learnerWithRoadmap();
+    await grantPro(id);
     const inProgress = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
 
     const res = await app.request(`/api/roadmap/units/${units[0].id}/skip`, json({}, cookie));
@@ -135,7 +176,8 @@ describe("unit progression", () => {
 
   test("skipping a planned Unit leaves the active one alone; finished Units can't be skipped", async () => {
     const app = makeApp();
-    const { cookie, units } = await learnerWithRoadmap();
+    const { cookie, units, id } = await learnerWithRoadmap();
+    await grantPro(id);
 
     await app.request(`/api/roadmap/units/${units[2].id}/skip`, json({}, cookie));
     expect((await roadmapOf(app, cookie)).slice(0, 3).map((u) => u.status)).toEqual(["active", "planned", "skipped"]);

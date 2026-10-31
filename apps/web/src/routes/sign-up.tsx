@@ -8,7 +8,7 @@ export const Route = createFileRoute("/sign-up")({
     publicPageHead(
       "/sign-up",
       "Create a free account",
-      "Start with a Voice or Written Assessment. Free beta with 10 live voice minutes per month and no card needed.",
+      "Start with a Voice or Written Assessment. Start free with 25 live voice minutes per month and no card needed.",
     ),
   loader: loadProviders,
   component: SignUp,
