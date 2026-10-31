@@ -18,7 +18,7 @@ import { sql } from "drizzle-orm";
 
 const bytea = customType<{ data: Uint8Array }>({ dataType: () => "bytea" });
 
-// Better Auth's tables. Every later table must reference user.id with onDelete: "cascade".
+// Better Auth's tables. Learner-owned tables reference user.id with onDelete: "cascade".
 export const user = pgTable("user", {
   id: text().primaryKey(),
   name: text().notNull(),
@@ -132,6 +132,95 @@ export const aiUsage = pgTable(
     usage: jsonb().$type<Record<string, unknown>>(),
   },
   (t) => [index("ai_usage_user_kind_started_idx").on(t.userId, t.kind, t.startedAt)],
+);
+
+export const billingAccount = pgTable("billing_account", {
+  userId: learner().primaryKey(),
+  customerId: text().notNull().unique(),
+  deleting: boolean().notNull().default(false),
+});
+
+export const billingSubscription = pgTable("billing_subscription", {
+  id: text().primaryKey(),
+  userId: learner(),
+  status: text().notNull(),
+  cancelAtPeriodEnd: boolean().notNull().default(false),
+  nextBillingAt: timestamp().notNull(),
+});
+
+// One grant per successful payment. Refunds and reservations never rewrite the original grant.
+export const billingCredit = pgTable(
+  "billing_credit",
+  {
+    id: text().primaryKey(),
+    userId: learner(),
+    kind: text().$type<"pro" | "pack">().notNull(),
+    subscriptionId: text(),
+    startsAt: timestamp().notNull(),
+    expiresAt: timestamp(),
+    seconds: integer().notNull(),
+    usedSeconds: doublePrecision().notNull().default(0),
+    revokedSeconds: doublePrecision().notNull().default(0),
+    amount: integer().notNull(),
+    currency: text().notNull(),
+  },
+  (t) => [index("billing_credit_user_idx").on(t.userId)],
+);
+
+export type VoiceAllocation = { creditId: string; seconds: number };
+// Reserving before calling the provider prevents two API instances spending the same credits.
+export const voiceReservation = pgTable(
+  "voice_reservation",
+  {
+    id: id(),
+    userId: learner(),
+    startedAt: timestamp().notNull(),
+    endsAt: timestamp().notNull(),
+    callId: text(),
+    confirmedSeconds: doublePrecision().notNull().default(0),
+    freeSeconds: doublePrecision().notNull(),
+    allocations: jsonb().$type<VoiceAllocation[]>().notNull(),
+    settledAt: timestamp(),
+  },
+  (t) => [
+    uniqueIndex("voice_reservation_one_open_idx")
+      .on(t.userId)
+      .where(sql`${t.settledAt} is null`),
+  ],
+);
+
+export const billingCheckout = pgTable("billing_checkout", {
+  id: id(),
+  userId: learner(),
+  kind: text().$type<"pro" | "pack">().notNull(),
+  sessionId: text().unique(),
+  url: text(),
+  createdAt: timestamp().notNull(),
+  completedAt: timestamp(),
+});
+
+export const billingWebhook = pgTable("billing_webhook", {
+  id: text().primaryKey(),
+  processedAt: timestamp().notNull(),
+});
+
+// Fixed reset timestamps prevent timezone changes from creating another daily allowance.
+export const lessonAllowance = pgTable("lesson_allowance", {
+  userId: learner().primaryKey(),
+  resetsAt: timestamp().notNull(),
+  used: integer().notNull().default(0),
+});
+
+export const streakRestoration = pgTable(
+  "streak_restoration",
+  {
+    id: id(),
+    userId: learner(),
+    days: jsonb().$type<string[]>().notNull(),
+    restoredAt: timestamp().notNull(),
+    nextAvailableAt: timestamp().notNull(),
+  },
+  (t) => [index("streak_restoration_user_idx").on(t.userId)],
 );
 
 export const assessmentMode = pgEnum("assessment_mode", ["voice", "written"]);
@@ -264,7 +353,7 @@ export const unit = pgTable(
 );
 
 export const lessonKind = pgEnum("lesson_kind", ["practice", "roleplay"]);
-export const lessonStatus = pgEnum("lesson_status", ["in_progress", "completed", "abandoned"]);
+export const lessonStatus = pgEnum("lesson_status", ["in_progress", "completed", "abandoned", "skipped"]);
 export const roleplayKind = pgEnum("roleplay_kind", [
   "mock_interview",
   "client_call",

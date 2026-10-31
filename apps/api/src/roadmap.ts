@@ -6,6 +6,8 @@ import { z } from "zod";
 import { generate } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { skillProfile, skills } from "./scoring";
+import { requirePro } from "./billing-credits";
+import type { RealtimeBroker } from "./realtime";
 
 const { unit, goal, focusItem, lesson, assessment, step } = schema;
 
@@ -166,6 +168,7 @@ export async function finishUnit(ctx: Ctx, id: string, status: "mastered" | "ski
   if (!owner) return;
   const changed = await ctx.db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, owner.userId)).for("update");
+    if (status === "skipped") await requirePro(tx, owner.userId, ctx.now());
     const [before] = await tx.select().from(unit).where(eq(unit.id, id));
     if (!before || (before.status !== "active" && before.status !== "planned")) return false;
     await tx.update(unit).set({ status }).where(eq(unit.id, id));
@@ -185,7 +188,7 @@ export async function finishUnit(ctx: Ctx, id: string, status: "mastered" | "ski
   });
 }
 
-export const roadmap = (deps: Deps) =>
+export const roadmap = (deps: Deps & { broker: RealtimeBroker }) =>
   new Hono<AppEnv>()
     // Upgrade existing Roadmaps without rewriting Units, completed Lessons or active practice.
     .post("/outline", async (c) => {
@@ -283,8 +286,12 @@ export const roadmap = (deps: Deps) =>
           return {
             ...u,
             roleplayReady: u.lessonOutline.length
-              ? u.lessonOutline.find((p) => !inUnit.some((l) => l.position === p.position && l.status === "completed"))
-                  ?.kind === "roleplay"
+              ? u.lessonOutline.find(
+                  (p) =>
+                    !inUnit.some(
+                      (l) => l.position === p.position && (l.status === "completed" || l.status === "skipped"),
+                    ),
+                )?.kind === "roleplay"
               : readyForRoleplay(u.endsWithRoleplay, inUnit),
             lessons: inUnit,
           };
@@ -299,6 +306,8 @@ export const roadmap = (deps: Deps) =>
       if (!row) return c.json({ error: "Unit not found" }, 404);
       if (row.status !== "active" && row.status !== "planned")
         return c.json({ error: "This Unit is already finished" }, 409);
+      await requirePro(deps.db, c.var.user.id, deps.now());
+      await deps.broker.hangup(c.var.user.id);
       await finishUnit(deps, row.id, "skipped");
       return c.json({ status: "skipped" });
     })

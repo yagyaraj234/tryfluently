@@ -25,6 +25,9 @@ import { metricsMiddleware, metricsRegistry } from "./metrics";
 import { requestLimits } from "./request-limits";
 import { health } from "./health";
 import { unsubscribeRoute } from "./streak-reminders";
+import type DodoPayments from "dodopayments";
+import { HTTPException } from "hono/http-exception";
+import { billingRoutes, billingWebhooks, cancelBeforeDelete, dodoPayments } from "./billing";
 
 export type { Mailer, Models, Realtime, Speech, Transcriber };
 
@@ -48,6 +51,11 @@ export type Env = {
   // Parent domain shared by web and API in production, e.g. tryfluently.site
   COOKIE_DOMAIN?: string;
   METRICS_ENABLED?: string;
+  DODO_PAYMENTS_API_KEY?: string;
+  DODO_PAYMENTS_WEBHOOK_KEY?: string;
+  DODO_PAYMENTS_ENVIRONMENT?: string;
+  DODO_PRO_PRODUCT_ID?: string;
+  DODO_PACK_PRODUCT_ID?: string;
 };
 
 export const defaultSettings = {
@@ -57,7 +65,7 @@ export const defaultSettings = {
   // Recorded answers (speakPrompt etc.) per local day.
   recordingMinutesPerDay: 30,
   // All live voice calls share a free UTC calendar-month allowance.
-  realtimeMinutesPerMonth: 10,
+  realtimeMinutesPerMonth: 25,
 };
 export type Settings = typeof defaultSettings;
 
@@ -70,6 +78,7 @@ export type Deps = {
   speech: Speech;
   realtime: Realtime;
   transcriber: Transcriber;
+  payments?: DodoPayments;
   // Runs `fn` after `ms` and returns a cancel; injected so tests fire timers on the test clock.
   schedule?: Schedule;
   settings?: Partial<Settings>;
@@ -101,6 +110,7 @@ export function createApp(deps: Deps) {
     schedule: deps.schedule ?? setTimer,
     limitMinutes: settings.realtimeMinutesPerMonth,
   });
+  const billing = { ...deps, payments: deps.payments ?? dodoPayments(env), broker };
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
@@ -146,7 +156,21 @@ export function createApp(deps: Deps) {
     },
     advanced: env.COOKIE_DOMAIN ? { crossSubDomainCookies: { enabled: true, domain: env.COOKIE_DOMAIN } } : {},
     user: {
-      deleteUser: { enabled: true, beforeDelete: (user) => broker.hangup(user.id) },
+      deleteUser: {
+        enabled: true,
+        beforeDelete: async (user) => {
+          try {
+            await cancelBeforeDelete(billing, user);
+          } catch (error) {
+            if (error instanceof HTTPException)
+              throw new APIError("SERVICE_UNAVAILABLE", {
+                code: "BILLING_CANCELLATION_FAILED",
+                message: error.message,
+              });
+            throw error;
+          }
+        },
+      },
       additionalFields: {
         timezone: {
           type: "string",
@@ -159,6 +183,11 @@ export function createApp(deps: Deps) {
   });
 
   const app = new Hono<AppEnv>()
+    .onError((error, c) => {
+      if (error instanceof HTTPException) return c.json({ error: error.message }, error.status);
+      console.error("API request failed", error);
+      return c.json({ error: "Something went wrong. Please try again." }, 500);
+    })
     .use("*", metricsMiddleware(env.METRICS_ENABLED === "true"))
     .route(
       "/health",
@@ -185,6 +214,8 @@ export function createApp(deps: Deps) {
     .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
     // Opened from email links and mail apps, so it sits before the origin and session checks.
     .route("/api/email/unsubscribe", unsubscribeRoute(deps))
+    // Dodo verifies the raw body with its signing secret; no browser session or origin is involved.
+    .route("/api/billing/webhook", billingWebhooks(billing))
     .use("/api/*", async (c, next) => {
       c.set("requestStartedAt", deps.now());
       // CORS controls response access; reject foreign browser writes before they reach handlers.
@@ -205,11 +236,12 @@ export function createApp(deps: Deps) {
     })
     .use("/api/*", limits)
     .get("/api/me", (c) => c.json(c.var.user))
+    .route("/api/billing", billingRoutes(billing))
     .route("/api/reports", reports(deps))
     .route("/api/goals", goals(deps))
     .route("/api/assessments", assessments({ ...deps, settings, broker }))
-    .route("/api/roadmap", roadmap(deps))
-    .route("/api/lessons", lessons({ ...deps, settings }))
+    .route("/api/roadmap", roadmap({ ...deps, broker }))
+    .route("/api/lessons", lessons({ ...deps, settings, broker }))
     .route("/api/roleplays", roleplays({ ...deps, settings, broker }))
     .route("/api/pronunciation", pronunciation(deps, env.KENPATH_VOICE))
     .route("/api/skill-profile", skillProfileRoutes(db))

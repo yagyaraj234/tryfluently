@@ -56,6 +56,19 @@ test("Learn more completes the Lesson, inserts a Follow-up Lesson right after it
   expect(plannerSystem).toContain("Follow-up Lesson");
 });
 
+test("daily limit rejects a Follow-up without completing the current Lesson or shifting its outline", async () => {
+  const t = await readyLesson(fakeQuizModel({ plans: fillGaps }));
+  await answerQuiz(t, t.lessonId);
+  const before = await roadmap(t);
+  await testDb.update(schema.lessonAllowance).set({ used: 5 }).where(eq(schema.lessonAllowance.userId, t.id));
+  const response = await learnMore(t, t.lessonId);
+  expect(response.status).toBe(429);
+  expect((await roadmap(t))[0].lessonOutline).toEqual(before[0].lessonOutline);
+  expect((await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, t.lessonId)))[0]!.status).toBe(
+    "in_progress",
+  );
+});
+
 test("Learn more is only offered at the choice, and not from the second Follow-up Lesson in a chain", async () => {
   const t = await readyLesson(fakeQuizModel({ plans: fillGaps }));
   expect((await learnMore(t, t.lessonId)).status).toBe(409);

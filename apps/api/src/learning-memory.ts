@@ -52,8 +52,16 @@ export async function advanceUnit(tx: Tx, unitId: string) {
   const [u] = await tx.select().from(schema.unit).where(eq(schema.unit.id, unitId));
   if (!u || u.status !== "active" || !u.lessonOutline.length) return;
   const lessons = await tx.select().from(schema.lesson).where(eq(schema.lesson.unitId, unitId));
-  if (!u.lessonOutline.every((p) => lessons.some((l) => l.position === p.position && l.status === "completed"))) return;
-  await tx.update(schema.unit).set({ status: "mastered" }).where(eq(schema.unit.id, unitId));
+  if (
+    !u.lessonOutline.every((p) =>
+      lessons.some((l) => l.position === p.position && (l.status === "completed" || l.status === "skipped")),
+    )
+  )
+    return;
+  await tx
+    .update(schema.unit)
+    .set({ status: lessons.some((l) => l.status === "skipped") ? "skipped" : "mastered" })
+    .where(eq(schema.unit.id, unitId));
   const next = (await tx.select().from(schema.unit).where(eq(schema.unit.userId, u.userId)))
     .filter((v) => v.status === "planned")
     .sort((a, b) => a.position - b.position)[0];

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { schema } from "@fluently/db";
 import { eq } from "drizzle-orm";
 import type { UIMessage } from "ai";
@@ -373,15 +373,15 @@ describe("Realtime close failures", () => {
   });
 
   test("a rejected usage write settles hangup, cancels timers and releases the call", async () => {
-    const { realtime, timers, broker } = await setup();
-    // Missing Learner forces a real foreign-key failure on ai_usage.
-    const missingId = crypto.randomUUID();
+    const { userId, realtime, timers, broker } = await setup();
     const options = opts(async () => {});
-    await broker.start(missingId, options);
-    await expect(broker.hangup(missingId)).rejects.toThrow();
+    await broker.start(userId, options);
+    const write = spyOn(testDb, "transaction").mockRejectedValueOnce(new Error("usage unavailable"));
+    await expect(broker.hangup(userId)).rejects.toThrow("usage unavailable");
+    write.mockRestore();
     expect(timers.waiting()).toEqual([]);
-    expect(await broker.start(missingId, options)).toHaveProperty("answer");
-    await expect(realtime.sideband().close()).rejects.toThrow();
+    expect(await broker.start(userId, options)).toHaveProperty("answer");
+    await realtime.sideband().close();
   });
 
   test("duplicate close waits for pending saves and writes usage once", async () => {

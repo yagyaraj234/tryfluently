@@ -15,7 +15,7 @@ const sdp = (cookie: string) => ({
 function setup(clock = makeClock()) {
   const realtime = fakeRealtime();
   const timers = fakeTimers();
-  const app = makeApp({ now: clock, realtime, schedule: timers.schedule });
+  const app = makeApp({ now: clock, realtime, schedule: timers.schedule, settings: { realtimeMinutesPerMonth: 10 } });
   return { app, clock, realtime, timers };
 }
 
@@ -36,6 +36,8 @@ describe("monthly Realtime voice cap", () => {
       limitMinutes: 10,
       usedSeconds: 0,
       remainingSeconds: 600,
+      monthlyRemainingSeconds: 600,
+      purchasedRemainingSeconds: 0,
       resetsAt: "2026-11-01T00:00:00.000Z",
       callEndsAt: null,
     });
@@ -247,6 +249,7 @@ describe("monthly Realtime voice cap", () => {
     const connecting = Promise.withResolvers<void>();
     let fail = true;
     const app = makeApp({
+      settings: { realtimeMinutesPerMonth: 10 },
       now: clock,
       realtime: {
         ...realtime,

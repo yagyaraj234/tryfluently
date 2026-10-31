@@ -16,6 +16,7 @@ import { waitForAnalysis, type Clock } from "./lesson-analysis";
 import { answeredPages } from "./page-answers";
 import { followUpBrief } from "./follow-up-lessons";
 import { skillProfile } from "./scoring";
+import { claimLesson } from "./billing-credits";
 
 const { lesson, unit, goal, focusItem, learnerMemory, assessmentJob: job } = schema;
 type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal; clock?: Clock };
@@ -171,12 +172,15 @@ export async function startLesson({ db, now }: { db: Tx; now: Deps["now"] }, use
     if (planned.kind !== "practice") return { error: "Roleplays start from the Roadmap" as const };
     const rows = await tx.select().from(lesson).where(eq(lesson.unitId, active.id)).orderBy(asc(lesson.position));
     const existing = rows.find((l) => l.position === position);
+    if (existing?.status === "skipped")
+      return { error: "This Lesson was skipped. Continue to the next Lesson." as const };
     if (existing)
       return existing.contentVersion >= 2 ? { lesson: existing } : { error: "Lesson already prepared" as const };
     const next = active.lessonOutline.find(
-      (p) => !rows.some((l) => l.position === p.position && l.status === "completed"),
+      (p) => !rows.some((l) => l.position === p.position && (l.status === "completed" || l.status === "skipped")),
     );
     if (next?.position !== position) return { error: "Finish your earlier Lessons first" as const };
+    await claimLesson(tx, userId, now());
     // Outlines written before pageCount existed have none: they get the default.
     const pages = (planned as { pageCount?: number }).pageCount ?? DEFAULT_PAGES;
     const [created] = await tx

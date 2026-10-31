@@ -135,7 +135,7 @@ _Avoid_: Mistake, weak point, todo
 ### Motivation
 
 **Streak**:
-The number of consecutive days on which the Learner completed at least one Lesson.
+The number of consecutive local dates with a completed Lesson or a manually restored missed day. Restored days grant no XP or Lesson completion credit.
 
 **Streak reminder**:
 An email sent once, in the last 6 hours of the Learner's local day, when they have a Streak but haven't completed a Lesson yet today. Learners can turn it off from the email.
@@ -143,3 +143,20 @@ An email sent once, in the last 6 hours of the Learner's local day, when they ha
 **XP**:
 Points the Learner earns by completing Steps and Lessons.
 _Avoid_: Score, points, credits
+
+### Billing
+
+**Free**:
+The $0 plan: 25 live minutes per UTC calendar month and five new Lessons per local day. Pages, quizzes, resumes, reviews and retries do not consume another Lesson slot; Follow-up Lessons do.
+
+**Pro**:
+Access to unlimited daily Lesson starts, Lesson and Unit skipping, and Streak Recovery. An active paid $9 monthly subscription includes 150 live minutes per billing period. A positive Purchased Balance also unlocks Pro features.
+
+**Minute Pack**:
+A $29 one-time purchase of 500 live minutes. Packs stack, never expire and do not renew automatically. Both paid prices include tax.
+
+**Purchased Balance**:
+Unused live minutes from Minute Packs. Monthly minutes are spent first. Purchased Balance survives subscription expiry and unlocks Pro while it remains above zero.
+
+**Streak Recovery**:
+A manual Pro action restoring the latest gap of at most two missed local dates. Available once per billing period for subscribers, or once per UTC calendar month for pack-only access. Buying a pack or switching payment type does not reset an already-used recovery.

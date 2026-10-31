@@ -148,6 +148,13 @@
       "when": 1792935310795,
       "tag": "0020_loud_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793428460518,
+      "tag": "0021_faithful_sage",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { schema } from "@fluently/db";
 import { zValidator } from "@hono/zod-validator";
 import { NoObjectGeneratedError, Output, safeValidateUIMessages, tool, type UIMessage } from "ai";
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate, streamChat, unchanged } from "./ai";
@@ -21,6 +21,9 @@ import { createRoleplay, roleplayKindFor } from "./roleplays";
 import { readyForRoleplay } from "./roadmap";
 import { skillProfile } from "./scoring";
 import { stepTools, stepTypes, takeAnswer } from "./steps";
+import { claimLesson, requirePro } from "./billing-credits";
+import { skipLesson } from "./lesson-skip";
+import type { RealtimeBroker } from "./realtime";
 
 const { lesson, step, unit, goal, focusItem } = schema;
 
@@ -65,7 +68,8 @@ export const lessons = ({
   models,
   transcriber,
   settings,
-}: Deps & { settings: { alphaLesson: number; recordingMinutesPerDay: number } }) => {
+  broker,
+}: Deps & { settings: { alphaLesson: number; recordingMinutesPerDay: number }; broker: RealtimeBroker }) => {
   const find = async (id: string, userId: string) =>
     (
       await db
@@ -168,6 +172,10 @@ export const lessons = ({
           (l) => l.kind === "practice" && l.position === inUnit.filter((l) => l.kind === "practice").length,
         );
         let plan: z.infer<typeof planOutput>;
+        const resetsAt = await db.transaction(async (tx) => {
+          await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
+          return claimLesson(tx, userId, now());
+        });
         try {
           ({ output: plan } = await generate({ db, now }, userId, {
             model: models.step,
@@ -182,6 +190,10 @@ export const lessons = ({
             output: Output.object({ schema: planOutput }),
           }));
         } catch (e) {
+          await db
+            .update(schema.lessonAllowance)
+            .set({ used: sql`greatest(0, ${schema.lessonAllowance.used} - 1)` })
+            .where(and(eq(schema.lessonAllowance.userId, userId), eq(schema.lessonAllowance.resetsAt, resetsAt)));
           if (NoObjectGeneratedError.isInstance(e))
             return c.json({ error: "The Lesson couldn't be generated. Try again." }, 502);
           throw e;
@@ -199,6 +211,11 @@ export const lessons = ({
           })
           .returning();
         return c.json(await withSteps(created!), 201);
+      })
+      .post("/:position{[0-9]+}/skip", async (c) => {
+        await requirePro(db, c.var.user.id, now());
+        await broker.hangup(c.var.user.id);
+        return c.json(await skipLesson(db, c.var.user.id, Number(c.req.param("position")), now()));
       })
       // Starts a Lesson from the outline. Starting twice returns the same Lesson.
       .post("/:position{[0-9]+}/start", async (c) => {

@@ -7,7 +7,18 @@ import {
   lessonPlan,
   unitsReply,
 } from "./fixtures";
-import { get, json, makeApp, makeClock, mockModel, mockTurns, userMessage, type TestApp, type Turn } from "./helpers";
+import {
+  get,
+  grantPro,
+  json,
+  makeApp,
+  makeClock,
+  mockModel,
+  mockTurns,
+  userMessage,
+  type TestApp,
+  type Turn,
+} from "./helpers";
 
 const judgeReply = (
   objectiveProgress: number,
@@ -121,7 +132,8 @@ describe("roadmap lessons", () => {
 describe("unit progression", () => {
   test("skipping the active Unit marks it skipped, not mastered, and activates the next one", async () => {
     const app = makeApp({ models: { step: mockModel(lessonPlan()), roadmap: mockModel(unitsReply(3, "Revised")) } });
-    const { cookie, units } = await learnerWithRoadmap();
+    const { cookie, units, id } = await learnerWithRoadmap();
+    await grantPro(id);
     const inProgress = (await (await app.request("/api/lessons/next", json({}, cookie))).json()) as any;
 
     const res = await app.request(`/api/roadmap/units/${units[0].id}/skip`, json({}, cookie));
@@ -135,7 +147,8 @@ describe("unit progression", () => {
 
   test("skipping a planned Unit leaves the active one alone; finished Units can't be skipped", async () => {
     const app = makeApp();
-    const { cookie, units } = await learnerWithRoadmap();
+    const { cookie, units, id } = await learnerWithRoadmap();
+    await grantPro(id);
 
     await app.request(`/api/roadmap/units/${units[2].id}/skip`, json({}, cookie));
     expect((await roadmapOf(app, cookie)).slice(0, 3).map((u) => u.status)).toEqual(["active", "planned", "skipped"]);
