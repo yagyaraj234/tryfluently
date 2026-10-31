@@ -14,11 +14,10 @@ Decided 31 October 2026. Partly supersedes [0001](0001-openai-realtime-voice.md)
 
 - a connection error or timeout
 - a socket that closes before we hang up
-- a browser that doesn't join a Rime call within 15 seconds (ended normally, so the slot and minutes are freed)
 - close code 1001 or 1011
-- a browser that can't open the Rime socket
+- a browser that can't open the Rime socket (this switches the call but doesn't trip the breaker below, because the server can't tell it from one Learner's network)
 
-Hanging up, `end_call`, the allowance, the Assessment deadline and Prism's 5-minute idle timeout end a call normally. A call switches provider at most once. If the second provider also drops, the Learner sees the existing "dropped" state. During the switch they see "Reconnecting…", and the coach's voice changes.
+Hanging up, `end_call`, the allowance, the Assessment deadline, Prism's 5-minute idle timeout and a browser that doesn't join a Rime call within 15 seconds end a call normally. A call switches provider at most once. If the second provider also drops, the Learner sees the existing "dropped" state. During the switch they see "Reconnecting…", and the coach's voice changes.
 
 **A circuit breaker remembers failures.** After a failure, the API sends new calls to the other provider for 5 minutes, then tries the primary again. Nobody watches it or edits env vars. The breaker lives in memory, like the broker's call registry, so it holds for one API instance. OpenAI's mid-call closes don't trip it yet, because its close codes aren't classified. The dropped call still moves to Rime when the browser resumes it.
 
