@@ -166,17 +166,18 @@ export async function buildRoadmap(ctx: Ctx, userId: string) {
 export async function finishUnit(ctx: Ctx, id: string, status: "mastered" | "skipped") {
   const [owner] = await ctx.db.select({ userId: unit.userId }).from(unit).where(eq(unit.id, id));
   if (!owner) return;
-  const changed = await ctx.db.transaction(async (tx) => {
+  return ctx.db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, owner.userId)).for("update");
     if (status === "skipped") await requirePro(tx, owner.userId, ctx.now());
     const [before] = await tx.select().from(unit).where(eq(unit.id, id));
-    if (!before || (before.status !== "active" && before.status !== "planned")) return false;
+    if (!before || (before.status !== "active" && before.status !== "planned")) return undefined;
     await tx.update(unit).set({ status }).where(eq(unit.id, id));
-    if (before.status !== "active") return false;
-    await tx
+    if (before.status !== "active") return [];
+    const abandoned = await tx
       .update(lesson)
       .set({ status: "abandoned", preparationToken: null })
-      .where(and(eq(lesson.unitId, id), eq(lesson.status, "in_progress")));
+      .where(and(eq(lesson.unitId, id), eq(lesson.status, "in_progress")))
+      .returning({ id: lesson.id });
     const [next] = await tx
       .select()
       .from(unit)
@@ -184,7 +185,7 @@ export async function finishUnit(ctx: Ctx, id: string, status: "mastered" | "ski
       .orderBy(asc(unit.position))
       .limit(1);
     if (next) await tx.update(unit).set({ status: "active" }).where(eq(unit.id, next.id));
-    return true;
+    return abandoned;
   });
 }
 
@@ -306,9 +307,9 @@ export const roadmap = (deps: Deps & { broker: RealtimeBroker }) =>
       if (!row) return c.json({ error: "Unit not found" }, 404);
       if (row.status !== "active" && row.status !== "planned")
         return c.json({ error: "This Unit is already finished" }, 409);
-      await requirePro(deps.db, c.var.user.id, deps.now());
-      await deps.broker.hangup(c.var.user.id);
-      await finishUnit(deps, row.id, "skipped");
+      const abandoned = await finishUnit(deps, row.id, "skipped");
+      if (!abandoned) return c.json({ error: "This Unit is already finished" }, 409);
+      for (const lesson of abandoned) await deps.broker.hangup(c.var.user.id, lesson.id);
       return c.json({ status: "skipped" });
     })
     .post("/", async (c) => {

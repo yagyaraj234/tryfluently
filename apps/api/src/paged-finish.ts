@@ -82,7 +82,7 @@ export async function finishPagedLesson({ db, now, settings }: Ctx, id: string, 
       .where(and(eq(lesson.id, id), eq(lesson.userId, userId), gte(lesson.contentVersion, 2)))
       .for("update");
     if (!row) throw new Error("Lesson not found");
-    if (row.status === "abandoned" || row.status === "skipped") return { status: "abandoned" as const };
+    if (row.status === "abandoned" || row.status === "skipped") return { status: row.status };
     const at = now();
     if (row.status === "in_progress") {
       const steps = await tx.select().from(step).where(eq(step.lessonId, id));

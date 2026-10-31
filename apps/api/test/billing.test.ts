@@ -12,6 +12,8 @@ import {
   reserveVoice,
   settleVoice,
 } from "../src/billing-credits";
+import { advanceUnit } from "../src/learning-memory";
+import { finishPagedLesson } from "../src/paged-finish";
 import { startLesson } from "../src/paged-lessons";
 import { fakeRealtime, fakeTimers, get, json, makeApp, makeClock, signUp, WEB_ORIGIN } from "./helpers";
 import { testDb } from "./setup";
@@ -532,6 +534,24 @@ describe("Lesson allowance and premium actions", () => {
     const progress = await (await t.app.request("/api/progress", get(t.cookie))).json();
     expect(progress).toMatchObject({ xp: 0, streak: 0, learning: { completedLessons: 0 } });
     expect((await t.app.request(`/api/roadmap/units/${unit.id}/skip`, json({}, t.cookie))).status).toBe(200);
+  });
+
+  test("skipped Lessons retain their status while remaining completions master the Unit", async () => {
+    const t = await setup();
+    const unit = await lessons(t);
+    await webhook(t.app, "payment.succeeded", payment(t, "pack"));
+    const started = await startLesson({ db: testDb, now: t.clock }, t.id, 0);
+    expect((await t.app.request("/api/lessons/0/skip", json({}, t.cookie))).status).toBe(200);
+    expect(await finishPagedLesson({ db: testDb, now: t.clock, settings: { alphaLesson: 0.15 } }, started.lesson!.id, t.id)).toEqual({ status: "skipped" });
+    await testDb.insert(schema.lesson).values(unit.lessonOutline.slice(1).map((p) => ({
+      userId: t.id, unitId: unit.id, position: p.position, title: p.title, objective: p.objective,
+      kind: p.kind, status: "completed" as const, completedAt: t.clock(),
+    })));
+    await advanceUnit(testDb, unit.id);
+    const [finished] = await testDb.select().from(schema.unit).where(eq(schema.unit.id, unit.id));
+    expect(finished!.status).toBe("mastered");
+    const progress = await (await t.app.request("/api/progress", get(t.cookie))).json();
+    expect(progress.learning.completedLessons).toBe(unit.lessonOutline.length - 1);
   });
 
   test("streak recovery restores two missed days, adds no XP and can't be repeated or reset by a pack", async () => {

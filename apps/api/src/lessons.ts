@@ -21,7 +21,7 @@ import { createRoleplay, roleplayKindFor } from "./roleplays";
 import { readyForRoleplay } from "./roadmap";
 import { skillProfile } from "./scoring";
 import { stepTools, stepTypes, takeAnswer } from "./steps";
-import { claimLesson, requirePro } from "./billing-credits";
+import { claimLesson } from "./billing-credits";
 import { skipLesson } from "./lesson-skip";
 import type { RealtimeBroker } from "./realtime";
 
@@ -213,9 +213,9 @@ export const lessons = ({
         return c.json(await withSteps(created!), 201);
       })
       .post("/:position{[0-9]+}/skip", async (c) => {
-        await requirePro(db, c.var.user.id, now());
-        await broker.hangup(c.var.user.id);
-        return c.json(await skipLesson(db, c.var.user.id, Number(c.req.param("position")), now()));
+        const result = await skipLesson(db, c.var.user.id, Number(c.req.param("position")), now());
+        if (result.lessonId) await broker.hangup(c.var.user.id, result.lessonId);
+        return c.json({ status: result.status });
       })
       // Starts a Lesson from the outline. Starting twice returns the same Lesson.
       .post("/:position{[0-9]+}/start", async (c) => {
@@ -384,7 +384,7 @@ export const lessons = ({
           const result = await finishPagedLesson({ db, now, settings }, row.id, row.userId);
           if (result.status === "incomplete")
             return c.json({ error: "Wait for every question and answer it first" }, 409);
-          if (result.status === "abandoned") return c.json({ error: "This Lesson has ended", ...result }, 409);
+          if (result.status === "abandoned" || result.status === "skipped") return c.json({ error: "This Lesson has ended", ...result }, 409);
           return c.json(result);
         }
         if (row.preparation !== "ready" || (!paged && row.phase !== "assessment"))

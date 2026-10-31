@@ -29,7 +29,7 @@ Official references: [checkout sessions](https://docs.dodopayments.com/api-refer
 
 Newly started practice Lessons count, including Learn more follow-ups and legacy generation paths. Pages, questions, Practice Rounds, resumes, reviews and generation retries do not consume another Lesson slot. Live Roleplays use the separate voice allowance. Follow-up creation and completion roll back together if the daily limit is reached. Reset timestamps stay fixed until the current day ends, so changing timezone cannot create a fresh allowance.
 
-Skipping preserves completed work but grants no completion credit, XP or streak activity. Progression treats skipped positions as finished; a Unit containing skipped Lessons ends as skipped. Streak recovery is manual and restores only the latest gap of one or two local dates. Subscribers get one recovery per billing period; pack-only accounts get one per UTC calendar month. Changing payment type or buying another pack does not reset an already-used recovery. Restorations affect streaks/reminders, not completed Lessons, XP or actual weekly practice activity.
+Skipping preserves completed work but grants no completion credit, XP or streak activity. Progression treats skipped positions as finished; a Unit finishes as mastered once every remaining Lesson is completed. Streak recovery is manual and restores only the latest gap of one or two local dates. Subscribers get one recovery per billing period; pack-only accounts get one per UTC calendar month. Changing payment type or buying another pack does not reset an already-used recovery. Restorations affect streaks/reminders, not completed Lessons, XP or actual weekly practice activity.
 
 ## Voice reservations and operations
 

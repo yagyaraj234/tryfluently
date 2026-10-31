@@ -42,6 +42,6 @@ export async function skipLesson(db: Tx, userId: string, position: number, at: D
         contentVersion: 3,
       });
     await advanceUnit(tx, unit.id);
-    return { status: "skipped" as const };
+    return { status: "skipped" as const, lessonId: existing?.id };
   });
 }

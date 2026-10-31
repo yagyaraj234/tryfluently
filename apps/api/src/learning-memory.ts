@@ -58,10 +58,7 @@ export async function advanceUnit(tx: Tx, unitId: string) {
     )
   )
     return;
-  await tx
-    .update(schema.unit)
-    .set({ status: lessons.some((l) => l.status === "skipped") ? "skipped" : "mastered" })
-    .where(eq(schema.unit.id, unitId));
+  await tx.update(schema.unit).set({ status: "mastered" }).where(eq(schema.unit.id, unitId));
   const next = (await tx.select().from(schema.unit).where(eq(schema.unit.userId, u.userId)))
     .filter((v) => v.status === "planned")
     .sort((a, b) => a.position - b.position)[0];
