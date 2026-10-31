@@ -223,11 +223,8 @@ export function realtimeBroker({
     },
   ) {
     if (closing) return { unavailable: true as const };
-    if (opts.after) {
-      if (opts.targetId && ended.has(opts.targetId)) return { ended: true as const };
-      // The dropped call may still be open on the server; the browser has already left it.
-      if (opts.targetId && live.get(userId)?.targetId === opts.targetId) await hangup(userId, opts.targetId);
-    }
+    // The routes hang up the dropped call before reading `prior`, so its last saved turns are in it.
+    if (opts.after && opts.targetId && ended.has(opts.targetId)) return { ended: true as const };
     if (live.has(userId)) return { busy: true as const };
     let ready!: () => void;
     const closed = Promise.withResolvers<SaveFailure | undefined>();
@@ -239,6 +236,8 @@ export function realtimeBroker({
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
     const deadline = opts.budgetSeconds === undefined ? undefined : now().getTime() + opts.budgetSeconds * 1000;
 
+    const prior = (opts.prior ?? []) as UIMessage[];
+    const instructions = opts.instructions + resumeFrom(prior);
     let call: Awaited<ReturnType<Realtime["createCall"]>>;
     let budgetSeconds: number;
     try {
@@ -250,9 +249,10 @@ export function realtimeBroker({
         ready();
         return { capped: budget };
       }
+      // Instructions go with the call, so they're in place before the browser asks the coach to open it.
       call = await realtime.createCall(
         opts.sdp,
-        opts.tools ? { ...sessionConfig, tools: opts.tools } : sessionConfig,
+        { ...sessionConfig, instructions, ...(opts.tools && { tools: opts.tools }) },
         opts.after,
         opts.targetId,
       );
@@ -269,8 +269,6 @@ export function realtimeBroker({
     entry.endsAt = new Date(Math.min(startedAt.getTime() + budgetSeconds * 1000, deadline ?? Infinity));
     const timers: (() => void)[] = [];
     const transcript: UIMessage[] = [];
-    const prior = (opts.prior ?? []) as UIMessage[];
-    const instructions = opts.instructions + resumeFrom(prior);
     const priorIds = new Set(prior.map((m) => m.id));
     const timing = new Map<string, { speechStartMs?: number; speechEndMs?: number }>();
     const usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };

@@ -264,6 +264,8 @@ This Roleplay is a text chat: write your lines as you would say them, without st
           return c.json({ error: "after must be openai or rime" }, 400);
         const offer = await c.req.text();
         if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
+        // A resumed call's old one may still be open; end it and let it save before its transcript is read.
+        if (after) await broker.hangup(userId, c.req.param("id"));
         const row = await find(c.req.param("id"), userId);
         if (!row) return c.json({ error: "Roleplay not found" }, 404);
         if (row.status !== "in_progress" || row.textMode)

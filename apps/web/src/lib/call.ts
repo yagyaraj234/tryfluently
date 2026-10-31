@@ -159,11 +159,9 @@ export function startCall(
       if (drain) send({ type: "prism.playback.drained", drain_token: drain });
       drain = undefined;
     };
+    // A socket that never opens (a proxy or network fault) closes too, so it resumes away from Rime like a drop.
     ws.onclose = () => current() && dropped();
-    await new Promise((resolve, reject) => {
-      ws.onopen = resolve;
-      ws.onerror = reject;
-    });
+    await new Promise((resolve) => (ws.onopen = resolve));
     const sound = await deps.pcm(
       mic,
       (chunk) => send({ type: "input_audio_buffer.append", audio: chunk }),
