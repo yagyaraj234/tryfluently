@@ -1,5 +1,5 @@
 import { schema, type Tx } from "@fluently/db";
-import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 
 const { billingCredit: credit, voiceReservation: reservation } = schema;
@@ -45,10 +45,10 @@ export async function paidCredits(db: Tx, userId: string, at: Date) {
         ).map((a) => [a.creditId, a.seconds])
       : [],
   );
-  const rows = credits.map((row) => ({
-    ...row,
-    remaining: Math.max(0, row.seconds - row.revokedSeconds - row.usedSeconds + (unspent.get(row.id) ?? 0)),
-  }));
+  const rows = credits.map((row) => {
+    const spent = Math.max(0, row.usedSeconds - (unspent.get(row.id) ?? 0));
+    return { ...row, spent, remaining: Math.max(0, row.seconds - row.revokedSeconds - spent) };
+  });
   const pro = rows.filter((r) => r.kind === "pro" && r.revokedSeconds < r.seconds).at(-1);
   const packs = rows.filter((r) => r.kind === "pack" && r.remaining > 0);
   const purchasedSeconds = packs.reduce((sum, r) => sum + r.remaining, 0);
@@ -85,7 +85,10 @@ async function settle(
       startedAt: usage?.startedAt ?? row.startedAt,
       seconds,
       callId: usage?.callId,
-      usage: usage?.usage ?? { recoveredReservation: true },
+      usage: {
+        ...(usage?.usage ?? { recoveredReservation: true }),
+        freeSeconds: Math.min(Math.max(0, seconds), row.freeSeconds),
+      },
     })
     .onConflictDoNothing();
   await db.update(reservation).set({ settledAt: at }).where(eq(reservation.id, row.id));
@@ -123,8 +126,48 @@ export async function checkpointVoice(db: Tx, id: string, seconds: number) {
     .where(and(eq(reservation.id, id), isNull(reservation.settledAt)));
 }
 
+// Legacy usage predates paid credits and was entirely free-funded.
+export async function freeVoiceUsed(db: Tx, userId: string, at: Date, live?: { startedAt: Date; freeSeconds: number }) {
+  const start = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1));
+  const end = monthEnd(at);
+  const rows = await db
+    .select({ startedAt: schema.aiUsage.startedAt, seconds: schema.aiUsage.seconds, usage: schema.aiUsage.usage })
+    .from(schema.aiUsage)
+    .where(
+      and(
+        eq(schema.aiUsage.userId, userId),
+        eq(schema.aiUsage.kind, "realtime"),
+        lt(schema.aiUsage.startedAt, end),
+        sql`${schema.aiUsage.startedAt} + ${schema.aiUsage.seconds} * interval '1 second' > ${start.toISOString()}::timestamp`,
+      ),
+    );
+  const funded = rows.map((r) => ({
+    startedAt: r.startedAt,
+    seconds:
+      typeof r.usage?.freeSeconds === "number" ? Math.min(r.seconds, Math.max(0, r.usage.freeSeconds)) : r.seconds,
+  }));
+  if (live) funded.push({ startedAt: live.startedAt, seconds: live.freeSeconds });
+  return funded.reduce(
+    (sum, row) =>
+      sum +
+      Math.max(
+        0,
+        Math.min(row.startedAt.getTime() + row.seconds * 1000, at.getTime(), end.getTime()) -
+          Math.max(row.startedAt.getTime(), start.getTime()),
+      ) /
+        1000,
+    0,
+  );
+}
+
 // Money is reserved durably before the provider call; failure returns every reserved second.
-export async function reserveVoice(db: Tx, userId: string, at: Date, freeSeconds: number, budgetSeconds = Infinity) {
+export async function reserveVoice(
+  db: Tx,
+  userId: string,
+  at: Date,
+  freeLimitSeconds: number,
+  budgetSeconds = Infinity,
+) {
   return db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
     const [account] = await tx.select().from(schema.billingAccount).where(eq(schema.billingAccount.userId, userId));
@@ -133,9 +176,10 @@ export async function reserveVoice(db: Tx, userId: string, at: Date, freeSeconds
       .select()
       .from(reservation)
       .where(and(eq(reservation.userId, userId), isNull(reservation.settledAt)));
-    if (open) return { busy: true as const };
+    if (open && open.endsAt > at) return { busy: true as const };
+    if (open) await settle(tx, open, at, open.confirmedSeconds);
     const paid = await paidCredits(tx, userId, at);
-    const monthlySeconds = paid.pro?.remaining ?? freeSeconds;
+    const monthlySeconds = paid.pro?.remaining ?? Math.max(0, freeLimitSeconds - (await freeVoiceUsed(tx, userId, at)));
     const available = monthlySeconds + paid.purchasedSeconds;
     // Paid reservations stop at renewal so expired minutes cannot fund the next billing period.
     const boundary = paid.pro?.expiresAt ?? monthEnd(at);
@@ -145,6 +189,7 @@ export async function reserveVoice(db: Tx, userId: string, at: Date, freeSeconds
         Math.min(
           available,
           budgetSeconds,
+          30 * 60,
           paid.pro || paid.purchasedSeconds > 0 ? (boundary.getTime() - at.getTime()) / 1000 : Infinity,
         ),
       ),

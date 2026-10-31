@@ -2,6 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { schema } from "@fluently/db";
 import { eq } from "drizzle-orm";
 import type { UIMessage } from "ai";
+import { checkpointVoice, reserveVoice } from "../src/billing-credits";
 import { realtimeBroker } from "../src/realtime";
 import { fakeRealtime, fakeTimers, makeApp, makeClock, signUp } from "./helpers";
 import { testDb } from "./setup";
@@ -31,6 +32,20 @@ const utterance = (id: string) => ({
   type: "conversation.item.input_audio_transcription.completed",
   item_id: id,
   transcript: id,
+});
+
+test("a fresh broker starts after an expired crash reservation without a preceding allowance GET", async () => {
+  const { userId, broker, clock } = await setup();
+  const crashed = await reserveVoice(testDb, userId, clock(), 600, 20);
+  await checkpointVoice(testDb, crashed.reservation!.id, 7);
+  clock.advance({ seconds: 20 });
+  const started = await broker.start(
+    userId,
+    opts(async () => {}),
+  );
+  expect(started).toHaveProperty("callId");
+  expect((await broker.voiceMinutes(userId)).usedSeconds).toBe(7);
+  await broker.shutdown();
 });
 
 describe("Realtime shutdown", () => {

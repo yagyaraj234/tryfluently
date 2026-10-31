@@ -419,6 +419,47 @@ describe("voice credit reservations", () => {
       (await testDb.select().from(schema.aiUsage).where(eq(schema.aiUsage.id, r.reservation!.id)))[0]!.seconds,
     ).toBe(7);
   });
+  test("admission recovers an expired reservation under lock and bounds calls to thirty minutes", async () => {
+    const t = await setup();
+    await webhook(t.app, "payment.succeeded", payment(t, "pack"));
+    const first = await reserveVoice(testDb, t.id, t.clock(), 0);
+    expect(first.budgetSeconds).toBe(1800);
+    await checkpointVoice(testDb, first.reservation!.id, 7);
+    t.clock.advance({ minutes: 30 });
+    const next = await reserveVoice(testDb, t.id, t.clock(), 0);
+    expect(next.reservation).toBeDefined();
+    expect(
+      (await testDb.select().from(schema.aiUsage).where(eq(schema.aiUsage.id, first.reservation!.id)))[0]!.seconds,
+    ).toBe(7);
+    await settleVoice(testDb, next.reservation!.id, t.clock(), 0);
+    expect((await paidCredits(testDb, t.id, t.clock())).purchasedSeconds).toBe(29993);
+  });
+
+  test("paid calls do not consume the free allowance after subscription expiry; refunds are not usage", async () => {
+    const t = await setup();
+    const p = payment(t, "pro");
+    await webhook(t.app, "payment.succeeded", p);
+    const call = await reserveVoice(testDb, t.id, t.clock(), 1500, 600);
+    t.clock.advance({ minutes: 10 });
+    await settleVoice(testDb, call.reservation!.id, t.clock(), 600);
+    await testDb
+      .update(schema.billingCredit)
+      .set({ revokedSeconds: 4500 })
+      .where(eq(schema.billingCredit.id, p.payment_id));
+    expect(await (await t.app.request("/api/voice-minutes", get(t.cookie))).json()).toMatchObject({
+      usedSeconds: 600,
+      remainingSeconds: 3900,
+    });
+    await testDb
+      .update(schema.billingCredit)
+      .set({ expiresAt: t.clock() })
+      .where(eq(schema.billingCredit.id, p.payment_id));
+    expect(await (await t.app.request("/api/voice-minutes", get(t.cookie))).json()).toMatchObject({
+      usedSeconds: 0,
+      remainingSeconds: 1500,
+    });
+  });
+
   test("monthly seconds precede pack seconds; unused reservations return on close exactly once", async () => {
     const t = await setup();
     const p = payment(t, "pack");

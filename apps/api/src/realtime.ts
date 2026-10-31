@@ -1,10 +1,10 @@
 import { schema } from "@fluently/db";
 import type { UIMessage } from "ai";
-import { and, eq, lt, sql } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import type { AppEnv, Deps, Schedule } from "./app";
 import {
   armVoice,
+  freeVoiceUsed,
   checkpointVoice,
   paidCredits,
   recoverVoice,
@@ -162,6 +162,7 @@ type Live = {
   closed: Promise<SaveFailure | undefined>;
   targetId?: string;
   callId?: string;
+  freeSeconds?: number;
   startedAt?: Date;
   endsAt?: Date;
 };
@@ -189,33 +190,20 @@ export function realtimeBroker({
       await retry();
       unsettled.delete(userId);
     }
-    if (!live.has(userId)) await recoverVoice(db, userId, at);
-    const monthStart = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1));
+    if (!live.get(userId)?.startedAt) await recoverVoice(db, userId, at);
     const monthEnd = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 1));
-    const rows = await db
-      .select({ startedAt: schema.aiUsage.startedAt, seconds: schema.aiUsage.seconds })
-      .from(schema.aiUsage)
-      .where(
-        and(
-          eq(schema.aiUsage.userId, userId),
-          eq(schema.aiUsage.kind, "realtime"),
-          lt(schema.aiUsage.startedAt, monthEnd),
-          sql`${schema.aiUsage.startedAt} + ${schema.aiUsage.seconds} * interval '1 second' > ${monthStart.toISOString()}::timestamp`,
-        ),
-      );
     const call = live.get(userId);
-    if (call?.startedAt)
-      rows.push({ startedAt: call.startedAt, seconds: (at.getTime() - call.startedAt.getTime()) / 1000 });
-    const used = rows.reduce((sum, row) => {
-      const start = Math.max(row.startedAt.getTime(), monthStart.getTime());
-      const end = Math.min(row.startedAt.getTime() + row.seconds * 1000, at.getTime(), monthEnd.getTime());
-      return sum + Math.max(0, end - start) / 1000;
-    }, 0);
+    const used = await freeVoiceUsed(
+      db,
+      userId,
+      at,
+      call?.startedAt ? { startedAt: call.startedAt, freeSeconds: call.freeSeconds ?? 0 } : undefined,
+    );
     const paid = await paidCredits(db, userId, at);
     const monthlyRemainingSeconds = Math.max(0, Math.floor(paid.pro?.remaining ?? limitMinutes * 60 - used));
     return {
       limitMinutes: paid.pro ? PRO_MINUTES : limitMinutes,
-      usedSeconds: paid.pro ? Math.ceil(paid.pro.seconds - paid.pro.remaining) : Math.ceil(used),
+      usedSeconds: paid.pro ? Math.ceil(paid.pro.spent) : Math.ceil(used),
       remainingSeconds: Math.floor(monthlyRemainingSeconds + paid.purchasedSeconds),
       monthlyRemainingSeconds,
       purchasedRemainingSeconds: Math.floor(paid.purchasedSeconds),
@@ -272,7 +260,7 @@ export function realtimeBroker({
         ready();
         return { capped: budget };
       }
-      const reserved = await reserveVoice(db, userId, now(), budget.monthlyRemainingSeconds, budgetSeconds);
+      const reserved = await reserveVoice(db, userId, now(), limitMinutes * 60, budgetSeconds);
       if (!reserved.reservation) {
         live.delete(userId);
         closed.resolve(undefined);
@@ -280,6 +268,7 @@ export function realtimeBroker({
         return "busy" in reserved ? { busy: true as const } : { capped: budget };
       }
       reservationId = reserved.reservation.id;
+      entry.freeSeconds = reserved.reservation.freeSeconds;
       reservedEndsAt = reserved.boundary;
       budgetSeconds = reserved.budgetSeconds;
       call = await realtime.createCall(
