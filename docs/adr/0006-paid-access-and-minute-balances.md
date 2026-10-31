@@ -10,6 +10,8 @@ Free has 25 live minutes per UTC month and five new Lessons per local day. A $9 
 
 ## Consequences
 
-Refunds revoke benefits from the refunded payment without resetting other grants or usage. Paid-period expiry removes unused subscription minutes but preserves purchased balance. Future subscription charges must be cancelled before account deletion. Separate skipped-Lesson status preserves progression without fabricating completions, XP or streak activity. Streak restorations are a separate record rather than fake Lesson completions.
+Refunds revoke benefits from the refunded payment without resetting other grants or usage. Paid-period expiry removes unused subscription minutes but preserves purchased balance. Account deletion cancels future charges; missing credentials leave a durable cancellation request that survives data deletion and retries when credentials return. Separate skipped-Lesson status preserves progression without fabricating completions, XP or streak activity; completing the remaining Lessons masters the Unit. Streak restorations are a separate record rather than fake Lesson completions.
 
 Durable credit reservations prevent duplicate spend, while the existing voice broker still requires a single API instance for socket ownership and timers. Ungraceful process loss holds reservations until their deadline, then charges only persisted activity checkpoints and releases unconfirmed usage; durable provider teardown/recovery is not implemented by this decision. See [billing operations and validation](../billing.md).
+
+Paid guards activate only when Dodo is configured. Unconfigured deployments preserve existing learning access. Daily quotas count actual Lesson starts; reset timestamps on those Lessons prevent timezone changes from creating extra allowance.

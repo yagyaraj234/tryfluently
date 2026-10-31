@@ -36,9 +36,10 @@ function Privacy() {
           provider and are not stored by Fluently.
         </p>
         <p>
-          Deleting your Fluently account removes its linked billing records from the application database after future
-          subscription charges are cancelled. Dodo Payments retains its own payment and invoice records under its
-          retention rules. Webhook delivery identifiers may remain to prevent duplicate processing.
+          Deleting your Fluently account removes its linked billing records. If billing credentials are unavailable, we
+          temporarily retain the provider customer identifier to retry subscription cancellation when access returns.
+          Dodo Payments retains its own payment and invoice records under its retention rules. Webhook delivery
+          identifiers may remain to prevent duplicate processing.
         </p>
       </section>
       <section aria-labelledby="voice-title">

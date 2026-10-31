@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import type { FormEvent } from "react";
 
 const description =
-  "Your learning history and remaining minutes will be permanently deleted. We cancel future subscription charges before deleting your account. This can't be undone.";
+  "Your learning history and remaining minutes will be permanently deleted. We cancel future subscription charges. If billing is unavailable, cancellation stays queued until it returns. This can't be undone.";
 
 type Props = {
   open: boolean;

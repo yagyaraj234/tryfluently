@@ -74,8 +74,8 @@ function Terms() {
           deliver coaching and save your progress, as described in{" "}
           <TextLink render={<Link to="/privacy" />}>Privacy</TextLink>. You can stop using Fluently or delete your
           account from Profile. Deletion removes linked records from the active application database and cannot be
-          undone. Future subscription charges must be cancelled before deletion completes. Any remaining minutes and
-          paid access are forfeited when you delete your account.
+          undone. We cancel future subscription charges. If billing access is unavailable, cancellation is queued until
+          access returns. Any remaining minutes and paid access are forfeited when you delete your account.
         </p>
         <p>
           Questions about these terms or changes to them? Email{" "}
