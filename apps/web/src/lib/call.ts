@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Pcm, pcm } from "./pcm";
 
-// A live voice call over OpenAI Realtime (Voice Assessment, voice Roleplay). The browser sends its microphone over
-// WebRTC; the API's `/:id/call` route takes the SDP offer and returns the answer, so no key ever reaches the browser
-// (ADR 0001). The API keeps the transcript, so the browser only plays the coach's audio.
+// A live voice call (Voice Assessment, voice Roleplay). The browser posts a WebRTC offer to the API's `/:id/call`
+// route. On OpenAI the answer comes back and the microphone goes over WebRTC (ADR 0001); on Rime the API answers
+// with a WebSocket to join instead, and audio streams through it as PCM (ADR 0005). No key ever reaches the
+// browser. The API keeps the transcript, so the browser only plays the coach's audio.
 
 export type CallState =
   | { status: "connecting" | "live" | "reconnecting" | "dropped" | "ended" }
@@ -58,6 +60,9 @@ export type CallDeps = {
   fetch: (url: string, init: RequestInit) => Promise<Response>;
   /** Plays the coach's audio. */
   play: (stream: MediaStream) => void | (() => void);
+  /** Opens the API's WebSocket for a Rime call. */
+  socket: (path: string) => WebSocket;
+  pcm: typeof pcm;
 };
 
 const browser = (): CallDeps => ({
@@ -73,6 +78,13 @@ const browser = (): CallDeps => ({
       audio.srcObject = null;
     };
   },
+  socket: (path) => {
+    const url = new URL(path, location.href);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return new WebSocket(url);
+  },
+  // Loaded on a Rime call only.
+  pcm: (...args) => import("./pcm").then((m) => m.pcm(...args)),
 });
 
 export type Call = { mute(muted: boolean): void; hangUp(): void };
@@ -90,6 +102,8 @@ export function startCall(
   let peer: RTCPeerConnection | undefined;
   let over = false;
   let channel: RTCDataChannel | undefined;
+  let socket: WebSocket | undefined;
+  let audio: Pcm | undefined;
   let stopPlayback: void | (() => void);
   let conversation: ConversationState = { phase: "ready" };
 
@@ -98,9 +112,74 @@ export function startCall(
     over = true;
     for (const track of stream?.getTracks() ?? []) track.stop();
     channel?.close();
+    socket?.close();
+    audio?.close();
     stopPlayback?.();
     peer?.close();
     onChange(state);
+  };
+
+  const show = (event: unknown) => {
+    if (over) return;
+    const next = conversationEvent(conversation, event);
+    if (next !== conversation) {
+      conversation = next;
+      onConversation?.(next);
+    }
+  };
+
+  // Rime: the coach's audio arrives as PCM chunks, so the browser plays it and tells Prism what was heard.
+  const joinRime = async (path: string, mic: MediaStream) => {
+    const ws = (socket = deps.socket(path));
+    const send = (event: object) => ws.readyState === 1 && ws.send(JSON.stringify(event));
+    let speaking: string | undefined;
+    let drain: string | undefined;
+    const drained = () => {
+      if (drain) send({ type: "prism.playback.drained", drain_token: drain });
+      drain = undefined;
+    };
+    ws.onclose = () => stop({ status: "dropped" });
+    await new Promise((resolve, reject) => {
+      ws.onopen = resolve;
+      ws.onerror = reject;
+    });
+    const sound = (audio = await deps.pcm(
+      mic,
+      (chunk) => send({ type: "input_audio_buffer.append", audio: chunk }),
+      () => {
+        speaking = undefined;
+        show({ type: "output_audio_buffer.stopped" });
+        drained();
+      },
+    ));
+    if (over) return sound.close();
+    stopPlayback = deps.play(sound.output);
+    onChange({ status: "live" });
+    ws.onmessage = (message) => {
+      let e: Record<string, any>;
+      try {
+        e = JSON.parse(message.data);
+      } catch {
+        return;
+      }
+      if (e.type === "response.audio.delta") {
+        if (!speaking) show({ type: "output_audio_buffer.started" });
+        speaking = e.item_id;
+        return sound.play(e.delta);
+      }
+      if (e.type === "response.done") {
+        drain = e.response?.metadata?.prism_drain_token;
+        if (!speaking) drained();
+      }
+      show(e);
+      if (e.type === "input_audio_buffer.speech_started" && speaking) {
+        // The Learner talked over the coach: stop, and tell Prism how much of the reply they heard.
+        send({ type: "conversation.item.truncate", item_id: speaking, content_index: 0, audio_end_ms: sound.stop() });
+        speaking = undefined;
+        show({ type: "output_audio_buffer.cleared" });
+        drained();
+      }
+    };
   };
 
   void (async () => {
@@ -119,13 +198,8 @@ export function startCall(
       };
       channel = pc.createDataChannel("oai-events");
       channel.onmessage = (message) => {
-        if (over) return;
         try {
-          const next = conversationEvent(conversation, JSON.parse(message.data));
-          if (next !== conversation) {
-            conversation = next;
-            onConversation?.(next);
-          }
+          show(JSON.parse(message.data));
         } catch {
           /* Ignore malformed or unrelated data-channel events. */
         }
@@ -147,6 +221,11 @@ export function startCall(
       if (!response.ok) {
         const body = await response.json().catch(() => null);
         return stop({ status: "failed", response: { status: response.status, body } });
+      }
+      if (response.headers.get("content-type")?.includes("application/json")) {
+        const { socket: path } = (await response.json()) as { socket: string };
+        pc.close();
+        return await joinRime(path, stream);
       }
       const sdp = await response.text();
       if (!over) await pc.setRemoteDescription({ type: "answer", sdp });

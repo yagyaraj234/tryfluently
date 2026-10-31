@@ -73,7 +73,7 @@ function fakes({
       sent.push({ url, init });
       return reply();
     },
-    play: (remote) => played.push(remote),
+    play: (remote) => void played.push(remote),
   };
   return { deps, track, stream, sent, played, peers, grant: () => grant() };
 }
@@ -247,4 +247,116 @@ test("clearing the coach audio after interruption keeps the Learner's listening 
     { type: "input_audio_buffer.speech_started" },
   );
   assert.equal(conversationEvent(listening, { type: "output_audio_buffer.cleared" }).phase, "listening");
+});
+
+// A Rime call: the API answers with a WebSocket to join, and audio goes through it as PCM.
+function rimeFakes() {
+  const f = fakes({
+    reply: () => Response.json({ provider: "rime", socket: "/api/realtime/rime_1" }, { status: 201 }),
+  });
+  const sockets = [];
+  const audio = { played: [], stopped: 0, closed: false };
+  f.deps.socket = (path) => {
+    const ws = {
+      path,
+      readyState: 0,
+      sent: [],
+      send(data) {
+        this.sent.push(JSON.parse(data));
+      },
+      close() {
+        this.readyState = 3;
+      },
+      // Test helpers: what the API would do.
+      open() {
+        this.readyState = 1;
+        this.onopen();
+      },
+      emit(event) {
+        this.onmessage({ data: JSON.stringify(event) });
+      },
+    };
+    sockets.push(ws);
+    return ws;
+  };
+  f.deps.pcm = async (stream, onChunk, onIdle) =>
+    Object.assign(audio, {
+      stream,
+      onChunk,
+      onIdle,
+      output: { id: "coach-pcm" },
+      play: (chunk) => audio.played.push(chunk),
+      stop: () => (audio.stopped++, 1200),
+      close: () => (audio.closed = true),
+    });
+  return { ...f, sockets, audio };
+}
+
+test("a Rime call joins the API's socket, streams the microphone and plays the coach's audio", async () => {
+  const f = rimeFakes();
+  const { last } = start(f);
+  await settle();
+  const ws = f.sockets[0];
+  assert.equal(ws.path, "/api/realtime/rime_1");
+  assert.equal(f.peers[0].closed, true, "the WebRTC offer was only for asking");
+  ws.open();
+  await settle();
+  assert.equal(last().status, "live");
+  assert.equal(f.audio.stream, f.stream);
+  assert.deepEqual(f.played, [{ id: "coach-pcm" }]);
+
+  f.audio.onChunk("AAAA");
+  assert.deepEqual(ws.sent, [{ type: "input_audio_buffer.append", audio: "AAAA" }]);
+  ws.emit({ type: "response.audio.delta", item_id: "c1", delta: "BBBB" });
+  assert.deepEqual(f.audio.played, ["BBBB"]);
+});
+
+test("Rime: talking over the coach stops playback and truncates; finished playback tells Prism it drained", async () => {
+  const f = rimeFakes();
+  const changes = [];
+  startCall("/call", { onChange: () => {}, onConversation: (c) => changes.push(c) }, f.deps);
+  await settle();
+  const ws = f.sockets[0];
+  ws.open();
+  await settle();
+
+  ws.emit({ type: "response.audio.delta", item_id: "c1", delta: "x" });
+  assert.equal(changes.at(-1).phase, "speaking");
+  ws.emit({ type: "response.done", response: { id: "r1", metadata: { prism_drain_token: "d1" } } });
+  assert.equal(ws.sent.length, 0, "still playing, so not drained yet");
+  f.audio.onIdle();
+  assert.equal(changes.at(-1).phase, "ready");
+  assert.deepEqual(ws.sent, [{ type: "prism.playback.drained", drain_token: "d1" }]);
+
+  ws.emit({ type: "response.audio.delta", item_id: "c2", delta: "y" });
+  ws.emit({ type: "input_audio_buffer.speech_started" });
+  assert.equal(f.audio.stopped, 1);
+  assert.deepEqual(ws.sent.at(-1), {
+    type: "conversation.item.truncate",
+    item_id: "c2",
+    content_index: 0,
+    audio_end_ms: 1200,
+  });
+  assert.equal(changes.at(-1).phase, "listening");
+});
+
+test("Rime: the API closing the socket drops the call; hanging up does not", async () => {
+  const f = rimeFakes();
+  const { last } = start(f);
+  await settle();
+  f.sockets[0].open();
+  await settle();
+  f.sockets[0].onclose();
+  assert.equal(last().status, "dropped");
+  assert.equal(f.audio.closed, true);
+  assert.equal(f.track.stopped, true);
+
+  const g = rimeFakes();
+  const second = start(g);
+  await settle();
+  g.sockets[0].open();
+  await settle();
+  second.call.hangUp();
+  g.sockets[0].onclose();
+  assert.equal(second.last().status, "ended");
 });

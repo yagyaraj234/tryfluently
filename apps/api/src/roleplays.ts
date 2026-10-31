@@ -9,7 +9,7 @@ import { streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
 import { goalText } from "./goal-text";
-import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
+import { answerCall, endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 
 const { lesson, goal } = schema;
 
@@ -285,7 +285,7 @@ This Roleplay is a text chat: write your lines as you would say them, without st
         if ("unavailable" in call) return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
         if (!row.startedAt) await db.update(lesson).set({ startedAt: deps.now() }).where(eq(lesson.id, row.id));
-        return c.body(call.answer, 201, { "content-type": "application/sdp" });
+        return answerCall(c, call);
       })
       .post("/:id/end", async (c) => {
         const userId = c.var.user.id;

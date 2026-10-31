@@ -9,7 +9,7 @@ import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { cefrLevel } from "./goals";
 import { enqueueAssessmentJobs, practicePreparation, retryPracticePreparation } from "./assessment-jobs";
-import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
+import { answerCall, endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 import { remember, addFocusItems } from "./learning-memory";
 import { cefr, fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
@@ -379,7 +379,7 @@ export const assessments = ({
         if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("unavailable" in call) return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
-        return c.body(call.answer, 201, { "content-type": "application/sdp" });
+        return answerCall(c, call);
       })
       .post("/:id/end", zValidator("json", z.object({ left: z.boolean().optional() })), async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);
