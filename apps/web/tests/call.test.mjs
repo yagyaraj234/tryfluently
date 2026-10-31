@@ -32,6 +32,10 @@ function fakes({
     }
     createDataChannel() {
       return (this.channel = {
+        sent: [],
+        send(data) {
+          this.sent.push(JSON.parse(data));
+        },
         close() {
           this.closed = true;
         },
@@ -137,6 +141,8 @@ test("a connection that fails resumes once away from its provider; failing again
   const { states, last } = start(f);
   await settle();
   const [peer] = f.peers;
+  peer.channel.onopen();
+  assert.deepEqual(peer.channel.sent, [{ type: "response.create" }], "the coach opens a new call");
   peer.become("connected");
   peer.become("disconnected");
   assert.equal(last().status, "reconnecting");
@@ -148,6 +154,8 @@ test("a connection that fails resumes once away from its provider; failing again
   assert.equal(f.sent[1].url, "/api/assessments/7/call?after=openai");
   const second = f.peers[1];
   assert.deepEqual(second.added, [[f.track, f.stream]]);
+  second.channel.onopen();
+  assert.deepEqual(second.channel.sent, [], "a resumed call carries on without a new opening");
   peer.become("failed");
   second.become("connected");
   assert.equal(last().status, "live");
@@ -334,7 +342,7 @@ test("a Rime call joins the API's socket, streams the microphone and plays the c
   assert.deepEqual(f.played, [{ id: "coach-pcm" }]);
 
   f.audio.onChunk("AAAA");
-  assert.deepEqual(ws.sent, [{ type: "input_audio_buffer.append", audio: "AAAA" }]);
+  assert.deepEqual(ws.sent, [{ type: "response.create" }, { type: "input_audio_buffer.append", audio: "AAAA" }]);
   ws.emit({ type: "response.audio.delta", item_id: "c1", delta: "BBBB" });
   assert.deepEqual(f.audio.played, ["BBBB"]);
 });
@@ -347,6 +355,7 @@ test("Rime: talking over the coach stops playback and truncates; finished playba
   const ws = f.sockets[0];
   ws.open();
   await settle();
+  ws.sent.length = 0;
 
   ws.emit({ type: "response.audio.delta", item_id: "c1", delta: "x" });
   assert.equal(changes.at(-1).phase, "speaking");
@@ -382,6 +391,7 @@ test("Rime: the API closing the socket resumes the call away from Rime once, the
   f.sockets[1].open();
   await settle();
   assert.equal(last().status, "live");
+  assert.deepEqual(f.sockets[1].sent, [], "a resumed call carries on without a new opening");
   f.sockets[1].onclose();
   assert.equal(last().status, "dropped");
   assert.equal(f.track.stopped, true);
