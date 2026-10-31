@@ -1,8 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { schema } from "@fluently/db";
 import DodoPayments from "dodopayments";
 import { createHmac } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   armVoice,
   checkpointVoice,
@@ -12,6 +12,7 @@ import {
   reserveVoice,
   settleVoice,
 } from "../src/billing-credits";
+import { cleanupDeletedBilling } from "../src/billing";
 import { advanceUnit } from "../src/learning-memory";
 import { finishPagedLesson } from "../src/paged-finish";
 import { startLesson } from "../src/paged-lessons";
@@ -27,6 +28,7 @@ function gateway() {
   const sessions = new Map<string, any>();
   const calls: { path: string; method: string; body: any }[] = [];
   let failCancel = false;
+  let beforeRequest: (() => Promise<void>) | undefined;
   const client = new DodoPayments({
     bearerToken: "test-only",
     webhookKey: `whsec_${secret}`,
@@ -38,6 +40,7 @@ function gateway() {
       const path = url.pathname;
       const body = request.method === "GET" ? null : JSON.parse((await request.text()) || "{}");
       calls.push({ path, method: request.method, body });
+      await beforeRequest?.();
       let response: any;
       if (path.startsWith("/products/"))
         response = {
@@ -90,8 +93,11 @@ function gateway() {
     subscriptions,
     sessions,
     calls,
-    failCancellation: () => {
-      failCancel = true;
+    failCancellation: (value = true) => {
+      failCancel = value;
+    },
+    beforeRequest: (fn: () => Promise<void>) => {
+      beforeRequest = fn;
     },
   };
 }
@@ -312,6 +318,77 @@ describe("payment grants", () => {
     expect(t.provider.calls.filter((c) => c.path === "/checkouts").at(-1)!.body.product_cart).toEqual([
       { product_id: "pdt_pack", quantity: 1 },
     ]);
+  });
+
+  test("checkout provider requests never hold the Learner lock; stale or missing links can be replaced", async () => {
+    const t = await setup();
+    await testDb.delete(schema.billingAccount).where(eq(schema.billingAccount.userId, t.id));
+    t.provider.beforeRequest(async () => {
+      await testDb.transaction(async (tx) => {
+        await tx.execute(sql`set local lock_timeout = '250ms'`);
+        await tx.select().from(schema.user).where(eq(schema.user.id, t.id)).for("update");
+      });
+    });
+    const buy = () => t.app.request("/api/billing/checkout", json({ kind: "pro" }, t.cookie));
+    const first = await buy();
+    expect(first.status).toBe(200);
+    const link = await first.json();
+    expect(await (await buy()).json()).toEqual(link);
+    t.clock.advance({ minutes: 16 });
+    const renewed = await buy();
+    expect(renewed.status).toBe(200);
+    expect(await renewed.json()).not.toEqual(link);
+    t.provider.sessions.clear();
+    expect((await buy()).status).toBe(200);
+  });
+
+  test("missing credentials allow deletion with durable cancellation retry; abandoned checkouts do not block it", async () => {
+    const t = await setup();
+    const p = payment(t, "pro");
+    await webhook(t.app, "payment.succeeded", p);
+    const app = makeApp({ now: t.clock });
+    expect((await app.request("/api/auth/delete-user", json({ password: "correct-horse-battery" }, t.cookie))).ok).toBe(
+      true,
+    );
+    const pending = () =>
+      testDb.select().from(schema.billingCleanup).where(eq(schema.billingCleanup.customerId, t.customerId));
+    expect(await pending()).toHaveLength(1);
+    t.provider.failCancellation();
+    await cleanupDeletedBilling({ db: testDb, payments: t.provider.client });
+    expect(await pending()).toHaveLength(1);
+    t.provider.failCancellation(false);
+    await cleanupDeletedBilling({ db: testDb, payments: t.provider.client });
+    expect(await pending()).toHaveLength(0);
+    expect(t.provider.subscriptions.get(p.subscription_id).status).toBe("cancelled");
+
+    const other = await setup();
+    await other.app.request("/api/billing/checkout", json({ kind: "pro" }, other.cookie));
+    for (const session of other.provider.sessions.values()) session.payment_status = "requires_customer_action";
+    expect(
+      (await other.app.request("/api/auth/delete-user", json({ password: "correct-horse-battery" }, other.cookie))).ok,
+    ).toBe(true);
+  });
+
+  test("unsupported successful payments and deleted-account charges leave actionable payment IDs", async () => {
+    const t = await setup();
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const p = payment(t, "pack", { product_cart: [{ product_id: env.DODO_PACK_PRODUCT_ID, quantity: 2 }] });
+      expect((await webhook(t.app, "payment.succeeded", p)).status).toBe(200);
+      expect(log).toHaveBeenCalledWith(
+        "Billing payment not credited",
+        expect.objectContaining({ paymentId: p.payment_id }),
+      );
+      await t.app.request("/api/auth/delete-user", json({ password: "correct-horse-battery" }, t.cookie));
+      const late = payment(t, "pack");
+      await webhook(t.app, "payment.succeeded", late);
+      expect(log).toHaveBeenCalledWith(
+        "manual_refund_required",
+        expect.objectContaining({ paymentId: late.payment_id, customerId: t.customerId }),
+      );
+    } finally {
+      log.mockRestore();
+    }
   });
 
   test("an existing subscription blocks another checkout; cancellation preserves paid access", async () => {

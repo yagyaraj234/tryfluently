@@ -199,6 +199,12 @@ export const billingCheckout = pgTable("billing_checkout", {
   completedAt: timestamp(),
 });
 
+// Provider IDs survive account deletion only until recurring billing has been cancelled.
+export const billingCleanup = pgTable("billing_cleanup", {
+  customerId: text().primaryKey(),
+  requestedAt: timestamp().notNull(),
+});
+
 export const billingWebhook = pgTable("billing_webhook", {
   id: text().primaryKey(),
   processedAt: timestamp().notNull(),

@@ -56,9 +56,6 @@ async function validateProduct(client: DodoPayments, id: string, kind: "pro" | "
     price.currency !== "USD" ||
     price.price !== (kind === "pro" ? 900 : 2900) ||
     price.tax_inclusive !== true ||
-    price.discount ||
-    price.discount_bps ||
-    price.purchasing_power_parity ||
     (price.type === "one_time_price" && price.pay_what_you_want)
   )
     throw unavailable();
@@ -68,8 +65,6 @@ async function validateProduct(client: DodoPayments, id: string, kind: "pro" | "
     (price.type !== "recurring_price" ||
       price.payment_frequency_count !== 1 ||
       price.payment_frequency_interval !== "Month" ||
-      price.subscription_period_interval !== "Year" ||
-      price.subscription_period_count !== 20 ||
       price.trial_period_days)
   )
     throw unavailable();
@@ -123,8 +118,14 @@ async function reconcilePayment(ctx: Ctx, paymentId: string, webhookId: string, 
     payment.total_amount <= 0 ||
     payment.is_update_payment_method ||
     payment.is_multi_subscription
-  )
+  ) {
+    console.error("Billing payment not credited", {
+      paymentId,
+      reason: "unsupported payment status or type",
+      status: payment.status,
+    });
     return;
+  }
   if (refundId && !payment.refunds.some((r) => r.refund_id === refundId && r.status === "succeeded"))
     throw new Error("Refund is not visible on the authoritative payment yet; retry delivery");
   const subscriptionId = payment.subscription_id ?? payment.subscription_ids[0];
@@ -136,7 +137,13 @@ async function reconcilePayment(ctx: Ctx, paymentId: string, webhookId: string, 
     first?.product_id === ctx.env.DODO_PACK_PRODUCT_ID &&
     first?.quantity === 1;
   const service = sub && payment.service_periods.find((p) => p.subscription_id === sub.subscription_id);
-  if (!pack && (!sub || sub.product_id !== ctx.env.DODO_PRO_PRODUCT_ID || sub.quantity !== 1 || !service)) return;
+  if (!pack && (!sub || sub.product_id !== ctx.env.DODO_PRO_PRODUCT_ID || sub.quantity !== 1 || !service)) {
+    console.error("Billing payment not credited", {
+      paymentId,
+      reason: "unexpected product, quantity or missing service period",
+    });
+    return;
+  }
   if (sub && sub.customer.customer_id !== payment.customer.customer_id)
     throw new Error("Payment customer does not own subscription");
   const [owner] = await ctx.db.select().from(account).where(eq(account.customerId, payment.customer.customer_id));
@@ -148,6 +155,11 @@ async function reconcilePayment(ctx: Ctx, paymentId: string, webhookId: string, 
       ? await ctx.db.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId))
       : [];
     if (learner) throw new Error("Billing account not committed yet; retry webhook");
+    console.error("manual_refund_required", {
+      paymentId,
+      customerId: payment.customer.customer_id,
+      reason: "payment has no account to receive access",
+    });
     if (sub && !["cancelled", "expired", "failed"].includes(sub.status))
       await client.subscriptions.update(sub.subscription_id, { status: "cancelled" });
     return;
@@ -300,70 +312,120 @@ export function billingRoutes(ctx: Ctx) {
       const { kind } = c.req.valid("json");
       const learner = c.var.user;
       await validateProduct(client, productId(ctx.env, kind), kind);
-      return ctx.db.transaction(async (tx) => {
-        await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, learner.id)).for("update");
-        let [customer] = await tx.select().from(account).where(eq(account.userId, learner.id));
-        if (customer?.deleting) throw billingError(409, "Account deletion is in progress.");
-        if (!customer) {
-          const created = await client.customers.create(
-            { email: learner.email, name: learner.name },
-            { idempotencyKey: `fluently-customer-${learner.id}` },
-          );
-          [customer] = await tx
+      let [customer] = await ctx.db.select().from(account).where(eq(account.userId, learner.id));
+      if (!customer) {
+        const created = await client.customers.create(
+          { email: learner.email, name: learner.name },
+          { idempotencyKey: `fluently-customer-${learner.id}` },
+        );
+        customer = await ctx.db.transaction(async (tx) => {
+          const [exists] = await tx
+            .select({ id: schema.user.id })
+            .from(schema.user)
+            .where(eq(schema.user.id, learner.id))
+            .for("update");
+          if (!exists) {
+            await tx
+              .insert(schema.billingCleanup)
+              .values({ customerId: created.customer_id, requestedAt: ctx.now() })
+              .onConflictDoNothing();
+            return undefined;
+          }
+          await tx
             .insert(account)
             .values({ userId: learner.id, customerId: created.customer_id })
-            .returning();
+            .onConflictDoNothing();
+          const [saved] = await tx.select().from(account).where(eq(account.userId, learner.id));
+          return saved;
+        });
+      }
+      if (!customer || customer.deleting) throw billingError(409, "Account deletion is in progress.");
+      if (kind === "pro") {
+        for await (const sub of client.subscriptions.list({ customer_id: customer.customerId })) {
+          if (
+            sub.product_id === ctx.env.DODO_PRO_PRODUCT_ID &&
+            !["cancelled", "expired", "failed"].includes(sub.status)
+          )
+            throw billingError(409, "You already have a subscription. Manage it from Profile.");
         }
-        if (kind === "pro") {
-          for await (const sub of client.subscriptions.list({ customer_id: customer!.customerId })) {
-            if (
-              sub.product_id === ctx.env.DODO_PRO_PRODUCT_ID &&
-              !["cancelled", "expired", "failed"].includes(sub.status)
-            )
-              throw billingError(409, "You already have a subscription. Manage it from Profile.");
-          }
-          const [pending] = await tx
-            .select()
-            .from(checkout)
-            .where(and(eq(checkout.userId, learner.id), eq(checkout.kind, "pro"), isNull(checkout.completedAt)))
-            .orderBy(desc(checkout.createdAt))
-            .limit(1);
-          if (pending?.sessionId && pending.url) {
-            const status = await client.checkoutSessions.retrieve(pending.sessionId);
-            if (
-              !status.payment_status ||
-              status.payment_status === "processing" ||
-              status.payment_status === "requires_customer_action"
-            )
-              return c.json({ url: pending.url });
-            if (status.payment_status === "succeeded")
-              throw billingError(409, "Your payment is being confirmed. Refresh Profile shortly.");
-            await tx.update(checkout).set({ completedAt: ctx.now() }).where(eq(checkout.id, pending.id));
-          }
+      }
+      const [pending] = await ctx.db
+        .select()
+        .from(checkout)
+        .where(and(eq(checkout.userId, learner.id), eq(checkout.kind, kind), isNull(checkout.completedAt)))
+        .orderBy(desc(checkout.createdAt))
+        .limit(1);
+      if (pending?.sessionId && pending.url) {
+        let status;
+        try {
+          status = await client.checkoutSessions.retrieve(pending.sessionId);
+        } catch (error) {
+          if (!(error instanceof DodoPayments.NotFoundError)) throw error;
         }
-        const [purchase] = await tx
-          .insert(checkout)
-          .values({ userId: learner.id, kind, createdAt: ctx.now() })
-          .returning();
+        if (status?.payment_status === "succeeded")
+          throw billingError(409, "Your payment is being confirmed. Refresh Profile shortly.");
+        if (
+          status &&
+          [null, "processing", "requires_customer_action"].includes(status.payment_status ?? null) &&
+          ctx.now().getTime() - pending.createdAt.getTime() < 15 * 60_000
+        )
+          return c.json({ url: pending.url });
+        await ctx.db.update(checkout).set({ completedAt: ctx.now() }).where(eq(checkout.id, pending.id));
+      }
+      const purchase = await ctx.db.transaction(async (tx) => {
+        const [exists] = await tx
+          .select({ id: schema.user.id })
+          .from(schema.user)
+          .where(eq(schema.user.id, learner.id))
+          .for("update");
+        const [current] = await tx.select().from(account).where(eq(account.userId, learner.id));
+        if (!exists || !current || current.deleting) throw billingError(409, "Account deletion is in progress.");
+        const [open] = await tx
+          .select()
+          .from(checkout)
+          .where(and(eq(checkout.userId, learner.id), eq(checkout.kind, kind), isNull(checkout.completedAt)))
+          .orderBy(desc(checkout.createdAt))
+          .limit(1);
+        if (open && ctx.now().getTime() - open.createdAt.getTime() < (open.sessionId ? 15 * 60_000 : 30_000))
+          throw billingError(409, "Checkout is already being prepared. Try again shortly.");
+        if (open) await tx.update(checkout).set({ completedAt: ctx.now() }).where(eq(checkout.id, open.id));
+        const [row] = await tx.insert(checkout).values({ userId: learner.id, kind, createdAt: ctx.now() }).returning();
+        return row!;
+      });
+      try {
         const session = await client.checkoutSessions.create(
           {
             product_cart: [{ product_id: productId(ctx.env, kind), quantity: 1 }],
-            customer: { customer_id: customer!.customerId },
-            metadata: { fluently_user_id: learner.id, fluently_checkout_id: purchase!.id },
+            customer: { customer_id: customer.customerId },
+            metadata: { fluently_user_id: learner.id, fluently_checkout_id: purchase.id },
             return_url: new URL("/profile?payment=return", ctx.env.WEB_ORIGIN).href,
             cancel_url: new URL("/profile", ctx.env.WEB_ORIGIN).href,
             subscription_data: kind === "pro" ? { trial_period_days: 0 } : undefined,
             feature_flags: { allow_discount_code: false, allow_currency_selection: true },
           },
-          { idempotencyKey: purchase!.id },
+          { idempotencyKey: purchase.id },
         );
         if (!session.checkout_url) throw new Error("Dodo returned no hosted checkout URL");
-        await tx
-          .update(checkout)
-          .set({ sessionId: session.session_id, url: session.checkout_url })
-          .where(eq(checkout.id, purchase!.id));
+        const saved = await ctx.db.transaction(async (tx) => {
+          const [exists] = await tx
+            .select({ id: schema.user.id })
+            .from(schema.user)
+            .where(eq(schema.user.id, learner.id))
+            .for("update");
+          const [current] = await tx.select().from(account).where(eq(account.userId, learner.id));
+          if (!exists || !current || current.deleting) return false;
+          await tx
+            .update(checkout)
+            .set({ sessionId: session.session_id, url: session.checkout_url })
+            .where(eq(checkout.id, purchase.id));
+          return true;
+        });
+        if (!saved) throw billingError(409, "Account deletion is in progress.");
         return c.json({ url: session.checkout_url });
-      });
+      } catch (error) {
+        await ctx.db.update(checkout).set({ completedAt: ctx.now() }).where(eq(checkout.id, purchase.id));
+        throw error;
+      }
     })
     .post("/portal", async (c) => {
       if (!ctx.payments) throw unavailable();
@@ -391,32 +453,68 @@ export function billingRoutes(ctx: Ctx) {
 
 export async function cancelBeforeDelete(ctx: Ctx, learner: Pick<User, "id">) {
   await ctx.broker.hangup(learner.id);
-  const [customer] = await ctx.db.transaction(async (tx) => {
+  const customer = await ctx.db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, learner.id)).for("update");
-    return tx.update(account).set({ deleting: true }).where(eq(account.userId, learner.id)).returning();
+    const [row] = await tx.update(account).set({ deleting: true }).where(eq(account.userId, learner.id)).returning();
+    if (row)
+      await tx
+        .insert(schema.billingCleanup)
+        .values({ customerId: row.customerId, requestedAt: ctx.now() })
+        .onConflictDoNothing();
+    return row;
   });
-  if (!customer) return;
+  if (!customer || !ctx.payments) return;
   try {
-    if (!ctx.payments) throw unavailable();
-    const checkouts = await ctx.db
-      .select()
-      .from(checkout)
-      .where(and(eq(checkout.userId, learner.id), isNull(checkout.completedAt)));
-    for (const pending of checkouts) {
-      if (!pending.sessionId) continue;
-      const status = await ctx.payments.checkoutSessions.retrieve(pending.sessionId);
-      if (status.payment_status === "processing" || status.payment_status === "requires_customer_action")
-        throw new Error("A payment is still processing");
-    }
-    for await (const sub of ctx.payments.subscriptions.list({ customer_id: customer.customerId })) {
-      if (sub.product_id !== ctx.env.DODO_PRO_PRODUCT_ID || ["cancelled", "expired", "failed"].includes(sub.status))
-        continue;
-      const cancelled = await ctx.payments.subscriptions.update(sub.subscription_id, { status: "cancelled" });
-      if (cancelled.status !== "cancelled") throw new Error("Subscription cancellation was not confirmed");
-    }
+    await cancelCustomer(ctx.payments, customer.customerId);
   } catch (error) {
     await ctx.db.update(account).set({ deleting: false }).where(eq(account.userId, learner.id));
+    await ctx.db.delete(schema.billingCleanup).where(eq(schema.billingCleanup.customerId, customer.customerId));
     console.error("Billing cancellation before deletion failed", error);
-    throw billingError(503, "We couldn't cancel billing yet. Your account is intact. Wait for pending payments to finish, then try again or contact support.");
+    throw billingError(503, "We couldn't cancel billing yet. Your account is intact. Try again or contact support.");
   }
+}
+
+async function cancelCustomer(client: DodoPayments, customerId: string) {
+  for await (const sub of client.subscriptions.list({ customer_id: customerId })) {
+    if (["cancelled", "expired", "failed"].includes(sub.status)) continue;
+    const cancelled = await client.subscriptions.update(sub.subscription_id, { status: "cancelled" });
+    if (cancelled.status !== "cancelled") throw new Error("Subscription cancellation was not confirmed");
+  }
+}
+
+export async function cleanupDeletedBilling({ db, payments }: Pick<Deps, "db" | "payments">) {
+  if (!payments) return;
+  const pending = await db
+    .select({ customerId: schema.billingCleanup.customerId })
+    .from(schema.billingCleanup)
+    .leftJoin(account, eq(account.customerId, schema.billingCleanup.customerId))
+    .where(isNull(account.userId))
+    .limit(100);
+  for (const row of pending) {
+    try {
+      await cancelCustomer(payments, row.customerId);
+      await db.delete(schema.billingCleanup).where(eq(schema.billingCleanup.customerId, row.customerId));
+    } catch (error) {
+      console.error("Deleted billing cancellation will retry", { customerId: row.customerId, error });
+    }
+  }
+}
+
+export function startBillingCleanup(deps: Pick<Deps, "db" | "payments">) {
+  let running: Promise<void> | undefined;
+  const tick = () => {
+    if (!running)
+      running = cleanupDeletedBilling(deps)
+        .catch((error) => console.error("Billing cleanup failed", error))
+        .finally(() => {
+          running = undefined;
+        });
+  };
+  const timer = setInterval(tick, 60_000);
+  timer.unref();
+  tick();
+  return async () => {
+    clearInterval(timer);
+    await running;
+  };
 }
