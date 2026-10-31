@@ -155,7 +155,7 @@ test("a connection that fails resumes once away from its provider; failing again
   const second = f.peers[1];
   assert.deepEqual(second.added, [[f.track, f.stream]]);
   second.channel.onopen();
-  assert.deepEqual(second.channel.sent, [], "a resumed call carries on without a new opening");
+  assert.deepEqual(second.channel.sent, [{ type: "response.create" }], "the coach picks a resumed call up");
   peer.become("failed");
   second.become("connected");
   assert.equal(last().status, "live");
@@ -391,7 +391,7 @@ test("Rime: the API closing the socket resumes the call away from Rime once, the
   f.sockets[1].open();
   await settle();
   assert.equal(last().status, "live");
-  assert.deepEqual(f.sockets[1].sent, [], "a resumed call carries on without a new opening");
+  assert.deepEqual(f.sockets[1].sent, [{ type: "response.create" }], "the coach picks a resumed call up");
   f.sockets[1].onclose();
   assert.equal(last().status, "dropped");
   assert.equal(f.track.stopped, true);

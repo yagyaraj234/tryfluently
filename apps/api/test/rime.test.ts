@@ -51,8 +51,8 @@ const browserSocket = () => {
 };
 
 // Starts a Rime call against FakePrism, attached the way the broker does it.
-async function rimeCall() {
-  const rime = rimeRealtime("rime-key");
+async function rimeCall(options?: Parameters<typeof rimeRealtime>[1]) {
+  const rime = rimeRealtime("rime-key", options);
   const pending = rime.createCall("ignored-sdp", { type: "realtime", tools: [{ name: "end_call" }] });
   await settle();
   const prism = FakePrism.all.at(-1)!;
@@ -178,6 +178,18 @@ describe("Rime Prism provider", () => {
     c.prism.drop(1000);
     await settle();
     expect([...a.closes, ...b.closes, ...c.closes]).toEqual([true, false, false]);
+  });
+
+  test("a call the browser never joins is closed normally, so it doesn't hold the slot; a joined one stays", async () => {
+    const lost = await rimeCall({ joinMs: 5 });
+    const joined = await rimeCall({ joinMs: 5 });
+    joined.rime.join!(joined.call.callId, browserSocket());
+    await new Promise((r) => setTimeout(r, 10));
+    expect(lost.prism.closed).toBe(1000);
+    expect(joined.prism.closed).toBeUndefined();
+    lost.prism.drop(1000);
+    await settle();
+    expect(lost.closes).toEqual([false]);
   });
 
   test("hanging up closes Prism and the browser without reporting a close", async () => {

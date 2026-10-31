@@ -14,6 +14,7 @@ Decided 31 October 2026. Partly supersedes [0001](0001-openai-realtime-voice.md)
 
 - a connection error or timeout
 - a socket that closes before we hang up
+- a browser that doesn't join a Rime call within 15 seconds (ended normally, so the slot and minutes are freed)
 - close code 1001 or 1011
 - a browser that can't open the Rime socket
 
@@ -21,7 +22,7 @@ Hanging up, `end_call`, the allowance, the Assessment deadline and Prism's 5-min
 
 **A circuit breaker remembers failures.** After a failure, the API sends new calls to the other provider for 5 minutes, then tries the primary again. Nobody watches it or edits env vars. The breaker lives in memory, like the broker's call registry, so it holds for one API instance. OpenAI's mid-call closes don't trip it yet, because its close codes aren't classified. The dropped call still moves to Rime when the browser resumes it.
 
-**A new call continues the conversation.** Any call that starts with a saved transcript gets it in its instructions and is told not to greet the Learner again. This covers fallback and a manual retry after a drop.
+**A new call continues the conversation.** Any call that starts with a saved transcript gets it in its instructions and is told not to greet the Learner again. The coach still speaks first: it opens a new call, and picks a resumed one up where it stopped. This covers fallback and a manual retry after a drop.
 
 **Voices follow the Roleplay or Assessment.** Each call picks its provider's voice from the Roleplay or Assessment id, so a retry on the same provider keeps the voice. A switch to the other provider changes it, because the two lists differ.
 
