@@ -58,11 +58,11 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000 } = {}): Realtime
   };
 
   return {
-    async createCall(_sdp, session) {
+    async createCall(_sdp, session, _avoid, voiceKey) {
       // Bun's WebSocket takes headers, which browsers' doesn't.
       const ws = new WebSocket(PRISM, { headers: { authorization: `Bearer ${apiKey}` } } as any);
       const callId = `rime_${crypto.randomUUID()}`;
-      const call: Call = { ws, voice: pick(voices), waiting: [], drains: new Map() };
+      const call: Call = { ws, voice: pick(voices, voiceKey), waiting: [], drains: new Map() };
       await new Promise<void>((resolve, reject) => {
         const fail = (why: string) => {
           clearTimeout(timer);

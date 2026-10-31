@@ -187,7 +187,7 @@ describe("voice assessment over Realtime", () => {
 describe("resuming a dropped voice call (ADR 0005)", () => {
   const resume = (id: string, after: string) => `/api/assessments/${id}/call?after=${after}`;
 
-  test("the browser's retry ends the old call and starts one that avoids the provider it dropped from", async () => {
+  test("the browser's retry ends the old call and starts one that avoids the provider it dropped from, in the same voice", async () => {
     const { app, realtime } = setup();
     const { cookie } = await signUp(app);
     const id = await startVoice(app, cookie);
@@ -197,6 +197,7 @@ describe("resuming a dropped voice call (ADR 0005)", () => {
     expect(res.status).toBe(201);
     expect(realtime.sideband(1).hungUp).toBe(true);
     expect(realtime.calls.map((c) => c.avoid)).toEqual([undefined, "openai"]);
+    expect(realtime.calls.map((c) => c.voiceKey)).toEqual([id, id]);
   });
 
   test("a call the coach ended can't be resumed", async () => {
