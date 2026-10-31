@@ -79,6 +79,7 @@ export type Deps = {
   realtime: Realtime;
   transcriber: Transcriber;
   payments?: DodoPayments;
+  billingEnabled?: boolean;
   // Runs `fn` after `ms` and returns a cancel; injected so tests fire timers on the test clock.
   schedule?: Schedule;
   settings?: Partial<Settings>;
@@ -100,7 +101,9 @@ export type AppEnv = {
   };
 };
 
-export function createApp(deps: Deps) {
+export function createApp(input: Deps) {
+  const payments = input.payments ?? dodoPayments(input.env);
+  const deps = { ...input, payments, billingEnabled: Boolean(payments) };
   const { db, env, mailer } = deps;
   let draining = false;
   const limits = requestLimits(deps.now);
@@ -110,7 +113,7 @@ export function createApp(deps: Deps) {
     schedule: deps.schedule ?? setTimer,
     limitMinutes: settings.realtimeMinutesPerMonth,
   });
-  const billing = { ...deps, payments: deps.payments ?? dodoPayments(env), broker };
+  const billing = { ...deps, payments, broker };
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
@@ -183,11 +186,6 @@ export function createApp(deps: Deps) {
   });
 
   const app = new Hono<AppEnv>()
-    .onError((error, c) => {
-      if (error instanceof HTTPException) return c.json({ error: error.message }, error.status);
-      console.error("API request failed", error);
-      return c.json({ error: "Something went wrong. Please try again." }, 500);
-    })
     .use("*", metricsMiddleware(env.METRICS_ENABLED === "true"))
     .route(
       "/health",

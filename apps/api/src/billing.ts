@@ -5,7 +5,7 @@ import type { Payment } from "dodopayments/resources/payments";
 import type { Subscription } from "dodopayments/resources/subscriptions";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
-import { HTTPException } from "hono/http-exception";
+import { billingError } from "./billing-errors";
 import { z } from "zod";
 import type { AppEnv, Deps, User } from "./app";
 import { dailyLessons, FREE_LESSONS_PER_DAY, PACK_MINUTES, paidCredits, PRO_MINUTES } from "./billing-credits";
@@ -44,7 +44,7 @@ export function dodoPayments(env: Deps["env"]) {
 }
 
 const unavailable = () =>
-  new HTTPException(503, { message: "Payments aren't available yet. Please try again later or contact support." });
+  billingError(503, "Payments aren't available yet. Please try again later or contact support.");
 const productId = (env: Deps["env"], kind: "pro" | "pack") =>
   kind === "pro" ? env.DODO_PRO_PRODUCT_ID! : env.DODO_PACK_PRODUCT_ID!;
 
@@ -271,10 +271,7 @@ export function billingRoutes(ctx: Ctx) {
       const at = ctx.now();
       const [paid, allowance, [customer], subscriptions] = await Promise.all([
         paidCredits(ctx.db, userId, at),
-        ctx.db.transaction(async (tx) => {
-          await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
-          return dailyLessons(tx, userId, at);
-        }),
+        dailyLessons(ctx.db, userId, at),
         ctx.db.select().from(account).where(eq(account.userId, userId)),
         ctx.db
           .select()
@@ -284,14 +281,14 @@ export function billingRoutes(ctx: Ctx) {
       ]);
       return c.json({
         enabled: Boolean(ctx.payments),
-        hasPro: paid.hasPro,
+        hasPro: !ctx.payments || paid.hasPro,
         source: paid.pro ? ("subscription" as const) : paid.hasPro ? ("pack" as const) : ("free" as const),
         purchasedSeconds: Math.floor(paid.purchasedSeconds),
         paidUntil: paid.pro?.expiresAt?.toISOString() ?? null,
         subscription: subscriptions.find((s) => !["cancelled", "expired", "failed"].includes(s.status)) ?? null,
         canManage: Boolean(customer),
         lessons: {
-          limit: paid.hasPro ? null : FREE_LESSONS_PER_DAY,
+          limit: !ctx.payments || paid.hasPro ? null : FREE_LESSONS_PER_DAY,
           used: allowance.used,
           resetsAt: allowance.resetsAt.toISOString(),
         },
@@ -306,7 +303,7 @@ export function billingRoutes(ctx: Ctx) {
       return ctx.db.transaction(async (tx) => {
         await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, learner.id)).for("update");
         let [customer] = await tx.select().from(account).where(eq(account.userId, learner.id));
-        if (customer?.deleting) throw new HTTPException(409, { message: "Account deletion is in progress." });
+        if (customer?.deleting) throw billingError(409, "Account deletion is in progress.");
         if (!customer) {
           const created = await client.customers.create(
             { email: learner.email, name: learner.name },
@@ -323,7 +320,7 @@ export function billingRoutes(ctx: Ctx) {
               sub.product_id === ctx.env.DODO_PRO_PRODUCT_ID &&
               !["cancelled", "expired", "failed"].includes(sub.status)
             )
-              throw new HTTPException(409, { message: "You already have a subscription. Manage it from Profile." });
+              throw billingError(409, "You already have a subscription. Manage it from Profile.");
           }
           const [pending] = await tx
             .select()
@@ -340,7 +337,7 @@ export function billingRoutes(ctx: Ctx) {
             )
               return c.json({ url: pending.url });
             if (status.payment_status === "succeeded")
-              throw new HTTPException(409, { message: "Your payment is being confirmed. Refresh Profile shortly." });
+              throw billingError(409, "Your payment is being confirmed. Refresh Profile shortly.");
             await tx.update(checkout).set({ completedAt: ctx.now() }).where(eq(checkout.id, pending.id));
           }
         }
@@ -371,7 +368,7 @@ export function billingRoutes(ctx: Ctx) {
     .post("/portal", async (c) => {
       if (!ctx.payments) throw unavailable();
       const [customer] = await ctx.db.select().from(account).where(eq(account.userId, c.var.user.id));
-      if (!customer || customer.deleting) throw new HTTPException(409, { message: "No billing account is available." });
+      if (!customer || customer.deleting) throw billingError(409, "No billing account is available.");
       const portal = await ctx.payments.customers.customerPortal.create(customer.customerId, {
         send_email: false,
         return_url: new URL("/profile", ctx.env.WEB_ORIGIN).href,
@@ -381,7 +378,7 @@ export function billingRoutes(ctx: Ctx) {
     .post("/cancel", async (c) => {
       if (!ctx.payments) throw unavailable();
       const [customer] = await ctx.db.select().from(account).where(eq(account.userId, c.var.user.id));
-      if (!customer || customer.deleting) throw new HTTPException(409, { message: "No subscription is available." });
+      if (!customer || customer.deleting) throw billingError(409, "No subscription is available.");
       for await (const sub of ctx.payments.subscriptions.list({ customer_id: customer.customerId })) {
         if (sub.product_id !== ctx.env.DODO_PRO_PRODUCT_ID || ["cancelled", "expired", "failed"].includes(sub.status))
           continue;
@@ -420,9 +417,6 @@ export async function cancelBeforeDelete(ctx: Ctx, learner: Pick<User, "id">) {
   } catch (error) {
     await ctx.db.update(account).set({ deleting: false }).where(eq(account.userId, learner.id));
     console.error("Billing cancellation before deletion failed", error);
-    throw new HTTPException(503, {
-      message:
-        "We couldn't cancel billing yet. Your account is intact. Wait for pending payments to finish, then try again or contact support.",
-    });
+    throw billingError(503, "We couldn't cancel billing yet. Your account is intact. Wait for pending payments to finish, then try again or contact support.");
   }
 }

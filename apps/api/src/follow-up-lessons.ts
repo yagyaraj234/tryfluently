@@ -36,7 +36,12 @@ export async function followUpBrief(db: Tx, l: { unitId: string | null; position
  * entries and Lessons down one place, then starts it. All in one transaction, so the Unit can't be mastered between.
  */
 export async function learnMore(
-  { db, now, settings }: Pick<Deps, "db" | "now"> & { settings: { alphaLesson: number } },
+  {
+    db,
+    now,
+    settings,
+    billingEnabled,
+  }: Pick<Deps, "db" | "now" | "billingEnabled"> & { settings: { alphaLesson: number } },
   userId: string,
   lessonId: string,
   note: string | null,
@@ -83,7 +88,7 @@ export async function learnMore(
 
     const done = await finishPagedLesson({ db: tx, now, settings }, l.id, userId);
     if (done.status !== "completed") throw new Error(`Lesson ${l.id} could not complete: ${done.status}`);
-    const started = await startLesson({ db: tx, now }, userId, at);
+    const started = await startLesson({ db: tx, now, billingEnabled }, userId, at);
     if ("error" in started) throw new Error(`Follow-up Lesson could not start: ${started.error}`);
     return { status: 201 as const, lesson: started.lesson };
   });

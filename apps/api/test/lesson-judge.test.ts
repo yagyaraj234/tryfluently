@@ -1,3 +1,6 @@
+import { schema } from "@fluently/db";
+import { eq } from "drizzle-orm";
+import { testDb } from "./setup";
 import { describe, expect, test } from "bun:test";
 import {
   answerStep,
@@ -67,6 +70,32 @@ const roadmapOf = async (app: TestApp, cookie: string) =>
   (await (await app.request("/api/roadmap", get(cookie))).json()) as any[];
 const profileOf = async (app: TestApp, cookie: string) =>
   (await (await app.request("/api/skill-profile", get(cookie))).json()) as any;
+
+test("legacy planning retries a crashed reservation without starting another Lesson", async () => {
+  const clock = makeClock();
+  const { cookie, id, units } = await learnerWithRoadmap(clock);
+  const [crashed] = await testDb
+    .insert(schema.lesson)
+    .values({
+      userId: id,
+      unitId: units[0].id,
+      position: 0,
+      kind: "practice",
+      title: "Planning",
+      objective: "Practice",
+      startedAt: clock(),
+      preparation: "preparing",
+      preparationToken: crypto.randomUUID(),
+      preparationAt: new Date(clock().getTime() - 180000),
+    })
+    .returning();
+  const app = makeApp({ now: clock, models: { step: mockModel(lessonPlan()) } });
+  const res = await app.request("/api/lessons/next", json({}, cookie));
+  expect(res.status).toBe(201);
+  expect((await res.json()).id).toBe(crashed!.id);
+  expect(await testDb.select().from(schema.lesson).where(eq(schema.lesson.userId, id))).toHaveLength(1);
+  expect(await (await app.request("/api/billing", get(cookie))).json()).toMatchObject({ lessons: { used: 1 } });
+});
 
 describe("lesson judge", () => {
   test("completing a Lesson stores objective progress and a summary, and moves only the skills it practised", async () => {

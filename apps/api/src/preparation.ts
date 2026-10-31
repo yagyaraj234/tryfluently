@@ -9,7 +9,7 @@ import { skillProfile } from "./scoring";
 import { claimLesson } from "./billing-credits";
 
 const { lesson, step, unit, user, goal, focusItem, learnerMemory } = schema;
-type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal };
+type Ctx = Pick<Deps, "db" | "now" | "models" | "billingEnabled"> & { signal?: AbortSignal };
 const text = z.string().trim().min(1).max(2000);
 export const contentOutput = z.object({
   material: z
@@ -84,7 +84,9 @@ export async function prepareNext(ctx: Ctx, userId: string) {
       };
     }
     const token = crypto.randomUUID();
-    if (!current) await claimLesson(tx, userId, now());
+    const allowanceResetsAt = !current
+      ? await claimLesson(tx, userId, now(), ctx.billingEnabled)
+      : current.allowanceResetsAt;
     const values = { preparation: "preparing" as const, preparationToken: token, preparationAt: now() };
     const [row] = current
       ? await tx.update(lesson).set(values).where(eq(lesson.id, current.id)).returning()
@@ -99,6 +101,7 @@ export async function prepareNext(ctx: Ctx, userId: string) {
             objective: planned.objective,
             phase: "learning",
             startedAt: now(),
+            allowanceResetsAt,
             ...values,
           })
           .returning();

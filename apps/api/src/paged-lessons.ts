@@ -160,7 +160,11 @@ const pending = (n: number) =>
   Array.from({ length: n }, () => ({ page: "pending" as const, question: "pending" as const }));
 
 /** Reserves the Learner's next outlined Lesson and queues its generation. Starting twice returns the same Lesson. */
-export async function startLesson({ db, now }: { db: Tx; now: Deps["now"] }, userId: string, position: number) {
+export async function startLesson(
+  { db, now, billingEnabled }: { db: Tx; now: Deps["now"]; billingEnabled?: boolean },
+  userId: string,
+  position: number,
+) {
   return db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
     const [active] = await tx
@@ -180,7 +184,7 @@ export async function startLesson({ db, now }: { db: Tx; now: Deps["now"] }, use
       (p) => !rows.some((l) => l.position === p.position && (l.status === "completed" || l.status === "skipped")),
     );
     if (next?.position !== position) return { error: "Finish your earlier Lessons first" as const };
-    await claimLesson(tx, userId, now());
+    const allowanceResetsAt = await claimLesson(tx, userId, now(), billingEnabled);
     // Outlines written before pageCount existed have none: they get the default.
     const pages = (planned as { pageCount?: number }).pageCount ?? DEFAULT_PAGES;
     const [created] = await tx
@@ -190,6 +194,7 @@ export async function startLesson({ db, now }: { db: Tx; now: Deps["now"] }, use
         unitId: active.id,
         position,
         kind: "practice",
+        allowanceResetsAt,
         title: planned.title,
         objective: planned.objective,
         phase: "learning",

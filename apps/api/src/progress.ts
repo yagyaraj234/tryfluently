@@ -2,7 +2,7 @@ import { schema, type Tx } from "@fluently/db";
 import { and, count, eq, isNotNull } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AppEnv, Deps } from "./app";
-import { HTTPException } from "hono/http-exception";
+import { billingError } from "./billing-errors";
 import { requirePro, restorationPeriod } from "./billing-credits";
 
 const { lesson, step } = schema;
@@ -72,13 +72,13 @@ export async function progress(db: Tx, user: { id: string; timezone: string }, n
   return { xp: 10 * answered!.n + 20 * completed.length, streak, week, learning, restorableDays };
 }
 
-export const progressRoute = (deps: Pick<Deps, "db" | "now">) =>
+export const progressRoute = (deps: Pick<Deps, "db" | "now" | "billingEnabled">) =>
   new Hono<AppEnv>()
     .get("/", async (c) => {
       const at = deps.now();
       const [result, recovery] = await Promise.all([
         progress(deps.db, c.var.user, at),
-        restorationPeriod(deps.db, c.var.user.id, at),
+        restorationPeriod(deps.db, c.var.user.id, at, deps.billingEnabled),
       ]);
       return c.json({ ...result, recovery });
     })
@@ -90,15 +90,13 @@ export const progressRoute = (deps: Pick<Deps, "db" | "now">) =>
           .from(schema.user)
           .where(eq(schema.user.id, c.var.user.id))
           .for("update");
-        await requirePro(tx, c.var.user.id, at);
-        const period = await restorationPeriod(tx, c.var.user.id, at);
+        await requirePro(tx, c.var.user.id, at, deps.billingEnabled);
+        const period = await restorationPeriod(tx, c.var.user.id, at, deps.billingEnabled);
         if (!period.available)
-          throw new HTTPException(409, {
-            message: `Streak recovery is available again at ${period.nextAvailableAt.toISOString()}.`,
-          });
+          throw billingError(409, `Streak recovery is available again at ${period.nextAvailableAt.toISOString()}.`);
         const result = await progress(tx, c.var.user, at);
         if (!result.restorableDays.length)
-          throw new HTTPException(409, { message: "There is no recent gap of one or two days to restore." });
+          throw billingError(409, "There is no recent gap of one or two days to restore.");
         await tx.insert(schema.streakRestoration).values({
           userId: c.var.user.id,
           days: result.restorableDays,

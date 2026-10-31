@@ -1,6 +1,6 @@
 import { schema, type Tx } from "@fluently/db";
 import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
-import { HTTPException } from "hono/http-exception";
+import { billingError } from "./billing-errors";
 
 const { billingCredit: credit, voiceReservation: reservation } = schema;
 export const PRO_MINUTES = 150;
@@ -56,9 +56,9 @@ export async function paidCredits(db: Tx, userId: string, at: Date) {
 }
 
 // Callers that also change learning state hold the same Learner lock.
-export async function requirePro(db: Tx, userId: string, at: Date) {
-  if (!(await paidCredits(db, userId, at)).hasPro) {
-    throw new HTTPException(403, { message: "Pro access is required. Subscribe or add a minute pack from Profile." });
+export async function requirePro(db: Tx, userId: string, at: Date, enabled = true) {
+  if (enabled && !(await paidCredits(db, userId, at)).hasPro) {
+    throw billingError(403, "Pro access is required. Subscribe or add a minute pack from Profile.");
   }
 }
 
@@ -231,7 +231,8 @@ export async function armVoice(db: Tx, id: string, startedAt: Date, endsAt: Date
 
 // A reset is found by comparing local dates, including 23/25-hour DST days.
 export function nextLocalMidnight(at: Date, timeZone: string) {
-  const day = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone }).format(date);
+  const formatter = new Intl.DateTimeFormat("en-CA", { timeZone });
+  const day = (date: Date) => formatter.format(date);
   const today = day(at);
   let low = at.getTime(),
     high = low + 48 * 3_600_000;
@@ -248,12 +249,10 @@ export async function dailyLessons(db: Tx, userId: string, at: Date) {
     .select({ timezone: schema.user.timezone })
     .from(schema.user)
     .where(eq(schema.user.id, userId));
-  const [stored] = await db.select().from(schema.lessonAllowance).where(eq(schema.lessonAllowance.userId, userId));
-  if (stored && stored.resetsAt > at) return stored;
-  const timeZone = learner!.timezone;
-  const day = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone }).format(date);
+  const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: learner!.timezone });
+  const today = formatter.format(at);
   const recent = await db
-    .select({ startedAt: schema.lesson.startedAt })
+    .select({ startedAt: schema.lesson.startedAt, resetsAt: schema.lesson.allowanceResetsAt })
     .from(schema.lesson)
     .where(
       and(
@@ -264,33 +263,27 @@ export async function dailyLessons(db: Tx, userId: string, at: Date) {
         lte(schema.lesson.startedAt, at),
       ),
     );
-  const used = recent.filter((l) => day(l.startedAt!) === day(at)).length;
-  const [allowance] = await db
-    .insert(schema.lessonAllowance)
-    .values({ userId, used, resetsAt: nextLocalMidnight(at, timeZone) })
-    .onConflictDoUpdate({
-      target: schema.lessonAllowance.userId,
-      set: { used, resetsAt: nextLocalMidnight(at, timeZone) },
-    })
-    .returning();
-  return allowance!;
+  const active = recent.filter((l) => l.resetsAt && l.resetsAt > at);
+  const resetsAt =
+    active.sort((a, b) => a.resetsAt!.getTime() - b.resetsAt!.getTime())[0]?.resetsAt ??
+    nextLocalMidnight(at, learner!.timezone);
+  const used = recent.filter((l) => (l.resetsAt ? l.resetsAt > at : formatter.format(l.startedAt!) === today)).length;
+  return { used, resetsAt };
 }
 
-export async function claimLesson(db: Tx, userId: string, at: Date) {
+// The caller holds the Learner lock and inserts the Lesson in this transaction.
+export async function claimLesson(db: Tx, userId: string, at: Date, enabled = true) {
   const allowance = await dailyLessons(db, userId, at);
-  if (!(await paidCredits(db, userId, at)).hasPro && allowance.used >= FREE_LESSONS_PER_DAY) {
-    throw new HTTPException(429, {
-      message: `You've started today's ${FREE_LESSONS_PER_DAY} Lessons. Your allowance resets at ${allowance.resetsAt.toISOString()}. Resume a Lesson, or unlock Pro from Profile.`,
-    });
+  if (enabled && !(await paidCredits(db, userId, at)).hasPro && allowance.used >= FREE_LESSONS_PER_DAY) {
+    throw billingError(
+      429,
+      `You've started today's ${FREE_LESSONS_PER_DAY} Lessons. Your allowance resets at ${allowance.resetsAt.toISOString()}. Resume a Lesson, or unlock Pro from Profile.`,
+    );
   }
-  await db
-    .update(schema.lessonAllowance)
-    .set({ used: sql`${schema.lessonAllowance.used} + 1` })
-    .where(eq(schema.lessonAllowance.userId, userId));
   return allowance.resetsAt;
 }
 
-export async function restorationPeriod(db: Tx, userId: string, at: Date) {
+export async function restorationPeriod(db: Tx, userId: string, at: Date, enabled = true) {
   const { pro, hasPro } = await paidCredits(db, userId, at);
   const [last] = await db
     .select()
@@ -299,7 +292,7 @@ export async function restorationPeriod(db: Tx, userId: string, at: Date) {
     .orderBy(desc(schema.streakRestoration.restoredAt))
     .limit(1);
   return {
-    hasPro,
+    hasPro: !enabled || hasPro,
     available: !last || last.nextAvailableAt <= at,
     nextAvailableAt: last && last.nextAvailableAt > at ? last.nextAvailableAt : (pro?.expiresAt ?? monthEnd(at)),
     resetsAt: pro?.expiresAt ?? monthEnd(at),

@@ -1,13 +1,13 @@
 import { schema, type Tx } from "@fluently/db";
 import { and, asc, eq } from "drizzle-orm";
-import { HTTPException } from "hono/http-exception";
+import { billingError } from "./billing-errors";
 import { requirePro } from "./billing-credits";
 import { advanceUnit } from "./learning-memory";
 
-export async function skipLesson(db: Tx, userId: string, position: number, at: Date) {
+export async function skipLesson(db: Tx, userId: string, position: number, at: Date, enabled = true) {
   return db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
-    await requirePro(tx, userId, at);
+    await requirePro(tx, userId, at, enabled);
     const [unit] = await tx
       .select()
       .from(schema.unit)
@@ -23,7 +23,7 @@ export async function skipLesson(db: Tx, userId: string, position: number, at: D
       (p) => !rows.some((l) => l.position === p.position && (l.status === "completed" || l.status === "skipped")),
     );
     if (!unit || !next || next.position !== position)
-      throw new HTTPException(409, { message: "Only your current or next Lesson can be skipped." });
+      throw billingError(409, "Only your current or next Lesson can be skipped.");
     const existing = rows.find((l) => l.position === position);
     if (existing)
       await tx

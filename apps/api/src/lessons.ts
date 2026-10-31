@@ -1,7 +1,7 @@
 import { schema } from "@fluently/db";
 import { zValidator } from "@hono/zod-validator";
 import { NoObjectGeneratedError, Output, safeValidateUIMessages, tool, type UIMessage } from "ai";
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { generate, streamChat, unchanged } from "./ai";
@@ -69,6 +69,7 @@ export const lessons = ({
   transcriber,
   settings,
   broker,
+  billingEnabled,
 }: Deps & { settings: { alphaLesson: number; recordingMinutesPerDay: number }; broker: RealtimeBroker }) => {
   const find = async (id: string, userId: string) =>
     (
@@ -139,7 +140,7 @@ export const lessons = ({
         if (!active) return c.json({ error: "There's no active Unit" }, 409);
 
         if (active.lessonOutline.length) {
-          const prepared = await prepareNext({ db, now, models }, userId);
+          const prepared = await prepareNext({ db, now, models, billingEnabled }, userId);
           if (!prepared) return c.json({ error: "No Lesson is available" }, 409);
           if (prepared.preparation === "failed")
             return c.json({ error: "The Lesson couldn't be prepared. Try again." }, 502);
@@ -149,11 +150,12 @@ export const lessons = ({
         }
         const inUnit = await db.select().from(lesson).where(eq(lesson.unitId, active.id)).orderBy(asc(lesson.position));
         const current = inUnit.find((l) => l.status === "in_progress");
-        if (current) return c.json(await withSteps(current));
+        if (current && current.preparation !== "preparing" && current.preparation !== "failed")
+          return c.json(await withSteps(current));
 
         // A Unit that ends with a Roleplay gets one once a practice Lesson reaches 80+ on the objective;
         // a Roleplay at 80+ after it then masters the Unit.
-        if (readyForRoleplay(active.endsWithRoleplay, inUnit)) {
+        if (!current && readyForRoleplay(active.endsWithRoleplay, inUnit)) {
           const kind = await roleplayKindFor({ db }, userId);
           return c.json(
             await withSteps(
@@ -171,11 +173,45 @@ export const lessons = ({
         const planned = active.lessonOutline.find(
           (l) => l.kind === "practice" && l.position === inUnit.filter((l) => l.kind === "practice").length,
         );
-        let plan: z.infer<typeof planOutput>;
-        const resetsAt = await db.transaction(async (tx) => {
+        const token = crypto.randomUUID();
+        const reserved = await db.transaction(async (tx) => {
           await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
-          return claimLesson(tx, userId, now());
+          const [existing] = await tx
+            .select()
+            .from(lesson)
+            .where(and(eq(lesson.unitId, active.id), eq(lesson.status, "in_progress")));
+          // Reclaim crashed planning after the same two-minute lease used by prepared Lessons.
+          if (
+            existing &&
+            existing.preparation !== "failed" &&
+            (existing.preparation !== "preparing" ||
+              now().getTime() - (existing.preparationAt?.getTime() ?? 0) < 120_000)
+          )
+            return { row: existing, created: false };
+          const preparation = { preparation: "preparing" as const, preparationToken: token, preparationAt: now() };
+          if (existing) {
+            const [row] = await tx.update(lesson).set(preparation).where(eq(lesson.id, existing.id)).returning();
+            return { row: row!, created: true };
+          }
+          const allowanceResetsAt = await claimLesson(tx, userId, now(), billingEnabled);
+          const [row] = await tx
+            .insert(lesson)
+            .values({
+              userId,
+              unitId: active.id,
+              position: inUnit.length,
+              kind: "practice",
+              title: planned?.title ?? active.title,
+              objective: active.objective,
+              startedAt: now(),
+              allowanceResetsAt,
+              ...preparation,
+            })
+            .returning();
+          return { row: row!, created: true };
         });
+        if (!reserved.created) return c.json({ error: "Your Lesson is still preparing" }, 409);
+        let plan: z.infer<typeof planOutput>;
         try {
           ({ output: plan } = await generate({ db, now }, userId, {
             model: models.step,
@@ -191,35 +227,31 @@ export const lessons = ({
           }));
         } catch (e) {
           await db
-            .update(schema.lessonAllowance)
-            .set({ used: sql`greatest(0, ${schema.lessonAllowance.used} - 1)` })
-            .where(and(eq(schema.lessonAllowance.userId, userId), eq(schema.lessonAllowance.resetsAt, resetsAt)));
+            .update(lesson)
+            .set({ preparation: "failed", preparationToken: null })
+            .where(and(eq(lesson.id, reserved.row.id), eq(lesson.preparationToken, token)));
           if (NoObjectGeneratedError.isInstance(e))
             return c.json({ error: "The Lesson couldn't be generated. Try again." }, 502);
           throw e;
         }
         const [created] = await db
-          .insert(lesson)
-          .values({
-            userId,
-            unitId: active.id,
-            position: inUnit.length,
-            kind: "practice",
-            ...plan,
-            ...(planned && { title: planned.title }),
-            startedAt: now(),
-          })
+          .update(lesson)
+          .set({ ...plan, ...(planned && { title: planned.title }), preparation: null, preparationToken: null })
+          .where(
+            and(eq(lesson.id, reserved.row.id), eq(lesson.status, "in_progress"), eq(lesson.preparationToken, token)),
+          )
           .returning();
+        if (!created) return c.json({ error: "This Lesson has ended" }, 409);
         return c.json(await withSteps(created!), 201);
       })
       .post("/:position{[0-9]+}/skip", async (c) => {
-        const result = await skipLesson(db, c.var.user.id, Number(c.req.param("position")), now());
+        const result = await skipLesson(db, c.var.user.id, Number(c.req.param("position")), now(), billingEnabled);
         if (result.lessonId) await broker.hangup(c.var.user.id, result.lessonId);
         return c.json({ status: result.status });
       })
       // Starts a Lesson from the outline. Starting twice returns the same Lesson.
       .post("/:position{[0-9]+}/start", async (c) => {
-        const r = await startLesson({ db, now }, c.var.user.id, Number(c.req.param("position")));
+        const r = await startLesson({ db, now, billingEnabled }, c.var.user.id, Number(c.req.param("position")));
         if ("error" in r) return c.json({ error: r.error }, 409);
         return c.json(await pagesView(r.lesson), r.created ? 201 : 200);
       })
@@ -237,7 +269,7 @@ export const lessons = ({
         zValidator("json", z.object({ note: z.string().trim().max(500).optional() })),
         async (c) => {
           const note = c.req.valid("json").note || null;
-          const r = await learnMore({ db, now, settings }, c.var.user.id, c.req.param("id"), note);
+          const r = await learnMore({ db, now, settings, billingEnabled }, c.var.user.id, c.req.param("id"), note);
           if (r.status !== 201) return c.json({ error: r.error }, r.status);
           return c.json({ ...(await pagesView(r.lesson)), position: r.lesson.position }, 201);
         },
@@ -384,7 +416,8 @@ export const lessons = ({
           const result = await finishPagedLesson({ db, now, settings }, row.id, row.userId);
           if (result.status === "incomplete")
             return c.json({ error: "Wait for every question and answer it first" }, 409);
-          if (result.status === "abandoned" || result.status === "skipped") return c.json({ error: "This Lesson has ended", ...result }, 409);
+          if (result.status === "abandoned" || result.status === "skipped")
+            return c.json({ error: "This Lesson has ended", ...result }, 409);
           return c.json(result);
         }
         if (row.preparation !== "ready" || (!paged && row.phase !== "assessment"))

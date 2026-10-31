@@ -1,3 +1,4 @@
+import DodoPayments from "dodopayments";
 import { expect, test } from "bun:test";
 import { schema } from "@fluently/db";
 import { eq } from "drizzle-orm";
@@ -57,10 +58,22 @@ test("Learn more completes the Lesson, inserts a Follow-up Lesson right after it
 });
 
 test("daily limit rejects a Follow-up without completing the current Lesson or shifting its outline", async () => {
-  const t = await readyLesson(fakeQuizModel({ plans: fillGaps }));
+  const t = await readyLesson(fakeQuizModel({ plans: fillGaps }), {
+    payments: new DodoPayments({ bearerToken: "test-only", environment: "test_mode" }),
+  });
   await answerQuiz(t, t.lessonId);
   const before = await roadmap(t);
-  await testDb.update(schema.lessonAllowance).set({ used: 5 }).where(eq(schema.lessonAllowance.userId, t.id));
+  await testDb.insert(schema.lesson).values(
+    Array.from({ length: 4 }, (_, position) => ({
+      userId: t.id,
+      position,
+      kind: "practice" as const,
+      title: "Earlier",
+      objective: "Practice",
+      status: "completed" as const,
+      startedAt: new Date("2026-10-15T09:00:00Z"),
+    })),
+  );
   const response = await learnMore(t, t.lessonId);
   expect(response.status).toBe(429);
   expect((await roadmap(t))[0].lessonOutline).toEqual(before[0].lessonOutline);

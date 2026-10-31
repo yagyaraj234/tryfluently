@@ -70,7 +70,7 @@ a concrete objective the Learner can meet, the skills it practises (fluency, gra
 with a Roleplay (a Mock Interview for interview practice, a Client Call for client work).
 Fit the Units to the Learner's Goal statements and work from their weaknesses toward their Target Levels. ${outlineInstructions}`;
 
-type Ctx = Pick<Deps, "db" | "now" | "models"> & { signal?: AbortSignal };
+type Ctx = Pick<Deps, "db" | "now" | "models" | "billingEnabled"> & { signal?: AbortSignal };
 
 export const focusItemsRoute = (db: Deps["db"]) =>
   new Hono<AppEnv>().get("/", async (c) =>
@@ -168,7 +168,7 @@ export async function finishUnit(ctx: Ctx, id: string, status: "mastered" | "ski
   if (!owner) return;
   return ctx.db.transaction(async (tx) => {
     await tx.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, owner.userId)).for("update");
-    if (status === "skipped") await requirePro(tx, owner.userId, ctx.now());
+    if (status === "skipped") await requirePro(tx, owner.userId, ctx.now(), ctx.billingEnabled);
     const [before] = await tx.select().from(unit).where(eq(unit.id, id));
     if (!before || (before.status !== "active" && before.status !== "planned")) return undefined;
     await tx.update(unit).set({ status }).where(eq(unit.id, id));

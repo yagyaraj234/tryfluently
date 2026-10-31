@@ -204,13 +204,6 @@ export const billingWebhook = pgTable("billing_webhook", {
   processedAt: timestamp().notNull(),
 });
 
-// Fixed reset timestamps prevent timezone changes from creating another daily allowance.
-export const lessonAllowance = pgTable("lesson_allowance", {
-  userId: learner().primaryKey(),
-  resetsAt: timestamp().notNull(),
-  used: integer().notNull().default(0),
-});
-
 export const streakRestoration = pgTable(
   "streak_restoration",
   {
@@ -404,6 +397,8 @@ export const lesson = pgTable(
     // The Practice Round the Learner asked for is being written, or its writing failed; null otherwise.
     practice: text().$type<"preparing" | "failed">(),
     startedAt: timestamp(),
+    // Freeze the daily window on actual Lesson starts, including across timezone changes.
+    allowanceResetsAt: timestamp(),
     completedAt: timestamp(),
   },
   (t) => [index("lesson_user_idx").on(t.userId), index("lesson_unit_position_idx").on(t.unitId, t.position)],
