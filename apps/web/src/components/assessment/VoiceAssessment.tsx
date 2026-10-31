@@ -65,7 +65,7 @@ function VoiceAssessmentCall({ assessment }: { assessment: Assessment }) {
   const [over, setOver] = useState<"dropped" | "timesUp">();
   const running = session.ending === "running";
   const call = useRealtimeCall(`/api/assessments/${assessment.id}/call`, {
-    // The API can't rejoin a call, so a dropped one ends the Assessment with what was said so far.
+    // A drop has already been resumed once (useRealtimeCall), so a second one ends the Assessment with what was said.
     onDropped: () => {
       if (!running) return;
       setOver(left !== undefined && left <= 5_000 ? "timesUp" : "dropped");

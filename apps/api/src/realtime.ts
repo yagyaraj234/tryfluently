@@ -16,8 +16,13 @@ export type BrowserSocket = { send(data: string): void; close(code?: number): vo
 // Thin client over a speech-to-speech provider (OpenAI Realtime or Rime Prism, ADR 0005), faked in tests.
 export type Realtime = {
   // Starts a call with the owner's key. OpenAI answers the browser's SDP offer over WebRTC; Rime has no answer,
-  // and the browser joins over the API's WebSocket instead. The call id stays here.
-  createCall(sdp: string, session: RealtimeSession): Promise<{ answer?: string; callId: string; provider: Provider }>;
+  // and the browser joins over the API's WebSocket instead. The call id stays here. `avoid` is the provider a resumed
+  // call dropped from.
+  createCall(
+    sdp: string,
+    session: RealtimeSession,
+    avoid?: Provider,
+  ): Promise<{ answer?: string; callId: string; provider: Provider }>;
   // Opens the server's sideband connection to a live call. `failed` is false when the provider ended it normally.
   attach(
     callId: string,
@@ -156,6 +161,9 @@ export function realtimeBroker({
 }: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule; limitMinutes: number }) {
   // shortcut: call slots and timers live in memory; use a durable registry before scaling out or requiring restart recovery.
   const live = new Map<string, Live>();
+  // Targets whose call the coach ended on purpose, so a browser that took the hangup for a drop can't resume them.
+  // ponytail: grows by one id per coach-ended call until restart; prune by age if that ever matters.
+  const ended = new Set<string>();
   let closing: Promise<void> | undefined;
 
   // Count only the portion of each live call inside this UTC calendar month.
@@ -204,10 +212,17 @@ export function realtimeBroker({
       budgetSeconds?: number;
       // What the target already holds from earlier calls; this call's messages are saved after it.
       prior?: unknown[];
+      // Resuming a call that dropped from this provider: the other is tried first (ADR 0005).
+      after?: Provider;
       onTranscript(t: UIMessage[]): Promise<unknown>;
     },
   ) {
     if (closing) return { unavailable: true as const };
+    if (opts.after) {
+      if (opts.targetId && ended.has(opts.targetId)) return { ended: true as const };
+      // The dropped call may still be open on the server; the browser has already left it.
+      if (opts.targetId && live.get(userId)?.targetId === opts.targetId) await hangup(userId, opts.targetId);
+    }
     if (live.has(userId)) return { busy: true as const };
     let ready!: () => void;
     const closed = Promise.withResolvers<SaveFailure | undefined>();
@@ -230,7 +245,11 @@ export function realtimeBroker({
         ready();
         return { capped: budget };
       }
-      call = await realtime.createCall(opts.sdp, opts.tools ? { ...sessionConfig, tools: opts.tools } : sessionConfig);
+      call = await realtime.createCall(
+        opts.sdp,
+        opts.tools ? { ...sessionConfig, tools: opts.tools } : sessionConfig,
+        opts.after,
+      );
     } catch (e) {
       live.delete(userId);
       closed.resolve(undefined);
@@ -260,6 +279,7 @@ export function realtimeBroker({
     const endFromTool = async () => {
       if (ending) return;
       ending = true;
+      if (opts.targetId) ended.add(opts.targetId);
       cancelEndFallback?.();
       await hangup(userId, opts.targetId);
     };
@@ -301,7 +321,7 @@ export function realtimeBroker({
             callId: call.callId,
             startedAt,
             seconds: (endedAt.getTime() - startedAt.getTime()) / 1000,
-            usage: { ...usage, purpose: opts.purpose },
+            usage: { ...usage, purpose: opts.purpose, provider: call.provider },
           });
         } catch (error) {
           failure ??= { error };

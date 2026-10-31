@@ -258,6 +258,9 @@ This Roleplay is a text chat: write your lines as you would say them, without st
       // The browser posts its SDP offer and gets back only the SDP answer, as for a Voice Assessment.
       .post("/:id/call", async (c) => {
         const userId = c.var.user.id;
+        const after = c.req.query("after");
+        if (after !== undefined && after !== "openai" && after !== "rime")
+          return c.json({ error: "after must be openai or rime" }, 400);
         const offer = await c.req.text();
         if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
         const row = await find(c.req.param("id"), userId);
@@ -278,12 +281,14 @@ This Roleplay is a text chat: write your lines as you would say them, without st
           purpose: "roleplay",
           tools: [endCallTool],
           endTool: endCallTool.name,
+          after,
           prior: row.messages,
           onTranscript: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
         });
         if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("unavailable" in call) return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
+        if ("ended" in call) return c.json({ error: "This call has ended" }, 409);
         if (!row.startedAt) await db.update(lesson).set({ startedAt: deps.now() }).where(eq(lesson.id, row.id));
         return answerCall(c, call);
       })

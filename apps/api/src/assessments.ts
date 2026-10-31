@@ -351,6 +351,9 @@ export const assessments = ({
       // The browser posts its SDP offer and gets back only the SDP answer; the OpenAI key never leaves the server.
       .post("/:id/call", async (c) => {
         const userId = c.var.user.id;
+        const after = c.req.query("after");
+        if (after !== undefined && after !== "openai" && after !== "rime")
+          return c.json({ error: "after must be openai or rime" }, 400);
         const offer = await c.req.text();
         if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
         const row = await find(c.req.param("id"), userId);
@@ -369,6 +372,7 @@ export const assessments = ({
           purpose: "assessment",
           tools: [endCallTool],
           endTool: endCallTool.name,
+          after,
           prior: row.transcript,
           onTranscript: (transcript) =>
             db
@@ -379,6 +383,7 @@ export const assessments = ({
         if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("unavailable" in call) return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
+        if ("ended" in call) return c.json({ error: "This call has ended" }, 409);
         return answerCall(c, call);
       })
       .post("/:id/end", zValidator("json", z.object({ left: z.boolean().optional() })), async (c) => {

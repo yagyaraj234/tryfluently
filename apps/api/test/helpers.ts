@@ -58,15 +58,15 @@ export function fakeSpeech() {
 
 // Stands in for OpenAI Realtime: records calls and lets a test play sideband events and close the call.
 export function fakeRealtime() {
-  const calls: { sdp: string; session: RealtimeSession; callId: string }[] = [];
+  const calls: { sdp: string; session: RealtimeSession; callId: string; avoid?: string }[] = [];
   const sidebands = new Map<
     string,
     { sent: any[]; hungUp: boolean; emit: (e: RealtimeEvent) => Promise<void>; close: () => Promise<void> }
   >();
   const realtime: Realtime = {
-    async createCall(sdp, session) {
+    async createCall(sdp, session, avoid) {
       const callId = `rtc_${calls.length + 1}`;
-      calls.push({ sdp, session, callId });
+      calls.push({ sdp, session, callId, avoid });
       return { answer: `v=0 answer for ${callId}`, callId, provider: "openai" as const };
     },
     attach(callId, { onEvent, onClose }) {
