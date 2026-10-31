@@ -1,7 +1,7 @@
 import { schema } from "@fluently/db";
 import type { UIMessage } from "ai";
 import { and, eq, lt, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { AppEnv, Deps, Schedule } from "./app";
 
 export type RealtimeEvent = { type: string; [key: string]: any };
@@ -9,16 +9,28 @@ export type RealtimeSession = Record<string, unknown>;
 // Hangup confirms provider teardown; it must not wait for the socket's onClose handler.
 export type Sideband = { send(event: object): void; hangup(): Promise<void> };
 
-// Thin client over OpenAI Realtime, faked in tests.
+export type Provider = "openai" | "rime";
+// The browser's end of a Rime call, as the API's WebSocket route sees it.
+export type BrowserSocket = { send(data: string): void; close(code?: number): void };
+
+// Thin client over a speech-to-speech provider (OpenAI Realtime or Rime Prism, ADR 0005), faked in tests.
 export type Realtime = {
-  // Posts the browser's SDP offer with the owner's key; the answer goes back to the browser, the call id stays here.
-  createCall(sdp: string, session: RealtimeSession): Promise<{ answer: string; callId: string }>;
-  // Opens the server's sideband connection to a live call.
+  // Starts a call with the owner's key. OpenAI answers the browser's SDP offer over WebRTC; Rime has no answer,
+  // and the browser joins over the API's WebSocket instead. The call id stays here.
+  createCall(sdp: string, session: RealtimeSession): Promise<{ answer?: string; callId: string; provider: Provider }>;
+  // Opens the server's sideband connection to a live call. `failed` is false when the provider ended it normally.
   attach(
     callId: string,
-    handlers: { onEvent(e: RealtimeEvent): void | Promise<void>; onClose(): void | Promise<void> },
+    handlers: { onEvent(e: RealtimeEvent): void | Promise<void>; onClose(failed?: boolean): void | Promise<void> },
   ): Sideband;
+  // Connects the browser's WebSocket to a Rime call; undefined when there's no such call to join.
+  join?(callId: string, browser: BrowserSocket): { message(data: string): void; close(): void } | undefined;
 };
+
+export function pick<T>(list: readonly T[]) {
+  return list[Math.floor(Math.random() * list.length)]!;
+}
+const openaiVoices = ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"];
 
 const API = "https://api.openai.com/v1/realtime";
 
@@ -28,7 +40,14 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
     async createCall(sdp, session) {
       const body = new FormData();
       body.set("sdp", sdp);
-      body.set("session", JSON.stringify({ ...session, model }));
+      body.set(
+        "session",
+        JSON.stringify({
+          ...session,
+          model,
+          audio: { ...(session.audio as object), output: { voice: pick(openaiVoices) } },
+        }),
+      );
       const res = await fetch(`${API}/calls`, {
         method: "POST",
         headers: { authorization },
@@ -38,7 +57,7 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
       if (!res.ok) throw new Error(`OpenAI Realtime ${res.status}: ${await res.text()}`);
       const callId = res.headers.get("location")?.split("/").pop();
       if (!callId) throw new Error("OpenAI Realtime returned no call id");
-      return { answer: await res.text(), callId };
+      return { answer: await res.text(), callId, provider: "openai" };
     },
     attach(callId, { onEvent, onClose }) {
       // Bun's WebSocket takes headers, which browsers' doesn't.
@@ -51,7 +70,7 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
       ws.onclose = () => {
         if (hungUp) return;
         void Promise.resolve()
-          .then(onClose)
+          .then(() => onClose())
           .catch((error) => console.error("realtime close failed", error));
       };
       const send = (event: object) =>
@@ -123,6 +142,7 @@ type Live = {
   ready: Promise<void>;
   closed: Promise<SaveFailure | undefined>;
   targetId?: string;
+  callId?: string;
   startedAt?: Date;
   endsAt?: Date;
 };
@@ -199,7 +219,7 @@ export function realtimeBroker({
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
     const deadline = opts.budgetSeconds === undefined ? undefined : now().getTime() + opts.budgetSeconds * 1000;
 
-    let call: { answer: string; callId: string };
+    let call: Awaited<ReturnType<Realtime["createCall"]>>;
     let budgetSeconds: number;
     try {
       const budget = await voiceMinutes(userId);
@@ -220,6 +240,7 @@ export function realtimeBroker({
 
     const startedAt = now();
     entry.startedAt = startedAt;
+    entry.callId = call.callId;
     entry.endsAt = new Date(Math.min(startedAt.getTime() + budgetSeconds * 1000, deadline ?? Infinity));
     const timers: (() => void)[] = [];
     const transcript: UIMessage[] = [];
@@ -348,7 +369,7 @@ export function realtimeBroker({
         ),
       );
     }
-    return { answer: call.answer };
+    return { answer: call.answer, callId: call.callId };
   }
 
   // Hangs up the Learner's live call, if any, and waits until its transcript and usage are saved.
@@ -377,9 +398,18 @@ export function realtimeBroker({
     }));
   }
 
-  return { start, hangup, voiceMinutes, shutdown };
+  // Whether `callId` is the Learner's live call, so only its owner can join it.
+  const owns = (userId: string, callId: string) => live.get(userId)?.callId === callId;
+
+  return { start, hangup, voiceMinutes, shutdown, owns };
 }
 export type RealtimeBroker = ReturnType<typeof realtimeBroker>;
+
+// OpenAI's SDP answer goes straight back; for Rime the browser opens the API's WebSocket to the call instead.
+export const answerCall = (c: Context<AppEnv>, call: { answer?: string; callId: string }) =>
+  call.answer === undefined
+    ? c.json({ provider: "rime", socket: `/api/realtime/${call.callId}` }, 201)
+    : c.body(call.answer, 201, { "content-type": "application/sdp" });
 
 export const voiceMinutesRoute = (broker: RealtimeBroker) =>
   new Hono<AppEnv>().get("/", async (c) => c.json(await broker.voiceMinutes(c.var.user.id)));

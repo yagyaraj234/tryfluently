@@ -67,14 +67,14 @@ export function fakeRealtime() {
     async createCall(sdp, session) {
       const callId = `rtc_${calls.length + 1}`;
       calls.push({ sdp, session, callId });
-      return { answer: `v=0 answer for ${callId}`, callId };
+      return { answer: `v=0 answer for ${callId}`, callId, provider: "openai" as const };
     },
     attach(callId, { onEvent, onClose }) {
       const sb = {
         sent: [] as any[],
         hungUp: false,
         emit: async (e: RealtimeEvent) => void (await onEvent(e)),
-        close: async () => onClose(),
+        close: async (failed?: boolean) => onClose(failed),
       };
       sidebands.set(callId, sb);
       return {
