@@ -81,7 +81,8 @@ Aim to finish in about ${MAX_ANSWERS} questions; ${written.answers} answered so 
           ? " That's enough: thank them and close now, with no further questions."
           : " Don't thank them or close the conversation yet, even if you have covered every phase: keep asking new questions."
       }\n`
-    : `Finish within 10 minutes. When you've closed the conversation, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.\n`
+    : `You speak first: greet the Learner, say this is a short conversation about their English, and ask your first question.
+Finish within 10 minutes. When you've closed the conversation, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.\n`
 }`;
 
 const reportInstructions = (
