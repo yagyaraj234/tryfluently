@@ -200,6 +200,21 @@ describe("resuming a dropped voice call (ADR 0005)", () => {
     expect(realtime.calls.map((c) => c.voiceKey)).toEqual([id, id]);
   });
 
+  test("the resumed call starts from everything the dropped one saved, including turns saved while it hung up", async () => {
+    const { app, realtime } = setup();
+    const { cookie } = await signUp(app);
+    const id = await startVoice(app, cookie);
+    await app.request(`/api/assessments/${id}/call`, sdp(cookie));
+    const sb = realtime.sideband();
+    sb.onHangup = async () => {
+      for (const e of coachTurn("c1", "What do you do at work?")) await sb.emit(e);
+    };
+
+    expect((await app.request(resume(id, "openai"), sdp(cookie))).status).toBe(201);
+    expect(realtime.calls[1]!.session.instructions).toContain("You: What do you do at work?");
+    expect((await read(app, cookie, id)).transcript).toHaveLength(1);
+  });
+
   test("a call the coach ended can't be resumed", async () => {
     const { app, realtime } = setup();
     const { cookie } = await signUp(app);

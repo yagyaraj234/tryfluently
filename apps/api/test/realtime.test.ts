@@ -420,6 +420,7 @@ describe("Realtime resume", () => {
     expect(instructions).toStartWith("Speak English");
     expect(instructions).toContain("You: Tell me about your last project.\nLearner: I built a payments API.");
     expect(instructions).toContain("don't greet the Learner again");
+    expect(realtime.calls[0]!.session.instructions).toBe(instructions);
   });
 
   test("a first call keeps its instructions unchanged", async () => {

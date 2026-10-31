@@ -405,3 +405,14 @@ test("Rime: the API closing the socket resumes the call away from Rime once, the
   g.sockets[0].onclose();
   assert.equal(second.last().status, "ended");
 });
+
+test("Rime: a socket that never opens resumes the call away from Rime instead of failing", async () => {
+  const f = rimeFakes();
+  const { last } = start(f);
+  await settle();
+  f.sockets[0].onerror?.();
+  f.sockets[0].onclose();
+  assert.equal(last().status, "reconnecting");
+  await settle();
+  assert.equal(f.sent[1].url, "/api/assessments/7/call?after=rime");
+});
