@@ -92,7 +92,12 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000, joinMs = 15_000 
           ws.send(
             JSON.stringify({
               type: "session.update",
-              session: { voice: call.voice, tools: session.tools ?? [], prism_client_caps: ["playback_drained"] },
+              session: {
+                voice: call.voice,
+                instructions: session.instructions,
+                tools: session.tools ?? [],
+                prism_client_caps: ["playback_drained"],
+              },
             }),
           );
         ws.onclose = (c) => fail(`closed ${c.code} during setup`);
