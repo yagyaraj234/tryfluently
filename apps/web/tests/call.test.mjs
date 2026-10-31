@@ -132,7 +132,7 @@ test("hanging up releases the microphone and closes the connection, and is not a
   assert.ok(!states.some((s) => s.status === "dropped"));
 });
 
-test("a connection that fails is reported once as dropped, and the microphone is released", async () => {
+test("a connection that fails resumes once away from its provider; failing again is reported once as dropped", async () => {
   const f = fakes();
   const { states, last } = start(f);
   await settle();
@@ -141,10 +141,38 @@ test("a connection that fails is reported once as dropped, and the microphone is
   peer.become("disconnected");
   assert.equal(last().status, "reconnecting");
   peer.become("failed");
+  assert.equal(last().status, "reconnecting");
+  assert.equal(peer.closed, true);
+  assert.equal(f.track.stopped, false, "the microphone stays for the resumed call");
+  await settle();
+  assert.equal(f.sent[1].url, "/api/assessments/7/call?after=openai");
+  const second = f.peers[1];
+  assert.deepEqual(second.added, [[f.track, f.stream]]);
+  peer.become("failed");
+  second.become("connected");
+  assert.equal(last().status, "live");
+
+  second.become("failed");
   assert.equal(last().status, "dropped");
   assert.equal(f.track.stopped, true);
-  assert.equal(peer.closed, true);
+  assert.equal(second.closed, true);
   assert.equal(states.filter((s) => s.status === "dropped").length, 1);
+});
+
+test("a refused resume (the coach ended the call) is a drop, not a failure", async () => {
+  let posts = 0;
+  const f = fakes({
+    reply: () =>
+      posts++
+        ? Response.json({ error: "This call has ended" }, { status: 409 })
+        : new Response("answer-sdp", { status: 201, headers: { "content-type": "application/sdp" } }),
+  });
+  const { last } = start(f);
+  await settle();
+  f.peers[0].become("failed");
+  await settle();
+  assert.deepEqual(last(), { status: "dropped" });
+  assert.equal(f.track.stopped, true);
 });
 
 test("a connection that recovers goes back to live", async () => {
@@ -340,15 +368,22 @@ test("Rime: talking over the coach stops playback and truncates; finished playba
   assert.equal(changes.at(-1).phase, "listening");
 });
 
-test("Rime: the API closing the socket drops the call; hanging up does not", async () => {
+test("Rime: the API closing the socket resumes the call away from Rime once, then drops it; hanging up does not", async () => {
   const f = rimeFakes();
   const { last } = start(f);
   await settle();
   f.sockets[0].open();
   await settle();
   f.sockets[0].onclose();
-  assert.equal(last().status, "dropped");
+  assert.equal(last().status, "reconnecting");
   assert.equal(f.audio.closed, true);
+  await settle();
+  assert.equal(f.sent[1].url, "/api/assessments/7/call?after=rime");
+  f.sockets[1].open();
+  await settle();
+  assert.equal(last().status, "live");
+  f.sockets[1].onclose();
+  assert.equal(last().status, "dropped");
   assert.equal(f.track.stopped, true);
 
   const g = rimeFakes();

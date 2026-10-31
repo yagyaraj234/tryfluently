@@ -106,16 +106,27 @@ export function startCall(
   let audio: Pcm | undefined;
   let stopPlayback: void | (() => void);
   let conversation: ConversationState = { phase: "ready" };
+  // Which connection is current, the provider the API put it on, and whether a drop was already resumed (ADR 0005).
+  let attempt = 0;
+  let provider: "openai" | "rime" | undefined;
+  let resumed = false;
 
-  const stop = (state: CallState) => {
-    if (over) return;
-    over = true;
-    for (const track of stream?.getTracks() ?? []) track.stop();
+  // Lets go of the connection, but not the microphone.
+  const release = () => {
+    attempt++;
     channel?.close();
     socket?.close();
     audio?.close();
     stopPlayback?.();
     peer?.close();
+    channel = socket = audio = stopPlayback = peer = undefined;
+  };
+
+  const stop = (state: CallState) => {
+    if (over) return;
+    over = true;
+    for (const track of stream?.getTracks() ?? []) track.stop();
+    release();
     onChange(state);
   };
 
@@ -128,8 +139,18 @@ export function startCall(
     }
   };
 
+  // A dropped call reconnects once, on the other provider; the API carries the conversation over.
+  const dropped = () => {
+    if (over) return;
+    if (resumed || !provider) return stop({ status: "dropped" });
+    resumed = true;
+    release();
+    onChange({ status: "reconnecting" });
+    void connect(`${url}?after=${provider}`);
+  };
+
   // Rime: the coach's audio arrives as PCM chunks, so the browser plays it and tells Prism what was heard.
-  const joinRime = async (path: string, mic: MediaStream) => {
+  const joinRime = async (path: string, mic: MediaStream, current: () => boolean) => {
     const ws = (socket = deps.socket(path));
     const send = (event: object) => ws.readyState === 1 && ws.send(JSON.stringify(event));
     let speaking: string | undefined;
@@ -138,12 +159,12 @@ export function startCall(
       if (drain) send({ type: "prism.playback.drained", drain_token: drain });
       drain = undefined;
     };
-    ws.onclose = () => stop({ status: "dropped" });
+    ws.onclose = () => current() && dropped();
     await new Promise((resolve, reject) => {
       ws.onopen = resolve;
       ws.onerror = reject;
     });
-    const sound = (audio = await deps.pcm(
+    const sound = await deps.pcm(
       mic,
       (chunk) => send({ type: "input_audio_buffer.append", audio: chunk }),
       () => {
@@ -151,8 +172,9 @@ export function startCall(
         show({ type: "output_audio_buffer.stopped" });
         drained();
       },
-    ));
-    if (over) return sound.close();
+    );
+    if (!current()) return sound.close();
+    audio = sound;
     stopPlayback = deps.play(sound.output);
     onChange({ status: "live" });
     ws.onmessage = (message) => {
@@ -182,6 +204,60 @@ export function startCall(
     };
   };
 
+  // Posts a WebRTC offer to `target`. OpenAI answers it; Rime answers with a WebSocket to join instead.
+  const connect = async (target: string) => {
+    const mine = attempt;
+    const current = () => !over && mine === attempt;
+    // A refused or failed resume ends the call as dropped, as the first drop would have without it.
+    const failed = (response?: { status: number; body: unknown }) =>
+      current() && stop(target === url ? { status: "failed", ...(response && { response }) } : { status: "dropped" });
+    const mic = stream!;
+    try {
+      const pc = (peer = new deps.RTCPeerConnection());
+      for (const track of mic.getTracks()) pc.addTrack(track, mic);
+      pc.ontrack = (event) => {
+        if (current()) stopPlayback = deps.play(event.streams[0]!);
+      };
+      channel = pc.createDataChannel("oai-events");
+      channel.onmessage = (message) => {
+        try {
+          if (current()) show(JSON.parse(message.data));
+        } catch {
+          /* Ignore malformed or unrelated data-channel events. */
+        }
+      };
+      pc.onconnectionstatechange = () => {
+        if (!current()) return;
+        if (pc.connectionState === "connected") onChange({ status: "live" });
+        else if (pc.connectionState === "disconnected") onChange({ status: "reconnecting" });
+        else if (pc.connectionState === "failed") dropped();
+      };
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const response = await deps.fetch(target, {
+        method: "POST",
+        headers: { "content-type": "application/sdp" },
+        body: offer.sdp,
+      });
+      if (!current()) return;
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        return failed({ status: response.status, body });
+      }
+      if (response.headers.get("content-type")?.includes("application/json")) {
+        provider = "rime";
+        const { socket: path } = (await response.json()) as { socket: string };
+        pc.close();
+        return await joinRime(path, mic, current);
+      }
+      provider = "openai";
+      const sdp = await response.text();
+      if (current()) await pc.setRemoteDescription({ type: "answer", sdp });
+    } catch {
+      failed();
+    }
+  };
+
   void (async () => {
     try {
       stream = await deps.getUserMedia({ audio: true });
@@ -189,49 +265,7 @@ export function startCall(
       return stop({ status: "microphone" });
     }
     if (over) return void stream.getTracks().forEach((track) => track.stop());
-    try {
-      peer = new deps.RTCPeerConnection();
-      const pc = peer;
-      for (const track of stream.getTracks()) pc.addTrack(track, stream);
-      pc.ontrack = (event) => {
-        if (!over) stopPlayback = deps.play(event.streams[0]!);
-      };
-      channel = pc.createDataChannel("oai-events");
-      channel.onmessage = (message) => {
-        try {
-          show(JSON.parse(message.data));
-        } catch {
-          /* Ignore malformed or unrelated data-channel events. */
-        }
-      };
-      pc.onconnectionstatechange = () => {
-        if (over) return;
-        if (pc.connectionState === "connected") onChange({ status: "live" });
-        else if (pc.connectionState === "disconnected") onChange({ status: "reconnecting" });
-        else if (pc.connectionState === "failed") stop({ status: "dropped" });
-      };
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      const response = await deps.fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/sdp" },
-        body: offer.sdp,
-      });
-      if (over) return;
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        return stop({ status: "failed", response: { status: response.status, body } });
-      }
-      if (response.headers.get("content-type")?.includes("application/json")) {
-        const { socket: path } = (await response.json()) as { socket: string };
-        pc.close();
-        return await joinRime(path, stream);
-      }
-      const sdp = await response.text();
-      if (!over) await pc.setRemoteDescription({ type: "answer", sdp });
-    } catch {
-      stop({ status: "failed" });
-    }
+    await connect(url);
   })();
 
   return {
