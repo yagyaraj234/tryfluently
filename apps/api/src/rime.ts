@@ -51,7 +51,7 @@ type Call = {
   opening?: "wanted" | "sent";
 };
 
-export const rimeRealtime = (apiKey: string, { setupMs = 5_000 } = {}): Realtime => {
+export const rimeRealtime = (apiKey: string, { setupMs = 5_000, joinMs = 15_000 } = {}): Realtime => {
   // shortcut: calls live in memory, like the broker's; one API instance only.
   const calls = new Map<string, Call>();
 
@@ -92,7 +92,12 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000 } = {}): Realtime
           ws.send(
             JSON.stringify({
               type: "session.update",
-              session: { voice: call.voice, tools: session.tools ?? [], prism_client_caps: ["playback_drained"] },
+              session: {
+                voice: call.voice,
+                instructions: session.instructions,
+                tools: session.tools ?? [],
+                prism_client_caps: ["playback_drained"],
+              },
             }),
           );
         ws.onclose = (c) => fail(`closed ${c.code} during setup`);
@@ -115,7 +120,14 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000 } = {}): Realtime
         forward(call, e);
         emit(call, e);
       };
+      // A browser that never joins (a closed tab, a blocked socket) mustn't hold the Learner's call slot and minutes.
+      const joinTimer = setTimeout(() => {
+        if (call.browser || call.ended) return;
+        call.ended = "left";
+        ws.close(1000);
+      }, joinMs);
       ws.onclose = (c) => {
+        clearTimeout(joinTimer);
         calls.delete(callId);
         if (call.ended === "hangup") return;
         // 1000 is Prism's idle timeout, or the browser leaving; 1001 (draining) and 1011 (VAD failure) are failures.

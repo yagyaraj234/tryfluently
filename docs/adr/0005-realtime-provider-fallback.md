@@ -10,20 +10,20 @@ Decided 31 October 2026. Partly supersedes [0001](0001-openai-realtime-voice.md)
 
 **The broker stays provider-blind.** The Rime adapter renames Prism events to the names the broker already handles. `response.text.done` becomes the coach's transcript. The browser's `prism.playback.drained` stands in for `output_audio_buffer.stopped`, which ends a call after the closing line of an `end_call`. Call limits, wrap-up, hangup and transcripts keep one implementation.
 
-**Fallback is automatic, in both directions.** If a call fails to connect within 5 seconds, or fails partway through, the browser makes the same call request again and the API starts it on the other provider. Failures are:
+**Fallback is automatic, in both directions.** If a call fails to connect (Prism gets 5 seconds to set up), or fails partway through, the browser makes the same call request again and the API starts it on the other provider. Failures are:
 
 - a connection error or timeout
 - a socket that closes before we hang up
 - close code 1001 or 1011
-- a Prism `error` event
+- a browser that can't open the Rime socket (this switches the call but doesn't trip the breaker below, because the server can't tell it from one Learner's network)
 
-Hanging up, `end_call`, the allowance, the Assessment deadline and Prism's 5-minute idle timeout end a call normally. A call switches provider at most once. If the second provider also drops, the Learner sees the existing "dropped" state. During the switch they see "Reconnecting…", and the coach's voice changes.
+Hanging up, `end_call`, the allowance, the Assessment deadline, Prism's 5-minute idle timeout and a browser that doesn't join a Rime call within 15 seconds end a call normally. A call switches provider at most once. If the second provider also drops, the Learner sees the existing "dropped" state. During the switch they see "Reconnecting…", and the coach's voice changes.
 
 **A circuit breaker remembers failures.** After a failure, the API sends new calls to the other provider for 5 minutes, then tries the primary again. Nobody watches it or edits env vars. The breaker lives in memory, like the broker's call registry, so it holds for one API instance. OpenAI's mid-call closes don't trip it yet, because its close codes aren't classified. The dropped call still moves to Rime when the browser resumes it.
 
-**A new call continues the conversation.** Any call that starts with a saved transcript gets it in its instructions and is told not to greet the Learner again. This covers fallback and a manual retry after a drop.
+**A new call continues the conversation.** Any call that starts with a saved transcript gets it in its instructions and is told not to greet the Learner again. The coach still speaks first: it opens a new call, and picks a resumed one up where it stopped. This covers fallback and a manual retry after a drop.
 
-**Voices are random per call.** Each call picks a voice at random from its provider's list.
+**Voices follow the Roleplay or Assessment.** Each call picks its provider's voice from the Roleplay or Assessment id, so a retry on the same provider keeps the voice. A switch to the other provider changes it, because the two lists differ.
 
 **Usage records the provider.** Each attempt writes its own `ai_usage` row with `provider` in its `usage` JSON. Every attempt's seconds count toward the shared monthly allowance.
 

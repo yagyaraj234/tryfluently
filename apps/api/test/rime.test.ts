@@ -51,9 +51,9 @@ const browserSocket = () => {
 };
 
 // Starts a Rime call against FakePrism, attached the way the broker does it.
-async function rimeCall() {
-  const rime = rimeRealtime("rime-key");
-  const pending = rime.createCall("ignored-sdp", { type: "realtime", tools: [{ name: "end_call" }] });
+async function rimeCall(options?: Parameters<typeof rimeRealtime>[1], session = {}) {
+  const rime = rimeRealtime("rime-key", options);
+  const pending = rime.createCall("ignored-sdp", { type: "realtime", tools: [{ name: "end_call" }], ...session });
   await settle();
   const prism = FakePrism.all.at(-1)!;
   prism.emit({ type: "session.updated" });
@@ -78,12 +78,16 @@ describe("Rime Prism provider", () => {
   });
 
   test("a call opens Prism with the key, a Rime voice and the end-call tool, and has no SDP answer", async () => {
-    const { prism, call } = await rimeCall();
+    const { prism, call } = await rimeCall({}, { instructions: "Speak English" });
     expect(prism.url).toBe("wss://prism.api.rime.ai/v1/realtime");
     expect(prism.init.headers.authorization).toBe("Bearer rime-key");
     expect(prism.sent[0]).toMatchObject({
       type: "session.update",
-      session: { tools: [{ name: "end_call" }], prism_client_caps: ["playback_drained"] },
+      session: {
+        instructions: "Speak English",
+        tools: [{ name: "end_call" }],
+        prism_client_caps: ["playback_drained"],
+      },
     });
     expect(["astra", "aurora", "brando", "wawona"]).toContain(prism.sent[0].session.voice);
     expect(call).toEqual({ callId: expect.stringMatching(/^rime_/), provider: "rime" });
@@ -178,6 +182,18 @@ describe("Rime Prism provider", () => {
     c.prism.drop(1000);
     await settle();
     expect([...a.closes, ...b.closes, ...c.closes]).toEqual([true, false, false]);
+  });
+
+  test("a call the browser never joins is closed normally, so it doesn't hold the slot; a joined one stays", async () => {
+    const lost = await rimeCall({ joinMs: 5 });
+    const joined = await rimeCall({ joinMs: 5 });
+    joined.rime.join!(joined.call.callId, browserSocket());
+    await new Promise((r) => setTimeout(r, 10));
+    expect(lost.prism.closed).toBe(1000);
+    expect(joined.prism.closed).toBeUndefined();
+    lost.prism.drop(1000);
+    await settle();
+    expect(lost.closes).toEqual([false]);
   });
 
   test("hanging up closes Prism and the browser without reporting a close", async () => {

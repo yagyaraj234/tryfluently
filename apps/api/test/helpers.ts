@@ -62,7 +62,14 @@ export function fakeRealtime() {
   const calls: { sdp: string; session: RealtimeSession; callId: string; avoid?: string; voiceKey?: string }[] = [];
   const sidebands = new Map<
     string,
-    { sent: any[]; hungUp: boolean; emit: (e: RealtimeEvent) => Promise<void>; close: () => Promise<void> }
+    {
+      sent: any[];
+      hungUp: boolean;
+      // Runs while the provider is hanging up, as late sideband events do.
+      onHangup?: () => Promise<void>;
+      emit: (e: RealtimeEvent) => Promise<void>;
+      close: () => Promise<void>;
+    }
   >();
   const realtime: Realtime = {
     async createCall(sdp, session, avoid, voiceKey) {
@@ -74,6 +81,7 @@ export function fakeRealtime() {
       const sb = {
         sent: [] as any[],
         hungUp: false,
+        onHangup: undefined as undefined | (() => Promise<void>),
         emit: async (e: RealtimeEvent) => void (await onEvent(e)),
         close: async (failed?: boolean) => onClose(failed),
       };
@@ -82,6 +90,7 @@ export function fakeRealtime() {
         send: (e: object) => void sb.sent.push(e),
         hangup: async () => {
           sb.hungUp = true;
+          await sb.onHangup?.();
         },
       };
     },
