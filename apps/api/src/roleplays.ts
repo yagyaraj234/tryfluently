@@ -158,7 +158,8 @@ do not use a prewritten list or ask several questions together. Do not agree, pr
 answer. Stay in character and probe unclear claims, trade-offs, decisions, and outcomes. The Learner is practising English:
 never correct them or give feedback during the Roleplay, and never judge whether their technical answers are right.${
     spoken
-      ? `\nWhen the conversation is complete, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.`
+      ? `\nYou speak first: in one or two sentences, say who you are and set the scene, then ask your first question.
+When the conversation is complete, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.`
       : ""
   }`;
 

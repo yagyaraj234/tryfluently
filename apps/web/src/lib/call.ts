@@ -150,7 +150,7 @@ export function startCall(
   };
 
   // Rime: the coach's audio arrives as PCM chunks, so the browser plays it and tells Prism what was heard.
-  const joinRime = async (path: string, mic: MediaStream, current: () => boolean) => {
+  const joinRime = async (path: string, mic: MediaStream, current: () => boolean, first: boolean) => {
     const ws = (socket = deps.socket(path));
     const send = (event: object) => ws.readyState === 1 && ws.send(JSON.stringify(event));
     let speaking: string | undefined;
@@ -177,6 +177,7 @@ export function startCall(
     audio = sound;
     stopPlayback = deps.play(sound.output);
     onChange({ status: "live" });
+    if (first) send({ type: "response.create" });
     ws.onmessage = (message) => {
       let e: Record<string, any>;
       try {
@@ -208,6 +209,8 @@ export function startCall(
   const connect = async (target: string) => {
     const mine = attempt;
     const current = () => !over && mine === attempt;
+    // The coach opens a new call; a resumed one carries on from where it dropped.
+    const first = !resumed;
     // A refused or failed resume ends the call as dropped, as the first drop would have without it.
     const failed = (response?: { status: number; body: unknown }) =>
       current() && stop(target === url ? { status: "failed", ...(response && { response }) } : { status: "dropped" });
@@ -218,7 +221,8 @@ export function startCall(
       pc.ontrack = (event) => {
         if (current()) stopPlayback = deps.play(event.streams[0]!);
       };
-      channel = pc.createDataChannel("oai-events");
+      const events = (channel = pc.createDataChannel("oai-events"));
+      events.onopen = () => current() && first && events.send(JSON.stringify({ type: "response.create" }));
       channel.onmessage = (message) => {
         try {
           if (current()) show(JSON.parse(message.data));
@@ -248,7 +252,7 @@ export function startCall(
         provider = "rime";
         const { socket: path } = (await response.json()) as { socket: string };
         pc.close();
-        return await joinRime(path, mic, current);
+        return await joinRime(path, mic, current, first);
       }
       provider = "openai";
       const sdp = await response.text();

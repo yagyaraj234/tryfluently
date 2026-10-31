@@ -16,6 +16,15 @@ const toBrowser = new Set([
   "response.done",
 ]);
 const fromBrowser = new Set(["input_audio_buffer.append", "conversation.item.truncate", "prism.playback.drained"]);
+// The browser's response.create becomes this, once per call: the coach opens the conversation. Prism's nudge
+// says nothing without an instruction; the brief says how to open.
+const opening = JSON.stringify({
+  type: "response.create",
+  response: {
+    prism_instruction: "Open the call now, as your instructions say.",
+    metadata: { prism_cause: "proactive" },
+  },
+});
 
 // Prism names the coach's words as text events; the broker and browser use OpenAI's audio-transcript names.
 const rename = (e: RealtimeEvent): RealtimeEvent =>
@@ -37,6 +46,9 @@ type Call = {
   onClose?: (failed?: boolean) => void | Promise<void>;
   // Closed by us (hangup) or by the browser leaving: not a provider failure.
   ended?: "hangup" | "left";
+  // Prism takes a nudge only while idle, and says so once, when it becomes idle.
+  idle?: boolean;
+  opening?: "wanted" | "sent";
 };
 
 export const rimeRealtime = (apiKey: string, { setupMs = 5_000 } = {}): Realtime => {
@@ -45,6 +57,11 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000 } = {}): Realtime
 
   const emit = (call: Call, e: RealtimeEvent) =>
     void Promise.resolve(call.onEvent?.(e)).catch((error) => console.error("realtime event failed", error));
+
+  const open = (call: Call) => {
+    call.opening = "sent";
+    call.ws.send(opening);
+  };
 
   const forward = (call: Call, e: RealtimeEvent) => {
     if (!toBrowser.has(e.type)) return;
@@ -90,6 +107,9 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000 } = {}): Realtime
       ws.onmessage = (m) => {
         const e = rename(JSON.parse(String(m.data)));
         if (e.type === "error") console.error("Rime Prism error", e.error);
+        if (e.type === "prism.typed_input.ready") call.idle = true;
+        else if (e.type === "response.created" || e.type === "input_audio_buffer.speech_started") call.idle = false;
+        if (call.idle && call.opening === "wanted") open(call);
         const token = e.type === "response.done" && e.response?.metadata?.prism_drain_token;
         if (token) call.drains.set(token, e.response.id);
         forward(call, e);
@@ -140,7 +160,14 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000 } = {}): Realtime
           } catch {
             return;
           }
-          if (!fromBrowser.has(e?.type) || call.ws.readyState !== WebSocket.OPEN) return;
+          if (call.ws.readyState !== WebSocket.OPEN) return;
+          if (e?.type === "response.create") {
+            if (call.opening) return;
+            call.opening = "wanted";
+            if (call.idle) open(call);
+            return;
+          }
+          if (!fromBrowser.has(e?.type)) return;
           call.ws.send(data);
           const responseId = e.type === "prism.playback.drained" && call.drains.get(e.drain_token);
           if (responseId) {
