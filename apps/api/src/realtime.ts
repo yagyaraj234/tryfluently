@@ -141,7 +141,7 @@ export const resumeFrom = (prior: UIMessage[]) => {
     return text ? [`${m.role === "user" ? "Learner" : "You"}: ${text}`] : [];
   });
   return lines.length
-    ? `\n\nThe call dropped and has reconnected. The conversation so far:\n${lines.join("\n").slice(-12_000)}\nContinue from where it stopped: don't greet the Learner again or start over.`
+    ? `\n\nThe call dropped and has reconnected. The conversation so far:\n${lines.join("\n").slice(-12_000)}\nSpeak first and carry on from where it stopped: don't greet the Learner again or start over.`
     : "";
 };
 
