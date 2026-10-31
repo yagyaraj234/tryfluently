@@ -407,3 +407,26 @@ describe("Realtime close failures", () => {
     expect(await testDb.select().from(schema.aiUsage).where(eq(schema.aiUsage.userId, userId))).toHaveLength(1);
   });
 });
+
+describe("Realtime resume", () => {
+  test("a call after a drop carries the saved transcript, so the coach continues instead of greeting again", async () => {
+    const { userId, realtime, broker } = await setup();
+    const prior: UIMessage[] = [
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "Tell me about your last project." }] },
+      { id: "u1", role: "user", parts: [{ type: "text", text: "I built a payments API." }] },
+    ];
+    await broker.start(userId, { ...opts(async () => {}), prior });
+    const { instructions } = realtime.sideband().sent.find((e) => e.type === "session.update").session;
+    expect(instructions).toStartWith("Speak English");
+    expect(instructions).toContain("You: Tell me about your last project.\nLearner: I built a payments API.");
+    expect(instructions).toContain("don't greet the Learner again");
+  });
+
+  test("a first call keeps its instructions unchanged", async () => {
+    const { userId, realtime, broker } = await setup();
+    await broker.start(userId, { ...opts(async () => {}), prior: [] });
+    expect(realtime.sideband().sent.find((e) => e.type === "session.update").session.instructions).toBe(
+      "Speak English",
+    );
+  });
+});
