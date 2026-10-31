@@ -1,7 +1,7 @@
 import { schema } from "@fluently/db";
 import type { UIMessage } from "ai";
 import { and, eq, lt, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { AppEnv, Deps, Schedule } from "./app";
 
 export type RealtimeEvent = { type: string; [key: string]: any };
@@ -9,26 +9,55 @@ export type RealtimeSession = Record<string, unknown>;
 // Hangup confirms provider teardown; it must not wait for the socket's onClose handler.
 export type Sideband = { send(event: object): void; hangup(): Promise<void> };
 
-// Thin client over OpenAI Realtime, faked in tests.
+export type Provider = "openai" | "rime";
+// The browser's end of a Rime call, as the API's WebSocket route sees it.
+export type BrowserSocket = { send(data: string): void; close(code?: number): void };
+
+// Thin client over a speech-to-speech provider (OpenAI Realtime or Rime Prism, ADR 0005), faked in tests.
 export type Realtime = {
-  // Posts the browser's SDP offer with the owner's key; the answer goes back to the browser, the call id stays here.
-  createCall(sdp: string, session: RealtimeSession): Promise<{ answer: string; callId: string }>;
-  // Opens the server's sideband connection to a live call.
+  // Starts a call with the owner's key. OpenAI answers the browser's SDP offer over WebRTC; Rime has no answer,
+  // and the browser joins over the API's WebSocket instead. The call id stays here. `avoid` is the provider a resumed
+  // call dropped from; `voiceKey` picks the voice, so a call that reconnects keeps the voice it started with.
+  createCall(
+    sdp: string,
+    session: RealtimeSession,
+    avoid?: Provider,
+    voiceKey?: string,
+  ): Promise<{ answer?: string; callId: string; provider: Provider }>;
+  // Opens the server's sideband connection to a live call. `failed` is false when the provider ended it normally.
   attach(
     callId: string,
-    handlers: { onEvent(e: RealtimeEvent): void | Promise<void>; onClose(): void | Promise<void> },
+    handlers: { onEvent(e: RealtimeEvent): void | Promise<void>; onClose(failed?: boolean): void | Promise<void> },
   ): Sideband;
+  // Connects the browser's WebSocket to a Rime call; undefined when there's no such call to join.
+  join?(callId: string, browser: BrowserSocket): { message(data: string): void; close(): void } | undefined;
 };
+
+// Random, or the same item every time for the same key.
+export function pick<T>(list: readonly T[], key?: string) {
+  if (!key) return list[Math.floor(Math.random() * list.length)]!;
+  let hash = 0;
+  for (const c of key) hash = (hash * 31 + c.charCodeAt(0)) | 0;
+  return list[Math.abs(hash) % list.length]!;
+}
+const openaiVoices = ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"];
 
 const API = "https://api.openai.com/v1/realtime";
 
 export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Realtime => {
   const authorization = `Bearer ${apiKey}`;
   return {
-    async createCall(sdp, session) {
+    async createCall(sdp, session, _avoid, voiceKey) {
       const body = new FormData();
       body.set("sdp", sdp);
-      body.set("session", JSON.stringify({ ...session, model }));
+      body.set(
+        "session",
+        JSON.stringify({
+          ...session,
+          model,
+          audio: { ...(session.audio as object), output: { voice: pick(openaiVoices, voiceKey) } },
+        }),
+      );
       const res = await fetch(`${API}/calls`, {
         method: "POST",
         headers: { authorization },
@@ -38,7 +67,7 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
       if (!res.ok) throw new Error(`OpenAI Realtime ${res.status}: ${await res.text()}`);
       const callId = res.headers.get("location")?.split("/").pop();
       if (!callId) throw new Error("OpenAI Realtime returned no call id");
-      return { answer: await res.text(), callId };
+      return { answer: await res.text(), callId, provider: "openai" };
     },
     attach(callId, { onEvent, onClose }) {
       // Bun's WebSocket takes headers, which browsers' doesn't.
@@ -51,7 +80,7 @@ export const openaiRealtime = (apiKey: string, model = sessionConfig.model): Rea
       ws.onclose = () => {
         if (hungUp) return;
         void Promise.resolve()
-          .then(onClose)
+          .then(() => onClose())
           .catch((error) => console.error("realtime close failed", error));
       };
       const send = (event: object) =>
@@ -101,6 +130,21 @@ const WRAP_UP_SECONDS = 60;
 const wrapUp =
   "\n\nAbout a minute is left. Start to wrap up now: ask no new questions, and close the conversation politely.";
 
+// A call that replaces a dropped one carries on from the saved transcript instead of greeting the Learner again.
+// ponytail: keeps the last 12k characters; summarise older turns if long Roleplays lose their opening.
+export const resumeFrom = (prior: UIMessage[]) => {
+  const lines = prior.flatMap((m) => {
+    const text = m.parts
+      .flatMap((p) => (p.type === "text" ? [p.text] : []))
+      .join(" ")
+      .trim();
+    return text ? [`${m.role === "user" ? "Learner" : "You"}: ${text}`] : [];
+  });
+  return lines.length
+    ? `\n\nThe call dropped and has reconnected. The conversation so far:\n${lines.join("\n").slice(-12_000)}\nSpeak first and carry on from where it stopped: don't greet the Learner again or start over.`
+    : "";
+};
+
 type SaveFailure = { error: unknown };
 type Live = {
   sideband?: Sideband;
@@ -108,6 +152,7 @@ type Live = {
   ready: Promise<void>;
   closed: Promise<SaveFailure | undefined>;
   targetId?: string;
+  callId?: string;
   startedAt?: Date;
   endsAt?: Date;
 };
@@ -121,6 +166,9 @@ export function realtimeBroker({
 }: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule; limitMinutes: number }) {
   // shortcut: call slots and timers live in memory; use a durable registry before scaling out or requiring restart recovery.
   const live = new Map<string, Live>();
+  // Targets whose call the coach ended on purpose, so a browser that took the hangup for a drop can't resume them.
+  // ponytail: grows by one id per coach-ended call until restart; prune by age if that ever matters.
+  const ended = new Set<string>();
   let closing: Promise<void> | undefined;
 
   // Count only the portion of each live call inside this UTC calendar month.
@@ -169,10 +217,14 @@ export function realtimeBroker({
       budgetSeconds?: number;
       // What the target already holds from earlier calls; this call's messages are saved after it.
       prior?: unknown[];
+      // Resuming a call that dropped from this provider: the other is tried first (ADR 0005).
+      after?: Provider;
       onTranscript(t: UIMessage[]): Promise<unknown>;
     },
   ) {
     if (closing) return { unavailable: true as const };
+    // The routes hang up the dropped call before reading `prior`, so its last saved turns are in it.
+    if (opts.after && opts.targetId && ended.has(opts.targetId)) return { ended: true as const };
     if (live.has(userId)) return { busy: true as const };
     let ready!: () => void;
     const closed = Promise.withResolvers<SaveFailure | undefined>();
@@ -184,7 +236,9 @@ export function realtimeBroker({
     live.set(userId, entry); // claimed before the network call, so two quick requests can't both start one
     const deadline = opts.budgetSeconds === undefined ? undefined : now().getTime() + opts.budgetSeconds * 1000;
 
-    let call: { answer: string; callId: string };
+    const prior = (opts.prior ?? []) as UIMessage[];
+    const instructions = opts.instructions + resumeFrom(prior);
+    let call: Awaited<ReturnType<Realtime["createCall"]>>;
     let budgetSeconds: number;
     try {
       const budget = await voiceMinutes(userId);
@@ -195,7 +249,13 @@ export function realtimeBroker({
         ready();
         return { capped: budget };
       }
-      call = await realtime.createCall(opts.sdp, opts.tools ? { ...sessionConfig, tools: opts.tools } : sessionConfig);
+      // Instructions go with the call, so they're in place before the browser asks the coach to open it.
+      call = await realtime.createCall(
+        opts.sdp,
+        { ...sessionConfig, instructions, ...(opts.tools && { tools: opts.tools }) },
+        opts.after,
+        opts.targetId,
+      );
     } catch (e) {
       live.delete(userId);
       closed.resolve(undefined);
@@ -205,10 +265,10 @@ export function realtimeBroker({
 
     const startedAt = now();
     entry.startedAt = startedAt;
+    entry.callId = call.callId;
     entry.endsAt = new Date(Math.min(startedAt.getTime() + budgetSeconds * 1000, deadline ?? Infinity));
     const timers: (() => void)[] = [];
     const transcript: UIMessage[] = [];
-    const prior = (opts.prior ?? []) as UIMessage[];
     const priorIds = new Set(prior.map((m) => m.id));
     const timing = new Map<string, { speechStartMs?: number; speechEndMs?: number }>();
     const usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
@@ -223,6 +283,7 @@ export function realtimeBroker({
     const endFromTool = async () => {
       if (ending) return;
       ending = true;
+      if (opts.targetId) ended.add(opts.targetId);
       cancelEndFallback?.();
       await hangup(userId, opts.targetId);
     };
@@ -264,7 +325,7 @@ export function realtimeBroker({
             callId: call.callId,
             startedAt,
             seconds: (endedAt.getTime() - startedAt.getTime()) / 1000,
-            usage: { ...usage, purpose: opts.purpose },
+            usage: { ...usage, purpose: opts.purpose, provider: call.provider },
           });
         } catch (error) {
           failure ??= { error };
@@ -316,7 +377,7 @@ export function realtimeBroker({
       },
     });
     ready();
-    entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions: opts.instructions } });
+    entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions } });
     {
       const remainingSeconds = Math.max(0, (entry.endsAt.getTime() - now().getTime()) / 1000);
       const sideband = entry.sideband;
@@ -324,7 +385,7 @@ export function realtimeBroker({
         schedule(Math.max(0, remainingSeconds - WRAP_UP_SECONDS) * 1000, () =>
           sideband.send({
             type: "session.update",
-            session: { type: "realtime", instructions: opts.instructions + wrapUp },
+            session: { type: "realtime", instructions: instructions + wrapUp },
           }),
         ),
         schedule(remainingSeconds * 1000, () =>
@@ -332,7 +393,7 @@ export function realtimeBroker({
         ),
       );
     }
-    return { answer: call.answer };
+    return { answer: call.answer, callId: call.callId };
   }
 
   // Hangs up the Learner's live call, if any, and waits until its transcript and usage are saved.
@@ -361,9 +422,18 @@ export function realtimeBroker({
     }));
   }
 
-  return { start, hangup, voiceMinutes, shutdown };
+  // Whether `callId` is the Learner's live call, so only its owner can join it.
+  const owns = (userId: string, callId: string) => live.get(userId)?.callId === callId;
+
+  return { start, hangup, voiceMinutes, shutdown, owns };
 }
 export type RealtimeBroker = ReturnType<typeof realtimeBroker>;
+
+// OpenAI's SDP answer goes straight back; for Rime the browser opens the API's WebSocket to the call instead.
+export const answerCall = (c: Context<AppEnv>, call: { answer?: string; callId: string }) =>
+  call.answer === undefined
+    ? c.json({ provider: "rime", socket: `/api/realtime/${call.callId}` }, 201)
+    : c.body(call.answer, 201, { "content-type": "application/sdp" });
 
 export const voiceMinutesRoute = (broker: RealtimeBroker) =>
   new Hono<AppEnv>().get("/", async (c) => c.json(await broker.voiceMinutes(c.var.user.id)));

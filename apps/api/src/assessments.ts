@@ -9,7 +9,7 @@ import type { AppEnv, Deps } from "./app";
 import { goalText } from "./goal-text";
 import { cefrLevel } from "./goals";
 import { enqueueAssessmentJobs, practicePreparation, retryPracticePreparation } from "./assessment-jobs";
-import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
+import { answerCall, endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 import { remember, addFocusItems } from "./learning-memory";
 import { cefr, fluencyScore, recordScores, scoreView, speechSegments } from "./scoring";
 import { answeredSteps, stepTools, takeAnswer } from "./steps";
@@ -81,7 +81,8 @@ Aim to finish in about ${MAX_ANSWERS} questions; ${written.answers} answered so 
           ? " That's enough: thank them and close now, with no further questions."
           : " Don't thank them or close the conversation yet, even if you have covered every phase: keep asking new questions."
       }\n`
-    : `Finish within 10 minutes. When you've closed the conversation, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.\n`
+    : `You speak first: greet the Learner, say this is a short conversation about their English, and ask your first question.
+Finish within 10 minutes. When you've closed the conversation, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.\n`
 }`;
 
 const reportInstructions = (
@@ -351,8 +352,13 @@ export const assessments = ({
       // The browser posts its SDP offer and gets back only the SDP answer; the OpenAI key never leaves the server.
       .post("/:id/call", async (c) => {
         const userId = c.var.user.id;
+        const after = c.req.query("after");
+        if (after !== undefined && after !== "openai" && after !== "rime")
+          return c.json({ error: "after must be openai or rime" }, 400);
         const offer = await c.req.text();
         if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
+        // A resumed call's old one may still be open; end it and let it save before its transcript is read.
+        if (after) await broker.hangup(userId, c.req.param("id"));
         const row = await find(c.req.param("id"), userId);
         if (!row) return c.json({ error: "Assessment not found" }, 404);
         if (row.mode !== "voice" || row.status !== "in_progress")
@@ -369,6 +375,7 @@ export const assessments = ({
           purpose: "assessment",
           tools: [endCallTool],
           endTool: endCallTool.name,
+          after,
           prior: row.transcript,
           onTranscript: (transcript) =>
             db
@@ -379,7 +386,8 @@ export const assessments = ({
         if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("unavailable" in call) return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
-        return c.body(call.answer, 201, { "content-type": "application/sdp" });
+        if ("ended" in call) return c.json({ error: "This call has ended" }, 409);
+        return answerCall(c, call);
       })
       .post("/:id/end", zValidator("json", z.object({ left: z.boolean().optional() })), async (c) => {
         const row = await find(c.req.param("id"), c.var.user.id);

@@ -32,6 +32,10 @@ function fakes({
     }
     createDataChannel() {
       return (this.channel = {
+        sent: [],
+        send(data) {
+          this.sent.push(JSON.parse(data));
+        },
         close() {
           this.closed = true;
         },
@@ -73,7 +77,7 @@ function fakes({
       sent.push({ url, init });
       return reply();
     },
-    play: (remote) => played.push(remote),
+    play: (remote) => void played.push(remote),
   };
   return { deps, track, stream, sent, played, peers, grant: () => grant() };
 }
@@ -132,19 +136,51 @@ test("hanging up releases the microphone and closes the connection, and is not a
   assert.ok(!states.some((s) => s.status === "dropped"));
 });
 
-test("a connection that fails is reported once as dropped, and the microphone is released", async () => {
+test("a connection that fails resumes once away from its provider; failing again is reported once as dropped", async () => {
   const f = fakes();
   const { states, last } = start(f);
   await settle();
   const [peer] = f.peers;
+  peer.channel.onopen();
+  assert.deepEqual(peer.channel.sent, [{ type: "response.create" }], "the coach opens a new call");
   peer.become("connected");
   peer.become("disconnected");
   assert.equal(last().status, "reconnecting");
   peer.become("failed");
+  assert.equal(last().status, "reconnecting");
+  assert.equal(peer.closed, true);
+  assert.equal(f.track.stopped, false, "the microphone stays for the resumed call");
+  await settle();
+  assert.equal(f.sent[1].url, "/api/assessments/7/call?after=openai");
+  const second = f.peers[1];
+  assert.deepEqual(second.added, [[f.track, f.stream]]);
+  second.channel.onopen();
+  assert.deepEqual(second.channel.sent, [{ type: "response.create" }], "the coach picks a resumed call up");
+  peer.become("failed");
+  second.become("connected");
+  assert.equal(last().status, "live");
+
+  second.become("failed");
   assert.equal(last().status, "dropped");
   assert.equal(f.track.stopped, true);
-  assert.equal(peer.closed, true);
+  assert.equal(second.closed, true);
   assert.equal(states.filter((s) => s.status === "dropped").length, 1);
+});
+
+test("a refused resume (the coach ended the call) is a drop, not a failure", async () => {
+  let posts = 0;
+  const f = fakes({
+    reply: () =>
+      posts++
+        ? Response.json({ error: "This call has ended" }, { status: 409 })
+        : new Response("answer-sdp", { status: 201, headers: { "content-type": "application/sdp" } }),
+  });
+  const { last } = start(f);
+  await settle();
+  f.peers[0].become("failed");
+  await settle();
+  assert.deepEqual(last(), { status: "dropped" });
+  assert.equal(f.track.stopped, true);
 });
 
 test("a connection that recovers goes back to live", async () => {
@@ -247,4 +283,136 @@ test("clearing the coach audio after interruption keeps the Learner's listening 
     { type: "input_audio_buffer.speech_started" },
   );
   assert.equal(conversationEvent(listening, { type: "output_audio_buffer.cleared" }).phase, "listening");
+});
+
+// A Rime call: the API answers with a WebSocket to join, and audio goes through it as PCM.
+function rimeFakes() {
+  const f = fakes({
+    reply: () => Response.json({ provider: "rime", socket: "/api/realtime/rime_1" }, { status: 201 }),
+  });
+  const sockets = [];
+  const audio = { played: [], stopped: 0, closed: false };
+  f.deps.socket = (path) => {
+    const ws = {
+      path,
+      readyState: 0,
+      sent: [],
+      send(data) {
+        this.sent.push(JSON.parse(data));
+      },
+      close() {
+        this.readyState = 3;
+      },
+      // Test helpers: what the API would do.
+      open() {
+        this.readyState = 1;
+        this.onopen();
+      },
+      emit(event) {
+        this.onmessage({ data: JSON.stringify(event) });
+      },
+    };
+    sockets.push(ws);
+    return ws;
+  };
+  f.deps.pcm = async (stream, onChunk, onIdle) =>
+    Object.assign(audio, {
+      stream,
+      onChunk,
+      onIdle,
+      output: { id: "coach-pcm" },
+      play: (chunk) => audio.played.push(chunk),
+      stop: () => (audio.stopped++, 1200),
+      close: () => (audio.closed = true),
+    });
+  return { ...f, sockets, audio };
+}
+
+test("a Rime call joins the API's socket, streams the microphone and plays the coach's audio", async () => {
+  const f = rimeFakes();
+  const { last } = start(f);
+  await settle();
+  const ws = f.sockets[0];
+  assert.equal(ws.path, "/api/realtime/rime_1");
+  assert.equal(f.peers[0].closed, true, "the WebRTC offer was only for asking");
+  ws.open();
+  await settle();
+  assert.equal(last().status, "live");
+  assert.equal(f.audio.stream, f.stream);
+  assert.deepEqual(f.played, [{ id: "coach-pcm" }]);
+
+  f.audio.onChunk("AAAA");
+  assert.deepEqual(ws.sent, [{ type: "response.create" }, { type: "input_audio_buffer.append", audio: "AAAA" }]);
+  ws.emit({ type: "response.audio.delta", item_id: "c1", delta: "BBBB" });
+  assert.deepEqual(f.audio.played, ["BBBB"]);
+});
+
+test("Rime: talking over the coach stops playback and truncates; finished playback tells Prism it drained", async () => {
+  const f = rimeFakes();
+  const changes = [];
+  startCall("/call", { onChange: () => {}, onConversation: (c) => changes.push(c) }, f.deps);
+  await settle();
+  const ws = f.sockets[0];
+  ws.open();
+  await settle();
+  ws.sent.length = 0;
+
+  ws.emit({ type: "response.audio.delta", item_id: "c1", delta: "x" });
+  assert.equal(changes.at(-1).phase, "speaking");
+  ws.emit({ type: "response.done", response: { id: "r1", metadata: { prism_drain_token: "d1" } } });
+  assert.equal(ws.sent.length, 0, "still playing, so not drained yet");
+  f.audio.onIdle();
+  assert.equal(changes.at(-1).phase, "ready");
+  assert.deepEqual(ws.sent, [{ type: "prism.playback.drained", drain_token: "d1" }]);
+
+  ws.emit({ type: "response.audio.delta", item_id: "c2", delta: "y" });
+  ws.emit({ type: "input_audio_buffer.speech_started" });
+  assert.equal(f.audio.stopped, 1);
+  assert.deepEqual(ws.sent.at(-1), {
+    type: "conversation.item.truncate",
+    item_id: "c2",
+    content_index: 0,
+    audio_end_ms: 1200,
+  });
+  assert.equal(changes.at(-1).phase, "listening");
+});
+
+test("Rime: the API closing the socket resumes the call away from Rime once, then drops it; hanging up does not", async () => {
+  const f = rimeFakes();
+  const { last } = start(f);
+  await settle();
+  f.sockets[0].open();
+  await settle();
+  f.sockets[0].onclose();
+  assert.equal(last().status, "reconnecting");
+  assert.equal(f.audio.closed, true);
+  await settle();
+  assert.equal(f.sent[1].url, "/api/assessments/7/call?after=rime");
+  f.sockets[1].open();
+  await settle();
+  assert.equal(last().status, "live");
+  assert.deepEqual(f.sockets[1].sent, [{ type: "response.create" }], "the coach picks a resumed call up");
+  f.sockets[1].onclose();
+  assert.equal(last().status, "dropped");
+  assert.equal(f.track.stopped, true);
+
+  const g = rimeFakes();
+  const second = start(g);
+  await settle();
+  g.sockets[0].open();
+  await settle();
+  second.call.hangUp();
+  g.sockets[0].onclose();
+  assert.equal(second.last().status, "ended");
+});
+
+test("Rime: a socket that never opens resumes the call away from Rime instead of failing", async () => {
+  const f = rimeFakes();
+  const { last } = start(f);
+  await settle();
+  f.sockets[0].onerror?.();
+  f.sockets[0].onclose();
+  assert.equal(last().status, "reconnecting");
+  await settle();
+  assert.equal(f.sent[1].url, "/api/assessments/7/call?after=rime");
 });

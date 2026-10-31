@@ -4,6 +4,7 @@ import { APIError, createAuthMiddleware, getOAuthState, getSessionFromCtx } from
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { upgradeWebSocket } from "hono/bun";
 import { bodyLimit } from "hono/body-limit";
 import { Scalar } from "@scalar/hono-api-reference";
 import { z } from "zod";
@@ -213,6 +214,28 @@ export function createApp(deps: Deps) {
     .route("/api/pronunciation", pronunciation(deps, env.KENPATH_VOICE))
     .route("/api/skill-profile", skillProfileRoutes(db))
     .route("/api/voice-minutes", voiceMinutesRoute(broker))
+    // The browser's end of a Rime call (ADR 0005). Browsers send cookies on cross-site WebSocket upgrades, so the
+    // origin is checked here as well as the session.
+    .get(
+      "/api/realtime/:callId",
+      async (c, next) => {
+        if (c.req.header("origin") !== env.WEB_ORIGIN) return c.json({ error: "Untrusted request origin" }, 403);
+        if (!deps.realtime.join || !broker.owns(c.var.user.id, c.req.param("callId")))
+          return c.json({ error: "Call not found" }, 404);
+        await next();
+      },
+      upgradeWebSocket((c) => {
+        let relay: ReturnType<NonNullable<Realtime["join"]>>;
+        return {
+          onOpen: (_, ws) => {
+            relay = deps.realtime.join!(c.req.param("callId")!, ws);
+            if (!relay) ws.close(1000);
+          },
+          onMessage: (m) => relay?.message(String(m.data)),
+          onClose: () => relay?.close(),
+        };
+      }),
+    )
     .route("/api/progress", progressRoute(deps))
     .route("/api/focus-items", focusItemsRoute(db));
 

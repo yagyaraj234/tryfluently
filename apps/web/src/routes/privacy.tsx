@@ -30,9 +30,9 @@ function Privacy() {
       <section aria-labelledby="voice-title">
         <h2 id="voice-title">Voice recording and AI processing</h2>
         <p>
-          Voice is optional. Live Voice Assessments and voice Roleplays send audio to OpenAI. Uploaded recorded answers
-          are sent to OpenAI for transcription. Fluently does not store raw learner audio on its servers; transcripts,
-          feedback and usage information are saved with your account.
+          Voice is optional. Live Voice Assessments and voice Roleplays send audio to OpenAI or Rime, depending on the
+          configured provider. Uploaded recorded answers are sent to OpenAI for transcription. Fluently does not store
+          raw learner audio on its servers; transcripts, feedback and usage information are saved with your account.
         </p>
         <p>
           Some speaking exercises use your browser’s speech recognition, which may send audio to the browser’s speech

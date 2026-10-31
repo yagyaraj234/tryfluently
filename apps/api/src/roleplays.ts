@@ -9,7 +9,7 @@ import { streamChat, unchanged } from "./ai";
 import type { AppEnv, Deps } from "./app";
 import { completeLesson } from "./completion";
 import { goalText } from "./goal-text";
-import { endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
+import { answerCall, endCallTool, voiceLimitMessage, type RealtimeBroker } from "./realtime";
 
 const { lesson, goal } = schema;
 
@@ -158,7 +158,8 @@ do not use a prewritten list or ask several questions together. Do not agree, pr
 answer. Stay in character and probe unclear claims, trade-offs, decisions, and outcomes. The Learner is practising English:
 never correct them or give feedback during the Roleplay, and never judge whether their technical answers are right.${
     spoken
-      ? `\nWhen the conversation is complete, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.`
+      ? `\nYou speak first: in one or two sentences, say who you are and set the scene, then ask your first question.
+When the conversation is complete, say a short closing sentence such as "I'm ending the call now." Then call end_call. Do not call it before you have spoken the closing sentence.`
       : ""
   }`;
 
@@ -258,8 +259,13 @@ This Roleplay is a text chat: write your lines as you would say them, without st
       // The browser posts its SDP offer and gets back only the SDP answer, as for a Voice Assessment.
       .post("/:id/call", async (c) => {
         const userId = c.var.user.id;
+        const after = c.req.query("after");
+        if (after !== undefined && after !== "openai" && after !== "rime")
+          return c.json({ error: "after must be openai or rime" }, 400);
         const offer = await c.req.text();
         if (!offer || offer.length > 20_000) return c.json({ error: "Send the SDP offer as the request body" }, 400);
+        // A resumed call's old one may still be open; end it and let it save before its transcript is read.
+        if (after) await broker.hangup(userId, c.req.param("id"));
         const row = await find(c.req.param("id"), userId);
         if (!row) return c.json({ error: "Roleplay not found" }, 404);
         if (row.status !== "in_progress" || row.textMode)
@@ -278,14 +284,16 @@ This Roleplay is a text chat: write your lines as you would say them, without st
           purpose: "roleplay",
           tools: [endCallTool],
           endTool: endCallTool.name,
+          after,
           prior: row.messages,
           onTranscript: (messages) => db.update(lesson).set({ messages }).where(eq(lesson.id, row.id)),
         });
         if ("capped" in call) return c.json({ error: voiceLimitMessage, ...call.capped }, 429);
         if ("unavailable" in call) return c.json({ error: "Server is shutting down. Try again shortly." }, 503);
         if ("busy" in call) return c.json({ error: "You already have a live voice call" }, 409);
+        if ("ended" in call) return c.json({ error: "This call has ended" }, 409);
         if (!row.startedAt) await db.update(lesson).set({ startedAt: deps.now() }).where(eq(lesson.id, row.id));
-        return c.body(call.answer, 201, { "content-type": "application/sdp" });
+        return answerCall(c, call);
       })
       .post("/:id/end", async (c) => {
         const userId = c.var.user.id;
