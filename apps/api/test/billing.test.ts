@@ -18,6 +18,7 @@ import { finishPagedLesson } from "../src/paged-finish";
 import { startLesson } from "../src/paged-lessons";
 import { fakeRealtime, fakeTimers, get, json, makeApp, makeClock, signUp, WEB_ORIGIN } from "./helpers";
 import { testDb } from "./setup";
+import { billingFailures } from "../src/metrics";
 
 const secret = Buffer.from("billing-test-signing-key-32-bytes!").toString("base64");
 const env = { DODO_PRO_PRODUCT_ID: "pdt_pro", DODO_PACK_PRODUCT_ID: "pdt_pack" };
@@ -187,6 +188,47 @@ function webhook(
 const state = async (t: T) => (await (await t.app.request("/api/billing", get(t.cookie))).json()) as any;
 
 describe("payment grants", () => {
+  test("uncredited payments and failed reconciliation emit bounded billing failure metrics", async () => {
+    const t = await setup();
+    const failures = async (reason: string) =>
+      (await billingFailures.get()).values.find((v) => v.labels.reason === reason)?.value ?? 0;
+    const unsupported = await failures("unsupported_product");
+    const reconciliation = await failures("reconciliation_failed");
+    const wrong = payment(t, "pack", { product_cart: [{ product_id: env.DODO_PACK_PRODUCT_ID, quantity: 2 }] });
+    expect((await webhook(t.app, "payment.succeeded", wrong)).status).toBe(200);
+    expect(await failures("unsupported_product")).toBe(unsupported + 1);
+
+    const pack = payment(t, "pack");
+    expect((await webhook(t.app, "payment.succeeded", pack)).status).toBe(200);
+    pack.refunds = [{ refund_id: "refund_bad", status: "succeeded", is_partial: true, amount: 10, currency: "XYZ" }];
+    expect(
+      (await webhook(t.app, "refund.succeeded", { payment_id: pack.payment_id, refund_id: "refund_bad" })).status,
+    ).toBe(503);
+    expect(await failures("reconciliation_failed")).toBe(reconciliation + 1);
+
+    const pro = payment(t, "pro");
+    pro.service_periods[0].ends_at = "invalid";
+    expect((await webhook(t.app, "payment.succeeded", pro)).status).toBe(503);
+    expect(await failures("reconciliation_failed")).toBe(reconciliation + 2);
+    expect((await webhook(t.app, "payment.succeeded", JSON.parse("null"))).status).toBe(503);
+    expect(await failures("reconciliation_failed")).toBe(reconciliation + 3);
+    for (const value of (await billingFailures.get()).values) expect(Object.keys(value.labels)).toEqual(["reason"]);
+  });
+
+  test("pending payments, payment-method updates and usage-only charges do not emit billing failure metrics", async () => {
+    const t = await setup();
+    const before = await billingFailures.get();
+    const p = payment(t, "pro", { status: "processing" });
+    await webhook(t.app, "payment.succeeded", p);
+    p.status = "succeeded";
+    p.is_update_payment_method = true;
+    await webhook(t.app, "payment.succeeded", p);
+    p.is_update_payment_method = false;
+    p.service_periods = [];
+    await webhook(t.app, "payment.succeeded", p);
+    expect(await billingFailures.get()).toEqual(before);
+  });
+
   test("Free defaults to 25 live minutes, five Lessons and no Pro access", async () => {
     const t = await setup();
     expect(await state(t)).toMatchObject({ hasPro: false, purchasedSeconds: 0, lessons: { limit: 5, used: 0 } });

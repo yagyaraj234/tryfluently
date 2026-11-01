@@ -23,6 +23,7 @@ Official references: [checkout sessions](https://docs.dodopayments.com/api-refer
 - Each recurring payment must contain a paid service period for the configured Pro subscription. Usage-only and payment-method-update charges do not renew access. New billing periods get new grants; unused previous-period minutes expire.
 - Cancellation does not revoke already-paid access. Failed renewal adds no grant and has no grace. Purchased balance survives subscription cancellation, non-payment and expiry.
 - Refunds are manually reviewed and issued through Dodo. After a successful refund, remaining seconds from that payment are revoked proportionally; a full refund or lost/accepted dispute revokes that purchase completely. Other purchases remain untouched. Refunds do not automatically cancel subscription renewals. Revocations cannot be undone by replaying an older payment event.
+- Winning a dispute later does not automatically restore revoked minutes. Support must review the payment and remaining entitlement before arranging any compensation; replaying webhooks cannot restore the grant.
 - Account deletion hangs up voice, blocks checkout, cancels renewing subscriptions before deleting local data. A provider cancellation failure preserves the account. If credentials are absent, deletion proceeds with a durable customer-ID cleanup request; a worker retries cancellation every minute once credentials return. Abandoned checkouts do not block deletion. An old checkout completed after deletion receives no entitlement and its new subscription is cancelled by the webhook and a `manual_refund_required` record identifies the payment for support. The payment provider retains its own financial records.
 
 ## Learning behavior
@@ -47,3 +48,13 @@ The existing call registry/provider relay and rate windows still require **one A
 Local automated tests use a disposable migrated database and a fake Dodo HTTP transport. They do not charge cards or verify merchant approval, live credentials, dashboard settings, provider prices or legal adequacy of the published policy copy.
 
 Voice reservations last at most 30 minutes. Learners can start another call with remaining balance. After a process crash, admission recovers expired reservations using persisted activity checkpoints; unobserved provider time is returned, not charged.
+
+If provider setup fails and releasing its reservation also fails, the broker preserves the provider error and retries the zero-usage settlement on the next allowance read, call start or hangup. A process restart still relies on deadline-based recovery. Refund teardown failures already use the broker's scheduled hangup retries.
+
+## Billing failure monitoring
+
+With metrics enabled, `fluently_billing_failures_total{reason}` records unsupported paid payment types/products, orphan payments and reconciliation errors, including invalid service periods and unreconcilable refunds. Normal pending payments, payment-method updates and usage-only settlements do not count. Reasons are bounded; payment, customer and webhook IDs remain in API logs, never metric labels. Counts are failure observations, not unique payments; a delivery or retry can record more than one reason.
+
+The monitoring stack loads `FluentlyBillingFailure` from `infra/monitoring/billing-alerts.yml`. It fires for any observed failure, including a failure before the first scrape, and remains active for the lifetime of that API process. Counter reset or API restart is not proof that a payment incident is resolved. Prometheus exposes firing alerts at `/alerts`; external notification delivery requires an operator-configured Alertmanager receiver, which this repository does not provision.
+
+For each alert, find the payment/webhook IDs in API logs, retrieve authoritative Dodo payment/refund state, and compare the payment's `billing_credit` row. Correct product/service-period configuration and redeliver retryable failed events after the cause is resolved. A payment acknowledged with 200 may have no grant: its webhook receipt is already stored, so repeating that same delivery does not reconcile it. Review with support for a deliberate reconciliation or manual refund; never delete receipts or blindly replay payment mutations. For refund failures, check for benefits that should have been revoked as well as missing grants.

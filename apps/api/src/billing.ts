@@ -10,6 +10,7 @@ import { z } from "zod";
 import type { AppEnv, Deps, User } from "./app";
 import { dailyLessons, FREE_LESSONS_PER_DAY, PACK_MINUTES, paidCredits, PRO_MINUTES } from "./billing-credits";
 import type { RealtimeBroker } from "./realtime";
+import { billingFailures } from "./metrics";
 
 const {
   billingAccount: account,
@@ -119,6 +120,8 @@ async function reconcilePayment(ctx: Ctx, paymentId: string, webhookId: string, 
     payment.is_update_payment_method ||
     payment.is_multi_subscription
   ) {
+    if (payment.status === "succeeded" && payment.total_amount > 0 && !payment.is_update_payment_method)
+      billingFailures.inc({ reason: "unsupported_payment" });
     console.error("Billing payment not credited", {
       paymentId,
       reason: "unsupported payment status or type",
@@ -137,7 +140,9 @@ async function reconcilePayment(ctx: Ctx, paymentId: string, webhookId: string, 
     first?.product_id === ctx.env.DODO_PACK_PRODUCT_ID &&
     first?.quantity === 1;
   const service = sub && payment.service_periods.find((p) => p.subscription_id === sub.subscription_id);
-  if (!pack && (!sub || sub.product_id !== ctx.env.DODO_PRO_PRODUCT_ID || sub.quantity !== 1 || !service)) {
+  const validPro = sub && sub.product_id === ctx.env.DODO_PRO_PRODUCT_ID && sub.quantity === 1;
+  if (!pack && (!validPro || !service)) {
+    if (!validPro) billingFailures.inc({ reason: "unsupported_product" });
     console.error("Billing payment not credited", {
       paymentId,
       reason: "unexpected product, quantity or missing service period",
@@ -155,6 +160,7 @@ async function reconcilePayment(ctx: Ctx, paymentId: string, webhookId: string, 
       ? await ctx.db.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId))
       : [];
     if (learner) throw new Error("Billing account not committed yet; retry webhook");
+    billingFailures.inc({ reason: "orphan_payment" });
     console.error("manual_refund_required", {
       paymentId,
       customerId: payment.customer.customer_id,
@@ -270,7 +276,16 @@ export function billingWebhooks(ctx: Ctx) {
       await ctx.db.insert(schema.billingWebhook).values({ id, processedAt: ctx.now() }).onConflictDoNothing();
       return c.json({ received: true });
     } catch (error) {
-      console.error("Billing webhook reconciliation failed", { webhookId: id, type: event.type, error });
+      billingFailures.inc({ reason: "reconciliation_failed" });
+      console.error("Billing webhook reconciliation failed", {
+        webhookId: id,
+        type: event.type,
+        paymentId:
+          event.data && typeof event.data === "object" && "payment_id" in event.data
+            ? event.data.payment_id
+            : undefined,
+        error,
+      });
       return c.json({ error: "Payment reconciliation failed; retry delivery" }, 503);
     }
   });
