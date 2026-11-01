@@ -191,6 +191,45 @@ describe("Realtime shutdown", () => {
 });
 
 describe("Realtime close failures", () => {
+  test("failed setup settlement preserves the provider error and retries before the next call", async () => {
+    const { userId, realtime, broker } = await setup();
+    const providerError = new Error("provider unavailable");
+    let settlement: ReturnType<typeof spyOn> | undefined;
+    const create = realtime.createCall;
+    realtime.createCall = async () => {
+      settlement = spyOn(testDb, "transaction").mockRejectedValueOnce(new Error("settlement unavailable"));
+      throw providerError;
+    };
+    try {
+      await expect(
+        broker.start(
+          userId,
+          opts(async () => {}),
+        ),
+      ).rejects.toBe(providerError);
+    } finally {
+      settlement?.mockRestore();
+      realtime.createCall = create;
+    }
+    const [open] = await testDb
+      .select()
+      .from(schema.voiceReservation)
+      .where(eq(schema.voiceReservation.userId, userId));
+    expect(open!.settledAt).toBeNull();
+    expect(
+      await broker.start(
+        userId,
+        opts(async () => {}),
+      ),
+    ).toHaveProperty("callId");
+    const [released] = await testDb
+      .select()
+      .from(schema.voiceReservation)
+      .where(eq(schema.voiceReservation.id, open!.id));
+    expect(released!.settledAt).not.toBeNull();
+    await broker.shutdown();
+  });
+
   test("a sideband disconnect hangs up the provider before releasing the call or writing usage", async () => {
     const { userId, realtime, broker, clock } = await setup();
     const attach = realtime.attach;
