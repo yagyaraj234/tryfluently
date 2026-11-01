@@ -36,6 +36,11 @@ function setup(primary: Provider = "openai") {
 }
 
 describe("provider failover", () => {
+  test("attaching an unknown call reports a missing owner", () => {
+    const { realtime } = setup();
+    expect(() => realtime.attach("unknown", { onEvent() {}, onClose() {} })).toThrow("Realtime call owner not found");
+  });
+
   test("calls go to the primary", async () => {
     expect(await setup("openai").start()).toBe("openai");
     expect(await setup("rime").start()).toBe("rime");

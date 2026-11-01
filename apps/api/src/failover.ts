@@ -34,7 +34,8 @@ export function failover(providers: Record<Provider, Realtime>, primary: Provide
       throw error;
     },
     attach(callId, { onEvent, onClose }) {
-      const p = owner.get(callId)!;
+      const p = owner.get(callId);
+      if (!p) throw new Error("Realtime call owner not found");
       // ponytail: only Rime reports a failed close; OpenAI's sideband close codes aren't classified yet.
       const sideband = providers[p].attach(callId, {
         onEvent,
