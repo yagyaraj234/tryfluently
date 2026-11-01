@@ -19,6 +19,8 @@ Decided 31 October 2026. Partly supersedes [0001](0001-openai-realtime-voice.md)
 
 Hanging up, `end_call`, the allowance, the Assessment deadline, Prism's 5-minute idle timeout and a browser that doesn't join a Rime call within 15 seconds end a call normally. A call switches provider at most once. If the second provider also drops, the Learner sees the existing "dropped" state. During the switch they see "Reconnecting…", and the coach's voice changes.
 
+The API closes the browser's Rime socket with `1000` for a normal end and `4000` for provider failure. Normal ends finish the Assessment or Roleplay without reconnecting. Hangup waits for Prism's socket to close before settling usage or releasing the call slot; after five seconds without confirmation it fails so the broker retains the reservation and retries teardown.
+
 **A circuit breaker remembers failures.** After a failure, the API sends new calls to the other provider for 5 minutes, then tries the primary again. Nobody watches it or edits env vars. The breaker lives in memory, like the broker's call registry, so it holds for one API instance. OpenAI's mid-call closes don't trip it yet, because its close codes aren't classified. The dropped call still moves to Rime when the browser resumes it.
 
 **A new call continues the conversation.** Any call that starts with a saved transcript gets it in its instructions and is told not to greet the Learner again. The coach still speaks first: it opens a new call, and picks a resumed one up where it stopped. This covers fallback and a manual retry after a drop.

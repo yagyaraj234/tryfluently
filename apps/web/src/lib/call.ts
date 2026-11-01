@@ -159,8 +159,12 @@ export function startCall(
       if (drain) send({ type: "prism.playback.drained", drain_token: drain });
       drain = undefined;
     };
-    // A socket that never opens (a proxy or network fault) closes too, so it resumes away from Rime like a drop.
-    ws.onclose = () => current() && dropped();
+    // The API uses 1000 for a normal end and 4000 for provider failure; failed upgrades still resume.
+    ws.onclose = (event) => {
+      if (!current()) return;
+      if (event.code === 1000) stop({ status: "ended" });
+      else dropped();
+    };
     await new Promise((resolve) => (ws.onopen = resolve));
     const sound = await deps.pcm(
       mic,

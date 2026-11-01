@@ -377,13 +377,13 @@ test("Rime: talking over the coach stops playback and truncates; finished playba
   assert.equal(changes.at(-1).phase, "listening");
 });
 
-test("Rime: the API closing the socket resumes the call away from Rime once, then drops it; hanging up does not", async () => {
+test("Rime: a failed API socket resumes away from Rime once, then drops it; hanging up does not", async () => {
   const f = rimeFakes();
   const { last } = start(f);
   await settle();
   f.sockets[0].open();
   await settle();
-  f.sockets[0].onclose();
+  f.sockets[0].onclose({ code: 4000 });
   assert.equal(last().status, "reconnecting");
   assert.equal(f.audio.closed, true);
   await settle();
@@ -392,7 +392,7 @@ test("Rime: the API closing the socket resumes the call away from Rime once, the
   await settle();
   assert.equal(last().status, "live");
   assert.deepEqual(f.sockets[1].sent, [{ type: "response.create" }], "the coach picks a resumed call up");
-  f.sockets[1].onclose();
+  f.sockets[1].onclose({ code: 4000 });
   assert.equal(last().status, "dropped");
   assert.equal(f.track.stopped, true);
 
@@ -402,8 +402,22 @@ test("Rime: the API closing the socket resumes the call away from Rime once, the
   g.sockets[0].open();
   await settle();
   second.call.hangUp();
-  g.sockets[0].onclose();
+  g.sockets[0].onclose({ code: 1000 });
   assert.equal(second.last().status, "ended");
+});
+
+test("Rime: a normal server close ends the call, releases audio and never starts another call", async () => {
+  const f = rimeFakes();
+  const { last } = start(f);
+  await settle();
+  f.sockets[0].open();
+  await settle();
+  f.sockets[0].onclose({ code: 1000 });
+  await settle();
+  assert.deepEqual(last(), { status: "ended" });
+  assert.equal(f.track.stopped, true);
+  assert.equal(f.audio.closed, true);
+  assert.equal(f.sent.length, 1);
 });
 
 test("Rime: a socket that never opens resumes the call away from Rime instead of failing", async () => {
@@ -411,7 +425,7 @@ test("Rime: a socket that never opens resumes the call away from Rime instead of
   const { last } = start(f);
   await settle();
   f.sockets[0].onerror?.();
-  f.sockets[0].onclose();
+  f.sockets[0].onclose({ code: 1006 });
   assert.equal(last().status, "reconnecting");
   await settle();
   assert.equal(f.sent[1].url, "/api/assessments/7/call?after=rime");

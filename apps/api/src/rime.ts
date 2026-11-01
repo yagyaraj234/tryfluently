@@ -36,6 +36,8 @@ const rename = (e: RealtimeEvent): RealtimeEvent =>
 
 type Call = {
   ws: WebSocket;
+  closed: Promise<void>;
+  failed?: boolean;
   voice: string;
   // Events for the browser that arrive before it joins.
   waiting: string[];
@@ -51,7 +53,7 @@ type Call = {
   opening?: "wanted" | "sent";
 };
 
-export const rimeRealtime = (apiKey: string, { setupMs = 5_000, joinMs = 15_000 } = {}): Realtime => {
+export const rimeRealtime = (apiKey: string, { setupMs = 5_000, joinMs = 15_000, hangupMs = 5_000 } = {}): Realtime => {
   // shortcut: calls live in memory, like the broker's; one API instance only.
   const calls = new Map<string, Call>();
 
@@ -79,7 +81,8 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000, joinMs = 15_000 
       // Bun's WebSocket takes headers, which browsers' doesn't.
       const ws = new WebSocket(PRISM, { headers: { authorization: `Bearer ${apiKey}` } } as any);
       const callId = `rime_${crypto.randomUUID()}`;
-      const call: Call = { ws, voice: pick(voices, voiceKey), waiting: [], drains: new Map() };
+      const closed = Promise.withResolvers<void>();
+      const call: Call = { ws, closed: closed.promise, voice: pick(voices, voiceKey), waiting: [], drains: new Map() };
       await new Promise<void>((resolve, reject) => {
         const fail = (why: string) => {
           clearTimeout(timer);
@@ -129,9 +132,11 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000, joinMs = 15_000 
       ws.onclose = (c) => {
         clearTimeout(joinTimer);
         calls.delete(callId);
+        closed.resolve();
         if (call.ended === "hangup") return;
         // 1000 is Prism's idle timeout, or the browser leaving; 1001 (draining) and 1011 (VAD failure) are failures.
-        void Promise.resolve(call.onClose?.(!call.ended && c.code !== 1000)).catch((error) =>
+        call.failed = !call.ended && c.code !== 1000;
+        void Promise.resolve(call.onClose?.(call.failed)).catch((error) =>
           console.error("realtime close failed", error),
         );
       };
@@ -154,7 +159,15 @@ export const rimeRealtime = (apiKey: string, { setupMs = 5_000, joinMs = 15_000 
           call.ended = "hangup";
           calls.delete(callId);
           call.ws.close(1000);
-          call.browser?.close(1000);
+          // Resolve from the transport close, not the broker's onClose callback (which waits for hangup).
+          await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error("Rime Prism hangup timed out")), hangupMs);
+            call.closed.then(() => {
+              clearTimeout(timer);
+              resolve();
+            });
+          });
+          call.browser?.close(call.failed ? 4000 : 1000);
         },
       };
     },

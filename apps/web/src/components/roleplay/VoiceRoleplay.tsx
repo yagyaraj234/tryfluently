@@ -196,6 +196,7 @@ function VoiceCall(props: VoiceRoleplayProps) {
   const timesUp = active && left !== undefined && left <= 0;
   useEffect(() => {
     if (timesUp) finish("timesUp");
+    else if (call.status === "ended" && running) void session.end();
   });
 
   // Mute while /end hangs up the call and writes the Debrief; let go of the call once that's done.
