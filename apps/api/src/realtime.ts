@@ -278,8 +278,12 @@ export function realtimeBroker({
         opts.targetId,
       );
     } catch (e) {
+      const release = () => settleVoice(db, reservationId!, now(), 0);
       try {
-        if (reservationId) await settleVoice(db, reservationId, now(), 0);
+        if (reservationId) await release();
+      } catch (error) {
+        unsettled.set(userId, release);
+        console.error("Failed call reservation settlement will retry", error);
       } finally {
         live.delete(userId);
         closed.resolve(undefined);
