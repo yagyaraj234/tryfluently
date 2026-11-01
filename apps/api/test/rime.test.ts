@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { websocket } from "hono/bun";
-import type { BrowserSocket, Realtime } from "../src/realtime";
+import { schema } from "@fluently/db";
+import { eq } from "drizzle-orm";
+import { realtimeBroker, type BrowserSocket, type Realtime } from "../src/realtime";
 import { rimeRealtime } from "../src/rime";
-import { fakeRealtime, json, makeApp, signUp, WEB_ORIGIN } from "./helpers";
+import { fakeRealtime, fakeTimers, grantPro, json, makeApp, makeClock, signUp, WEB_ORIGIN } from "./helpers";
+import { testDb } from "./setup";
 
 // Stands in for Prism's WebSocket: records what we send and lets a test play Prism's events and closes.
 class FakePrism {
@@ -29,6 +32,7 @@ class FakePrism {
   }
   close(code?: number) {
     this.closed = code ?? 1005;
+    if (this.readyState !== 3) this.readyState = 2;
   }
   emit(e: object) {
     this.onmessage?.({ data: JSON.stringify(e) });
@@ -196,16 +200,89 @@ describe("Rime Prism provider", () => {
     expect(lost.closes).toEqual([false]);
   });
 
-  test("hanging up closes Prism and the browser without reporting a close", async () => {
-    const { rime, prism, call, closes, sideband } = await rimeCall();
+  test("hangup waits for Prism closure and preserves its final transcript without reporting another close", async () => {
+    const { rime, prism, call, closes, events, sideband } = await rimeCall();
     const browser = browserSocket();
     rime.join!(call.callId, browser);
-    await sideband.hangup();
-    prism.drop(1000);
+    let done = false;
+    const pending = sideband.hangup().then(() => (done = true));
     await settle();
+    expect(done).toBe(false);
+    prism.emit({ type: "response.text.done", item_id: "last", text: "The final turn." });
+    prism.drop(1000);
+    await pending;
+    expect(events.at(-1)).toMatchObject({ transcript: "The final turn." });
     expect(prism.closed).toBe(1000);
     expect(browser.closed).toBe(1000);
     expect(closes).toEqual([]);
+  });
+
+  test("a provider failure closes the browser with a retryable code", async () => {
+    const { rime, prism, call, sideband } = await rimeCall();
+    const browser = browserSocket();
+    rime.join!(call.callId, browser);
+    prism.drop(1011);
+    await sideband.hangup();
+    expect(browser.closed).toBe(4000);
+  });
+
+  test("unconfirmed teardown rejects within its deadline and a later close lets hangup retry", async () => {
+    const { rime, prism, call, sideband } = await rimeCall({ hangupMs: 5 });
+    const browser = browserSocket();
+    rime.join!(call.callId, browser);
+    await expect(sideband.hangup()).rejects.toThrow("hangup timed out");
+    expect(browser.closed).toBeUndefined();
+    prism.drop(1000);
+    await sideband.hangup();
+    expect(browser.closed).toBe(1000);
+  });
+
+  test("the broker retains paid credit and its call slot until Prism closes, then saves the final turn", async () => {
+    const now = makeClock();
+    const { id } = await signUp(makeApp());
+    await grantPro(id, now());
+    const rime = rimeRealtime("rime-key");
+    const realtime: Realtime = {
+      ...rime,
+      async createCall(...args) {
+        const pending = rime.createCall(...args);
+        await settle();
+        FakePrism.all.at(-1)!.emit({ type: "session.updated" });
+        return pending;
+      },
+    };
+    const broker = realtimeBroker({ db: testDb, now, realtime, schedule: fakeTimers().schedule, limitMinutes: 25 });
+    let transcript: unknown[] = [];
+    const options = {
+      sdp: "v=0",
+      instructions: "Speak English",
+      purpose: "roleplay" as const,
+      onTranscript: async (messages: unknown[]) => void (transcript = messages),
+    };
+    await broker.start(id, options);
+    const prism = FakePrism.all.at(-1)!;
+    now.advance({ seconds: 10 });
+    const pending = broker.hangup(id);
+    await settle();
+    expect(await broker.start(id, options)).toEqual({ busy: true });
+    const [reserved] = await testDb
+      .select()
+      .from(schema.voiceReservation)
+      .where(eq(schema.voiceReservation.userId, id));
+    expect(reserved!.settledAt).toBeNull();
+    prism.emit({ type: "response.text.done", item_id: "final", text: "One last turn." });
+    now.advance({ seconds: 2 });
+    prism.drop(1000);
+    await pending;
+    expect(transcript).toMatchObject([{ parts: [{ text: "One last turn." }] }]);
+    const [credit] = await testDb.select().from(schema.billingCredit).where(eq(schema.billingCredit.userId, id));
+    expect(credit!.usedSeconds).toBe(12);
+    const next = await broker.start(id, options);
+    expect(next).toHaveProperty("callId");
+    const closing = broker.hangup(id);
+    await settle();
+    FakePrism.all.at(-1)!.drop(1000);
+    await closing;
   });
 });
 

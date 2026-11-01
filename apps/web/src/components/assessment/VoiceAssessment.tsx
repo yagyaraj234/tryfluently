@@ -84,8 +84,8 @@ function VoiceAssessmentCall({ assessment }: { assessment: Assessment }) {
     if (timesUp) {
       setOver("timesUp");
       void session.finish();
-    }
-  }, [timesUp, session.finish]);
+    } else if (call.status === "ended" && running) void session.finish();
+  }, [timesUp, call.status, running, session.finish]);
 
   // Mute while /end hangs up the call and writes the Report; let go of the call once that's done.
   const { mute, hangUp } = call;
