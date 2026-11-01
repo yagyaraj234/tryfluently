@@ -1,0 +1,28 @@
+rule_files:
+  - billing-alerts.yml
+evaluation_interval: 15s
+tests:
+  - name: no failure does not alert
+    interval: 15s
+    input_series:
+      - series: 'fluently_billing_failures_total{reason="unsupported_product"}'
+        values: "0 0"
+    alert_rule_test:
+      - eval_time: 15s
+        alertname: FluentlyBillingFailure
+        exp_alerts: []
+  - name: first observed failure alerts even without an earlier zero sample
+    interval: 15s
+    input_series:
+      - series: 'fluently_billing_failures_total{reason="unsupported_product"}'
+        values: "1 1"
+    alert_rule_test:
+      - eval_time: 15s
+        alertname: FluentlyBillingFailure
+        exp_alerts:
+          - exp_labels:
+              reason: unsupported_product
+              severity: warning
+            exp_annotations:
+              summary: "Fluently billing requires review: unsupported_product"
+              description: "Inspect API billing logs for payment and webhook IDs. Reconcile payment/credit state in docs/billing.md; a webhook 200 does not guarantee a credit grant."

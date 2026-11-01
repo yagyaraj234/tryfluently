@@ -1,0 +1,10 @@
+groups:
+  - name: fluently-billing
+    rules:
+      - alert: FluentlyBillingFailure
+        expr: sum by (reason) (fluently_billing_failures_total) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Fluently billing requires review: {{ $labels.reason }}"
+          description: "Inspect API billing logs for payment and webhook IDs. Reconcile payment/credit state in docs/billing.md; a webhook 200 does not guarantee a credit grant."
