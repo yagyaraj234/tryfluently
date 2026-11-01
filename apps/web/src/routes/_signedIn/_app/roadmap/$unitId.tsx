@@ -18,6 +18,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LessonAction } from "../../../../components/roadmap/LessonAction";
+import { SkipControl } from "../../../../components/roadmap-view/SkipControl";
 import { roadmapQuery, type Unit } from "../../../../lib/queries";
 
 export const Route = createFileRoute("/_signedIn/_app/roadmap/$unitId")({
@@ -100,6 +101,9 @@ function UnitDetails({ unit }: { unit: Unit }) {
           </Cluster>
           <Text tone="muted">{roleplayNote}</Text>
           {unit.status === "active" && <LessonAction unit={unit} />}
+          {(unit.status === "active" || unit.status === "planned") && (
+            <SkipControl target={{ unitId: unit.id }} title={unit.title} />
+          )}
         </Stack>
       </Card>
       <Stack gap={4}>

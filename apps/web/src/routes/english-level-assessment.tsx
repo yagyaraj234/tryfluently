@@ -24,7 +24,7 @@ function AssessmentGuide() {
           and vocabulary; it does not measure speaking fluency. Voice uses your shared monthly live-minute allowance and
           needs at least four minutes to count.
         </p>
-        <TextLink render={<Link to="/" hash="free" />}>See free beta access and voice limits</TextLink>
+        <TextLink render={<Link to="/" hash="free" />}>See plans and voice limits</TextLink>
         <div>
           <Button render={<Link to="/sign-up" />}>Start your free assessment</Button>
         </div>

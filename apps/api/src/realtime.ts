@@ -1,8 +1,17 @@
 import { schema } from "@fluently/db";
 import type { UIMessage } from "ai";
-import { and, eq, lt, sql } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import type { AppEnv, Deps, Schedule } from "./app";
+import {
+  armVoice,
+  freeVoiceUsed,
+  checkpointVoice,
+  paidCredits,
+  recoverVoice,
+  reserveVoice,
+  settleVoice,
+  PRO_MINUTES,
+} from "./billing-credits";
 
 export type RealtimeEvent = { type: string; [key: string]: any };
 export type RealtimeSession = Record<string, unknown>;
@@ -153,6 +162,7 @@ type Live = {
   closed: Promise<SaveFailure | undefined>;
   targetId?: string;
   callId?: string;
+  freeSeconds?: number;
   startedAt?: Date;
   endsAt?: Date;
 };
@@ -166,6 +176,7 @@ export function realtimeBroker({
 }: Pick<Deps, "db" | "now" | "realtime"> & { schedule: Schedule; limitMinutes: number }) {
   // shortcut: call slots and timers live in memory; use a durable registry before scaling out or requiring restart recovery.
   const live = new Map<string, Live>();
+  const unsettled = new Map<string, () => Promise<void>>();
   // Targets whose call the coach ended on purpose, so a browser that took the hangup for a drop can't resume them.
   // ponytail: grows by one id per coach-ended call until restart; prune by age if that ever matters.
   const ended = new Set<string>();
@@ -174,32 +185,29 @@ export function realtimeBroker({
   // Count only the portion of each live call inside this UTC calendar month.
   async function voiceMinutes(userId: string) {
     const at = now();
-    const monthStart = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1));
+    const retry = unsettled.get(userId);
+    if (retry) {
+      await retry();
+      unsettled.delete(userId);
+    }
+    if (!live.get(userId)?.startedAt) await recoverVoice(db, userId, at);
     const monthEnd = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 1));
-    const rows = await db
-      .select({ startedAt: schema.aiUsage.startedAt, seconds: schema.aiUsage.seconds })
-      .from(schema.aiUsage)
-      .where(
-        and(
-          eq(schema.aiUsage.userId, userId),
-          eq(schema.aiUsage.kind, "realtime"),
-          lt(schema.aiUsage.startedAt, monthEnd),
-          sql`${schema.aiUsage.startedAt} + ${schema.aiUsage.seconds} * interval '1 second' > ${monthStart.toISOString()}::timestamp`,
-        ),
-      );
     const call = live.get(userId);
-    if (call?.startedAt)
-      rows.push({ startedAt: call.startedAt, seconds: (at.getTime() - call.startedAt.getTime()) / 1000 });
-    const used = rows.reduce((sum, row) => {
-      const start = Math.max(row.startedAt.getTime(), monthStart.getTime());
-      const end = Math.min(row.startedAt.getTime() + row.seconds * 1000, at.getTime(), monthEnd.getTime());
-      return sum + Math.max(0, end - start) / 1000;
-    }, 0);
+    const used = await freeVoiceUsed(
+      db,
+      userId,
+      at,
+      call?.startedAt ? { startedAt: call.startedAt, freeSeconds: call.freeSeconds ?? 0 } : undefined,
+    );
+    const paid = await paidCredits(db, userId, at);
+    const monthlyRemainingSeconds = Math.max(0, Math.floor(paid.pro?.remaining ?? limitMinutes * 60 - used));
     return {
-      limitMinutes,
-      usedSeconds: Math.ceil(used),
-      remainingSeconds: Math.max(0, Math.floor(limitMinutes * 60 - used)),
-      resetsAt: monthEnd.toISOString(),
+      limitMinutes: paid.pro ? PRO_MINUTES : limitMinutes,
+      usedSeconds: paid.pro ? Math.ceil(paid.pro.spent) : Math.ceil(used),
+      remainingSeconds: Math.floor(monthlyRemainingSeconds + paid.purchasedSeconds),
+      monthlyRemainingSeconds,
+      purchasedRemainingSeconds: Math.floor(paid.purchasedSeconds),
+      resetsAt: (paid.pro?.expiresAt ?? monthEnd).toISOString(),
       callEndsAt: call?.endsAt?.toISOString() ?? null,
     };
   }
@@ -240,6 +248,8 @@ export function realtimeBroker({
     const instructions = opts.instructions + resumeFrom(prior);
     let call: Awaited<ReturnType<Realtime["createCall"]>>;
     let budgetSeconds: number;
+    let reservationId: string | undefined;
+    let reservedEndsAt: Date | undefined;
     try {
       const budget = await voiceMinutes(userId);
       budgetSeconds = Math.min(budget.remainingSeconds, opts.budgetSeconds ?? Infinity);
@@ -249,6 +259,17 @@ export function realtimeBroker({
         ready();
         return { capped: budget };
       }
+      const reserved = await reserveVoice(db, userId, now(), limitMinutes * 60, budgetSeconds);
+      if (!reserved.reservation) {
+        live.delete(userId);
+        closed.resolve(undefined);
+        ready();
+        return "busy" in reserved ? { busy: true as const } : { capped: budget };
+      }
+      reservationId = reserved.reservation.id;
+      entry.freeSeconds = reserved.reservation.freeSeconds;
+      reservedEndsAt = reserved.boundary;
+      budgetSeconds = reserved.budgetSeconds;
       // Instructions go with the call, so they're in place before the browser asks the coach to open it.
       call = await realtime.createCall(
         opts.sdp,
@@ -257,16 +278,22 @@ export function realtimeBroker({
         opts.targetId,
       );
     } catch (e) {
-      live.delete(userId);
-      closed.resolve(undefined);
-      ready();
+      try {
+        if (reservationId) await settleVoice(db, reservationId, now(), 0);
+      } finally {
+        live.delete(userId);
+        closed.resolve(undefined);
+        ready();
+      }
       throw e;
     }
 
     const startedAt = now();
     entry.startedAt = startedAt;
     entry.callId = call.callId;
-    entry.endsAt = new Date(Math.min(startedAt.getTime() + budgetSeconds * 1000, deadline ?? Infinity));
+    entry.endsAt = new Date(
+      Math.min(startedAt.getTime() + budgetSeconds * 1000, deadline ?? Infinity, reservedEndsAt?.getTime() ?? Infinity),
+    );
     const timers: (() => void)[] = [];
     const transcript: UIMessage[] = [];
     const priorIds = new Set(prior.map((m) => m.id));
@@ -289,10 +316,12 @@ export function realtimeBroker({
     };
 
     const add = (message: UIMessage) => {
+      const elapsed = (now().getTime() - startedAt.getTime()) / 1000;
       transcript.push(message);
       saving = saving.then(async () => {
         try {
           await opts.onTranscript([...prior, ...transcript.filter((m) => !priorIds.has(m.id))]);
+          await checkpointVoice(db, reservationId!, elapsed);
         } catch (error) {
           console.error("realtime transcript save failed", error);
           return { error };
@@ -318,16 +347,16 @@ export function realtimeBroker({
         for (const cancel of timers) cancel();
         cancelEndFallback?.();
         let failure = await saving;
-        try {
-          await db.insert(schema.aiUsage).values({
-            userId,
-            kind: "realtime",
+        const saveUsage = () =>
+          settleVoice(db, reservationId!, endedAt, (endedAt.getTime() - startedAt.getTime()) / 1000, {
             callId: call.callId,
             startedAt,
-            seconds: (endedAt.getTime() - startedAt.getTime()) / 1000,
             usage: { ...usage, purpose: opts.purpose, provider: call.provider },
           });
+        try {
+          await saveUsage();
         } catch (error) {
+          unsettled.set(userId, saveUsage);
           failure ??= { error };
         } finally {
           live.delete(userId);
@@ -358,6 +387,7 @@ export function realtimeBroker({
           usage.inputTokens += u.input_tokens ?? 0;
           usage.cachedInputTokens += u.input_token_details?.cached_tokens ?? 0;
           usage.outputTokens += u.output_tokens ?? 0;
+          await checkpointVoice(db, reservationId!, (now().getTime() - startedAt.getTime()) / 1000);
         } else if (
           opts.endTool &&
           e.type === "response.function_call_arguments.done" &&
@@ -376,7 +406,22 @@ export function realtimeBroker({
         await entry.stop!();
       },
     });
+    try {
+      await armVoice(db, reservationId!, startedAt, entry.endsAt, call.callId);
+    } catch (error) {
+      ready();
+      try {
+        await entry.stop();
+      } catch (teardownError) {
+        console.error("Failed call setup teardown will retry", teardownError);
+      }
+      throw error;
+    }
     ready();
+    if (entry.endsAt <= now()) {
+      await hangup(userId, opts.targetId);
+      return { unavailable: true as const };
+    }
     entry.sideband.send({ type: "session.update", session: { type: "realtime", instructions } });
     {
       const remainingSeconds = Math.max(0, (entry.endsAt.getTime() - now().getTime()) / 1000);
@@ -399,7 +444,15 @@ export function realtimeBroker({
   // Hangs up the Learner's live call, if any, and waits until its transcript and usage are saved.
   async function hangup(userId: string, targetId?: string) {
     const entry = live.get(userId);
-    if (!entry || (targetId !== undefined && entry.targetId !== targetId)) return;
+    if (!entry) {
+      const retry = unsettled.get(userId);
+      if (retry) {
+        await retry();
+        unsettled.delete(userId);
+      }
+      return;
+    }
+    if (targetId !== undefined && entry.targetId !== targetId) return;
     await entry.ready;
     await entry.stop?.();
   }
@@ -439,4 +492,4 @@ export const voiceMinutesRoute = (broker: RealtimeBroker) =>
   new Hono<AppEnv>().get("/", async (c) => c.json(await broker.voiceMinutes(c.var.user.id)));
 
 export const voiceLimitMessage =
-  "You've used this month's voice minutes. We're in beta. Email hey@yagyaraj.com to request more voice credits, or use text mode.";
+  "You've used your available voice minutes. Subscribe to Pro or add a minute pack from Profile, or use text mode.";

@@ -10,7 +10,7 @@ const unreachable = "We couldn't reach Fluently. Check your connection and try a
 
 function deleteError(code: string | undefined) {
   if (code === "INVALID_PASSWORD") return "That password isn't right.";
-  return "We couldn't delete your account. Try again.";
+  return "We couldn't delete your account. Your data is intact. If a payment is pending, wait for it to finish, then try again or contact support.";
 }
 
 export function AccountCard() {

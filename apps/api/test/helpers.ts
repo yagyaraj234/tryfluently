@@ -30,6 +30,7 @@ type Overrides = {
   schedule?: Schedule;
   transcriber?: Transcriber;
   settings?: Partial<Settings>;
+  payments?: Deps["payments"];
 };
 
 // Transcribes each recording to the next scripted text (or a default) and records what it was sent.
@@ -143,6 +144,7 @@ export function makeApp({
   schedule = fakeTimers().schedule,
   settings,
   env,
+  payments,
 }: Overrides = {}) {
   const deps: Deps = {
     db: testDb,
@@ -153,6 +155,7 @@ export function makeApp({
     transcriber,
     schedule,
     settings,
+    payments,
     models: {
       step: unscripted("step"),
       brief: unscripted("brief"),
@@ -281,6 +284,19 @@ export const json = (body: unknown, cookie?: string, method = "POST") => ({
 });
 
 export const get = (cookie: string) => ({ headers: { cookie } });
+
+export async function grantPro(userId: string, at = new Date("2026-10-15T09:00:00Z")) {
+  await testDb.insert(schema.billingCredit).values({
+    id: `test-payment-${crypto.randomUUID()}`,
+    userId,
+    kind: "pro",
+    startsAt: at,
+    expiresAt: new Date(at.getTime() + 30 * 86400000),
+    seconds: 9000,
+    amount: 900,
+    currency: "USD",
+  });
+}
 export const del = (cookie: string) => ({ method: "DELETE", headers: { cookie, origin: WEB_ORIGIN } });
 
 // Turns Set-Cookie headers into a Cookie header for the next request.

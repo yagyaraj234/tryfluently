@@ -140,7 +140,7 @@ export function AuthScreen(props: {
           </Button>
           {signingUp && (
             <Text tone="muted">
-              Free beta. 10 live voice minutes/month; text practice remains available. No card or automatic charge.{" "}
+              Free: 25 live voice minutes/month and 5 new Lessons/day. No card needed. Paid plans are optional.{" "}
               <TextLink render={<Link to="/" hash="free" />}>See current limits</TextLink>.
             </Text>
           )}

@@ -4,6 +4,8 @@ AI English coach for job interviews, client communication and everyday fluency. 
 
 This Bun workspace contains the Hono API (`apps/api`), TanStack Start web app (`apps/web`), Postgres schema (`packages/db`) and shared design system (`packages/ui`).
 
+Billing uses Dodo Payments for the tax-inclusive $9 monthly Pro plan and $29 one-time minute packs. See [billing setup and behavior](docs/billing.md) before enabling checkout.
+
 ## Run locally
 
 Choose either development mode or Docker below. Both need service credentials in a root `.env` file.

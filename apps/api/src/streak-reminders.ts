@@ -28,12 +28,16 @@ export async function sendStreakReminders(deps: Deps) {
     .selectDistinct({ id: user.id, email: user.email, timezone: user.timezone, remindedOn: user.streakRemindedOn })
     .from(user)
     .innerJoin(lesson, eq(lesson.userId, user.id))
+    .leftJoin(schema.streakRestoration, eq(schema.streakRestoration.userId, user.id))
     .where(
       and(
         eq(user.streakReminders, true),
         eq(user.emailVerified, true),
         eq(lesson.status, "completed"),
-        gte(lesson.completedAt, new Date(at.getTime() - 50 * 3_600_000)),
+        or(
+          gte(lesson.completedAt, new Date(at.getTime() - 50 * 3_600_000)),
+          gte(schema.streakRestoration.restoredAt, new Date(at.getTime() - 72 * 3_600_000)),
+        ),
       ),
     );
   for (const learner of learners) {

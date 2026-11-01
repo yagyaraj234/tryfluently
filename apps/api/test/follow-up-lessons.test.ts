@@ -1,3 +1,4 @@
+import DodoPayments from "dodopayments";
 import { expect, test } from "bun:test";
 import { schema } from "@fluently/db";
 import { eq } from "drizzle-orm";
@@ -54,6 +55,31 @@ test("Learn more completes the Lesson, inserts a Follow-up Lesson right after it
     .map((c) => (c.prompt as any)[0].content as string)
     .findLast((x) => x.includes("Plan one short English Lesson"));
   expect(plannerSystem).toContain("Follow-up Lesson");
+});
+
+test("daily limit rejects a Follow-up without completing the current Lesson or shifting its outline", async () => {
+  const t = await readyLesson(fakeQuizModel({ plans: fillGaps }), {
+    payments: new DodoPayments({ bearerToken: "test-only", environment: "test_mode" }),
+  });
+  await answerQuiz(t, t.lessonId);
+  const before = await roadmap(t);
+  await testDb.insert(schema.lesson).values(
+    Array.from({ length: 4 }, (_, position) => ({
+      userId: t.id,
+      position,
+      kind: "practice" as const,
+      title: "Earlier",
+      objective: "Practice",
+      status: "completed" as const,
+      startedAt: new Date("2026-10-15T09:00:00Z"),
+    })),
+  );
+  const response = await learnMore(t, t.lessonId);
+  expect(response.status).toBe(429);
+  expect((await roadmap(t))[0].lessonOutline).toEqual(before[0].lessonOutline);
+  expect((await testDb.select().from(schema.lesson).where(eq(schema.lesson.id, t.lessonId)))[0]!.status).toBe(
+    "in_progress",
+  );
 });
 
 test("Learn more is only offered at the choice, and not from the second Follow-up Lesson in a chain", async () => {

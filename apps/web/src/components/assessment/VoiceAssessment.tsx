@@ -2,7 +2,7 @@ import { CoachCall, ErrorState, Notice, Stack, TextLink } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { MicrophoneProblem } from "../voice/MicrophoneProblem";
-import { VoiceAccess, VoiceLimit, BetaVoiceCredits } from "../voice/VoiceCredits";
+import { VoiceAccess, VoiceLimit, VoicePlans } from "../voice/VoiceCredits";
 import { voiceMinutesQuery } from "../../lib/queries";
 import { minutesLeft, useCallClock } from "../../lib/voiceMinutes";
 import { useEffect, useState } from "react";
@@ -101,7 +101,7 @@ function VoiceAssessmentCall({ assessment }: { assessment: Assessment }) {
         {over === "timesUp" && (
           <>
             <Notice tone="info">Your voice time ran out, so the Assessment ended there.</Notice>
-            <BetaVoiceCredits />
+            <VoicePlans />
           </>
         )}
         <AssessmentEnding session={session} />

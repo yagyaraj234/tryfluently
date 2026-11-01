@@ -17,14 +17,14 @@ export const assessmentTiming =
 
 export const freeAccess = {
   includes: [
-    "Written Assessments, a personalised Roadmap, text Lessons and text Roleplays during beta.",
-    "10 live voice minutes per month, shared by Voice Assessments and voice Roleplays. Both sides of the call and silence count. Resets on the first at 00:00 UTC.",
+    "Written Assessments, a personalised Roadmap, text Roleplays and 5 new Lessons per day. Follow-up Lessons count; pages, quizzes, resumes, reviews and retries don't. Daily Lessons reset at midnight in your Profile timezone.",
+    "25 free live voice minutes per month, shared by Voice Assessments and voice Roleplays. Both sides of the call and silence count. Resets on the first at 00:00 UTC.",
     "Uploaded Lesson recordings have a separate 30-minute daily cap in your Profile timezone, with up to 3 minutes per clip. Reference Pronunciation is separate from live voice minutes.",
   ],
   afterLimit:
-    "When live voice minutes run out, keep practising by text, wait for the monthly reset, or email us to request more credits during beta. Extra credits are not automatic.",
+    "When live minutes run out, use text mode, wait for renewal, subscribe to Pro or buy a minute pack. Purchased minutes are used after monthly minutes and never expire.",
   pricing:
-    "No paid plan is available yet. Future pricing is undecided. Beta access and limits may change; any paid offer will show its price before you choose it. No automatic charge.",
+    "Free is $0 with no card needed. Pro is $9/month including tax: 150 live minutes per billing period, unlimited Lessons, Lesson and Unit skipping, and streak recovery. A $29 one-time pack includes tax and 500 non-expiring live minutes. Any positive purchased balance unlocks all Pro features, even without a subscription. Local-currency totals and conversion charges are shown at checkout. No paid trial or automatic top-up.",
 };
 
 export const faqs = [

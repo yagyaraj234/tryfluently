@@ -16,6 +16,7 @@ type Props = {
   pending: boolean;
   success: boolean;
   failed: boolean;
+  error?: string;
   onStart: () => void;
   onClose: () => void;
 };
@@ -23,7 +24,7 @@ type Props = {
 // Fallback for old outlines with no pageCount; matches the 5 Pages the API writes when none is given.
 const DEFAULT_PAGES = 5;
 
-export function StartLessonDialog({ selected, pending, success, failed, onStart, onClose }: Props) {
+export function StartLessonDialog({ selected, pending, success, failed, error, onStart, onClose }: Props) {
   const preparing = pending || success;
   const practice = selected?.kind === "practice";
   return (
@@ -42,7 +43,7 @@ export function StartLessonDialog({ selected, pending, success, failed, onStart,
           <Chip>{selected.pageCount ?? DEFAULT_PAGES} pages</Chip>
         </Cluster>
       )}
-      {failed && <Notice tone="error">Your Lesson couldn’t be started. Try again.</Notice>}
+      {failed && <Notice tone="error">{error ?? "Your Lesson couldn’t be started. Try again."}</Notice>}
       <Button fullWidth disabled={preparing} onClick={onStart}>
         {preparing ? "Preparing your Lesson…" : practice ? "Start learning" : "Start Lesson"}
       </Button>

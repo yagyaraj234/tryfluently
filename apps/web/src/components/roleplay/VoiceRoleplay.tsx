@@ -2,7 +2,7 @@ import { Button, Cluster, ErrorState, Heading, LiveBar, Notice, Stack, Text, Voi
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { MicrophoneProblem } from "../voice/MicrophoneProblem";
-import { BetaVoiceCredits, VoiceAccess, VoiceLimit } from "../voice/VoiceCredits";
+import { VoicePlans, VoiceAccess, VoiceLimit } from "../voice/VoiceCredits";
 import { useRealtimeCall } from "../../lib/call";
 import { voiceMinutesQuery } from "../../lib/queries";
 import { minutesLeft, useCallClock } from "../../lib/voiceMinutes";
@@ -76,7 +76,7 @@ function CallOver({ over, session }: { over?: "timesUp" | "dropped"; session: Vo
       {over === "timesUp" && (
         <>
           <Notice tone="info">Your voice time ran out, so the Roleplay ended there.</Notice>
-          <BetaVoiceCredits />
+          <VoicePlans />
         </>
       )}
       {over === "dropped" && <Notice tone="info">Your call dropped, so the Roleplay ended there.</Notice>}

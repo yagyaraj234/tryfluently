@@ -1,4 +1,5 @@
 import { createDb } from "@fluently/db";
+import { dodoPayments, startBillingCleanup } from "./billing";
 import { createApp, type Deps, type Env } from "./app";
 import { resendMailer } from "./mailer";
 import { startAssessmentJobs } from "./assessment-jobs";
@@ -31,6 +32,7 @@ for (const key of required) {
 
 const deps = {
   db: createDb(env.DATABASE_URL!),
+  payments: dodoPayments(env as Env),
   now: () => new Date(),
   env: env as Env,
   models: modelsFromSettings(env),
@@ -59,5 +61,9 @@ export const serverOptions = {
 
 if (import.meta.main) {
   const server = Bun.serve(serverOptions);
-  installShutdown(server, app, deps.db, [startAssessmentJobs(deps), startStreakReminders(deps)]);
+  installShutdown(server, app, deps.db, [
+    startAssessmentJobs(deps),
+    startStreakReminders(deps),
+    startBillingCleanup(deps),
+  ]);
 }

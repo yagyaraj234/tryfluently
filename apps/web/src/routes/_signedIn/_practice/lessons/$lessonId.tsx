@@ -56,12 +56,12 @@ function LessonScreen() {
   const lesson = Route.useLoaderData();
   const [review, setReview] = useState(false);
 
-  if (lesson.status === "abandoned")
+  if (lesson.status === "abandoned" || lesson.status === "skipped")
     return (
       <EmptyState
         icon={FlagCheckered}
         title="This Lesson has ended"
-        description="Its Unit was skipped. Continue with your active Unit."
+        description="This Lesson or its Unit was skipped. Continue with your active Unit."
         action={<Button render={<Link to="/home" />}>Back to Home</Button>}
       />
     );

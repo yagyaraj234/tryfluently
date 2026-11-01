@@ -13,3 +13,6 @@ export const apiUrl = () => process.env.API_URL ?? "http://localhost:3000";
 export const api = createIsomorphicFn()
   .server(() => hc<AppType>(apiUrl(), { headers: { cookie: getRequestHeader("cookie") ?? "" } }))
   .client(() => hc<AppType>(window.location.origin));
+
+export const errorOf = async (response: { json(): Promise<unknown> }, fallback: string) =>
+  new Error(((await response.json().catch(() => null)) as { error?: string } | null)?.error ?? fallback);

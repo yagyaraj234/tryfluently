@@ -227,8 +227,8 @@ test("a voice Roleplay opens on the live bar, connecting, with its kind and tone
 
 test("with this month's voice minutes used up, a voice Roleplay shows the cap and when it resets, and offers to type instead", async () => {
   const t = text(await page("/roleplays/closing", "zoe"));
-  assert.match(t, /You&#x27;ve used this month&#x27;s voice minutes/);
-  assert.match(t, /10 free voice minutes each month/);
+  assert.match(t, /You&#x27;ve used your available voice minutes/);
+  assert.match(t, /25 live minutes each month/);
   assert.match(t, /November 1, 2026 at 00:00 UTC/);
   assert.match(t, /Type instead/);
   assert.doesNotMatch(t, /Connecting/, "no call is started");
@@ -236,7 +236,7 @@ test("with this month's voice minutes used up, a voice Roleplay shows the cap an
 
 test("a Roleplay already spoken in, capped, can be ended for its Debrief", async () => {
   const t = text(await page("/roleplays/spoken", "zoe"));
-  assert.match(t, /You&#x27;ve used this month&#x27;s voice minutes/);
+  assert.match(t, /You&#x27;ve used your available voice minutes/);
   assert.doesNotMatch(t, /Type instead/);
   assert.match(t, /Get my Debrief/);
 });

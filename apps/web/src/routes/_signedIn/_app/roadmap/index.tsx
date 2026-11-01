@@ -77,6 +77,7 @@ function Roadmap() {
         pending={dialogMutation.isPending}
         success={dialogMutation.isSuccess}
         failed={dialogMutation.isError}
+        error={dialogMutation.error?.message}
         onStart={confirm}
         onClose={() => setSelected(undefined)}
       />
