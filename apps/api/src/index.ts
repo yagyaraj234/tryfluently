@@ -4,6 +4,7 @@ import { createApp, type Deps, type Env } from "./app";
 import { resendMailer } from "./mailer";
 import { startAssessmentJobs } from "./assessment-jobs";
 import { startStreakReminders } from "./streak-reminders";
+import { startVerifyReminders } from "./verify-reminders";
 import { modelsFromSettings } from "./models";
 import { kenpathSpeech } from "./pronunciation";
 import { openaiRealtime } from "./realtime";
@@ -65,5 +66,6 @@ if (import.meta.main) {
     startAssessmentJobs(deps),
     startStreakReminders(deps),
     startBillingCleanup(deps),
+    startVerifyReminders(deps),
   ]);
 }

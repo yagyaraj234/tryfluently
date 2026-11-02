@@ -55,6 +55,22 @@ export function verificationEmail(to: string, url: string): Email {
   };
 }
 
+export function verifyReminderEmail(to: string, url: string, unsubscribeUrl: string): Email {
+  return {
+    to,
+    subject: "Verify your email to start using Fluently",
+    text: `Verify your email to start using Fluently: ${url}\n\nThis link expires in 7 days.\n\nUnsubscribe from verification reminders: ${unsubscribeUrl}`,
+    headers: { "List-Unsubscribe": `<${unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+    html: layout({
+      title: "Confirm your email",
+      preview: "Verify your email to start using Fluently.",
+      eyebrow: "FLUENTLY",
+      body: `<p style="margin:0">Verify your email to start using Fluently. This link expires in 7 days.</p>${button(url, "Verify email")}${fallbackLink(url)}`,
+      footer: `If you didn't create a Fluently account, you can ignore this email. <a href="${escape(unsubscribeUrl)}" style="color:#66655f">Unsubscribe from verification reminders</a>`,
+    }),
+  };
+}
+
 type Report = {
   overallLevel: string;
   partial?: boolean;
