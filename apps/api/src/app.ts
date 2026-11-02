@@ -214,6 +214,7 @@ export function createApp(input: Deps) {
     .route("/api/email/unsubscribe", unsubscribeRoute(deps))
     // Dodo verifies the raw body with its signing secret; no browser session or origin is involved.
     .route("/api/billing/webhook", billingWebhooks(billing))
+    .route("/api/email/unsubscribe-verification", unsubscribeRoute(deps, "verify"))
     .use("/api/*", async (c, next) => {
       c.set("requestStartedAt", deps.now());
       // CORS controls response access; reject foreign browser writes before they reach handlers.

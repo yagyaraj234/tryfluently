@@ -17,6 +17,7 @@ import type { Realtime, RealtimeEvent, RealtimeSession } from "../src/realtime";
 import { testDb } from "./setup";
 import { runAssessmentJobs } from "../src/assessment-jobs";
 import { sendStreakReminders } from "../src/streak-reminders";
+import { sendVerifyReminders } from "../src/verify-reminders";
 
 export const WEB_ORIGIN = "http://localhost:5173";
 
@@ -175,6 +176,7 @@ export function makeApp({
   return Object.assign(createApp(deps), {
     runJobs: (userId: string) => runAssessmentJobs(deps, userId),
     remindStreaks: () => sendStreakReminders(deps),
+    remindUnverified: () => sendVerifyReminders(deps),
   });
 }
 
