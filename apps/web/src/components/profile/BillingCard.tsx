@@ -4,6 +4,7 @@ import {
   Cluster,
   Dialog,
   ErrorState,
+  Figure,
   Grid,
   Heading,
   LoadingState,
@@ -16,12 +17,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, errorOf } from "../../lib/api";
 import { billingQuery, voiceMinutesQuery } from "../../lib/queries";
-import { VoiceAllowance } from "../voice/VoiceCredits";
+import { resetsOn, voiceTime } from "../../lib/voiceMinutes";
 
 export function BillingCard({ paymentReturn = false }: { paymentReturn?: boolean }) {
   const billing = useQuery(billingQuery);
+  const minutes = useQuery(voiceMinutesQuery);
   const queryClient = useQueryClient();
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(paymentReturn);
   useEffect(() => {
     if (!paymentReturn) return;
@@ -96,22 +99,43 @@ export function BillingCard({ paymentReturn = false }: { paymentReturn?: boolean
                 later or contact support.
               </Notice>
             )}
-            <Text>
-              {data.source === "subscription"
-                ? "Pro subscription"
-                : data.source === "pack"
-                  ? "Pro access from your minute pack"
-                  : "Free plan"}
-            </Text>
-            {data.paidUntil && (
-              <Text tone="muted">
-                Subscription benefits through {new Date(data.paidUntil).toLocaleString("en", { timeZone: "UTC" })} UTC.
-              </Text>
+            <Stack gap={1}>
+              <Heading level={3} size="title">
+                {data.source === "subscription"
+                  ? "Pro subscription"
+                  : data.source === "pack"
+                    ? "Pro access from your minute pack"
+                    : "Free plan"}
+              </Heading>
+              {data.paidUntil && (
+                <Text tone="muted">
+                  Subscription benefits through {new Date(data.paidUntil).toLocaleString("en", { timeZone: "UTC" })}{" "}
+                  UTC.
+                </Text>
+              )}
+              {data.source === "pack" && (
+                <Text tone="muted">All Pro features stay unlocked while your purchased balance is above zero.</Text>
+              )}
+            </Stack>
+            {minutes.data ? (
+              <Stack gap={2}>
+                <Grid columns="responsive">
+                  <Figure
+                    value={voiceTime(minutes.data.monthlyRemainingSeconds ?? minutes.data.remainingSeconds)}
+                    label={`of ${minutes.data.limitMinutes} monthly minutes left`}
+                  />
+                  <Figure
+                    value={voiceTime(minutes.data.purchasedRemainingSeconds ?? 0)}
+                    label="purchased minutes left. No expiry"
+                  />
+                </Grid>
+                <Text tone="muted">Renews {resetsOn(minutes.data.resetsAt)}.</Text>
+              </Stack>
+            ) : minutes.isError ? (
+              <ErrorState description="We couldn't load your voice minutes." onRetry={() => void minutes.refetch()} />
+            ) : (
+              <Text tone="muted">Loading voice minutes…</Text>
             )}
-            {data.source === "pack" && (
-              <Text tone="muted">All Pro features stay unlocked while your purchased balance is above zero.</Text>
-            )}
-            <VoiceAllowance />
             <Text>
               {data.lessons.limit === null
                 ? "No daily Lesson limit."
@@ -123,48 +147,11 @@ export function BillingCard({ paymentReturn = false }: { paymentReturn?: boolean
                 Paid checkout is currently unavailable. Your existing access and balances are shown here.
               </Notice>
             )}
-            <Grid columns={2}>
-              <Stack gap={3}>
-                <Heading level={3} size="title">
-                  Pro · $9/month
-                </Heading>
-                <Text>
-                  150 live minutes each billing period, unlimited Lessons, Lesson and Unit skipping, and streak
-                  recovery.
-                </Text>
-                <Text tone="muted">
-                  Tax included. Renews monthly until cancelled. Unused monthly minutes don't roll over.
-                </Text>
-                <Button
-                  disabled={busy || !data.enabled || Boolean(data.subscription)}
-                  onClick={() => purchase.mutate("pro")}
-                >
-                  {purchase.isPending && purchase.variables === "pro"
-                    ? "Opening checkout…"
-                    : data.subscription
-                      ? "Subscription on file"
-                      : "Subscribe to Pro"}
-                </Button>
-              </Stack>
-              <Stack gap={3}>
-                <Heading level={3} size="title">
-                  Minute pack · $29 once
-                </Heading>
-                <Text>
-                  500 live minutes. Buy again whenever you need more. No expiry, including after your subscription ends.
-                </Text>
-                <Text tone="muted">
-                  Tax included. All Pro features while purchased minutes remain. No automatic top-up.
-                </Text>
-                <Button variant="secondary" disabled={busy || !data.enabled} onClick={() => purchase.mutate("pack")}>
-                  {purchase.isPending && purchase.variables === "pack" ? "Opening checkout…" : "Add 500 minutes"}
-                </Button>
-              </Stack>
-            </Grid>
-            <Text tone="muted">
-              USD prices. Local-currency totals and any conversion charges are shown before payment. Recorded Lesson
-              answers have a separate daily allowance.
-            </Text>
+            <Cluster>
+              <Button disabled={busy || !data.enabled} onClick={() => setChoosing(true)}>
+                {data.subscription ? "Add minutes" : "Upgrade"}
+              </Button>
+            </Cluster>
             {data.canManage && (
               <Cluster>
                 <Button variant="secondary" disabled={busy || !data.enabled} onClick={() => portal.mutate()}>
@@ -184,11 +171,62 @@ export function BillingCard({ paymentReturn = false }: { paymentReturn?: boolean
             )}
             {failure && <Notice tone="error">{failure.message}</Notice>}
             <Text tone="muted">
-              Billing or refund request?{" "}
+              Recorded Lesson answers have a separate daily allowance. Billing or refund request?{" "}
               <TextLink render={<a href="mailto:hey@yagyaraj.com" />}>Contact support</TextLink>. Refunds are reviewed
               manually.
             </Text>
           </>
+        )}
+        {data && (
+          <Dialog
+            open={choosing}
+            onOpenChange={(open) => !purchase.isPending && setChoosing(open)}
+            title="Choose how to get more minutes"
+            description="USD prices. Local-currency totals and any conversion charges are shown before payment."
+          >
+            <Stack gap={6}>
+              <Grid columns="responsive">
+                <Stack gap={3}>
+                  <Heading level={3} size="title">
+                    Pro · $9/month
+                  </Heading>
+                  <Text>
+                    150 live minutes each billing period, unlimited Lessons, Lesson and Unit skipping, and streak
+                    recovery.
+                  </Text>
+                  <Text tone="muted">
+                    Tax included. Renews monthly until cancelled. Unused monthly minutes don't roll over.
+                  </Text>
+                  <Button
+                    disabled={busy || !data.enabled || Boolean(data.subscription)}
+                    onClick={() => purchase.mutate("pro")}
+                  >
+                    {purchase.isPending && purchase.variables === "pro"
+                      ? "Opening checkout…"
+                      : data.subscription
+                        ? "Subscription on file"
+                        : "Subscribe to Pro"}
+                  </Button>
+                </Stack>
+                <Stack gap={3}>
+                  <Heading level={3} size="title">
+                    Minute pack · $29 once
+                  </Heading>
+                  <Text>
+                    500 live minutes. Buy again whenever you need more. No expiry, including after your subscription
+                    ends.
+                  </Text>
+                  <Text tone="muted">
+                    Tax included. All Pro features while purchased minutes remain. No automatic top-up.
+                  </Text>
+                  <Button variant="secondary" disabled={busy || !data.enabled} onClick={() => purchase.mutate("pack")}>
+                    {purchase.isPending && purchase.variables === "pack" ? "Opening checkout…" : "Add 500 minutes"}
+                  </Button>
+                </Stack>
+              </Grid>
+              {purchase.error && <Notice tone="error">{purchase.error.message}</Notice>}
+            </Stack>
+          </Dialog>
         )}
         <Dialog
           open={confirmCancel}

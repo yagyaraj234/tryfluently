@@ -116,10 +116,7 @@ test("Profile shows Free allowance, tax-inclusive plans and explicit pack purcha
   assert.match(body, /Free plan/);
   assert.match(body, /8:00 of 10 monthly minutes left/);
   assert.match(body, /Renews November 1, 2026 at 00:00 UTC/);
-  assert.match(body, /Pro · \$9\/month/);
-  assert.match(body, /Minute pack · \$29 once/);
-  assert.match(body, /Tax included/);
   assert.match(body, /3 of 5 new Lessons left today/);
-  assert.match(body, /No automatic top-up/);
+  assert.match(body, /Upgrade/);
   assert.match(html, /href="mailto:hey@yagyaraj.com"/);
 });

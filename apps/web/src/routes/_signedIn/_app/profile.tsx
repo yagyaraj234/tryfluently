@@ -39,6 +39,7 @@ function Profile() {
           </nav>
         </Stack>
       }
+      railFirst
       rail={<ProfileSummary name={learner.name} />}
     />
   );
