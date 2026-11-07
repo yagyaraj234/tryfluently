@@ -4,6 +4,8 @@ AI English coach for job interviews, client communication and everyday fluency. 
 
 This Bun workspace contains the Hono API (`apps/api`), TanStack Start web app (`apps/web`), Postgres schema (`packages/db`) and shared design system (`packages/ui`).
 
+Billing uses Dodo Payments for the tax-inclusive $9 monthly Pro plan and $29 one-time minute packs. See [billing setup and behavior](docs/billing.md) before enabling checkout.
+
 ## Run locally
 
 Choose either development mode or Docker below. Both need service credentials in a root `.env` file.
@@ -23,6 +25,7 @@ Edit `.env` before starting the app:
 | `BETTER_AUTH_SECRET`                                                                          | Replace `change-me` with a random secret, for example from `openssl rand -hex 32`.                                    |
 | `OPENAI_API_KEY`                                                                              | Your OpenAI key with access to the models in `.env.example`.                                                          |
 | `MODEL_STEP`, `MODEL_BRIEF`, `MODEL_ROADMAP`, `MODEL_JUDGE`, `MODEL_REPORT`, `MODEL_REALTIME` | Keep the example values, or choose models available to your account.                                                  |
+| `REALTIME_PROVIDER`, `RIME_API_KEY`                                                           | Which provider runs live voice calls: `openai` (default) or `rime`, which needs your Rime key.                        |
 | `RESEND_API_KEY`, `EMAIL_FROM`                                                                | Your Resend key and an allowed sender. Email sign-up requires a verification email.                                   |
 | `KENPATH_BASE_URL`, `KENPATH_API_KEY`, `KENPATH_MODEL`                                        | Your Kenpath API URL, key and speech model; required at API startup.                                                  |
 | `KENPATH_VOICE`                                                                               | A supported voice ID for Reference Pronunciation. Without it, pronunciation playback is unavailable.                  |

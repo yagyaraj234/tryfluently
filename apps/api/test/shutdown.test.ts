@@ -85,7 +85,7 @@ test.each(["assessment", "reminders"] as const)("%s worker stop waits for its ac
     get(target, key, receiver) {
       if (kind === "assessment" && key === "transaction") return wait;
       if (kind === "reminders" && key === "selectDistinct")
-        return () => ({ from: () => ({ innerJoin: () => ({ where: wait }) }) });
+        return () => ({ from: () => ({ innerJoin: () => ({ leftJoin: () => ({ where: wait }) }) }) });
       return Reflect.get(target, key, receiver);
     },
   });

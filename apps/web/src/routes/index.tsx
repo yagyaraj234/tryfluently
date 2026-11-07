@@ -132,13 +132,13 @@ function Landing() {
       footerLinks={<PublicLinks />}
     >
       <MarketingHero
-        badge="AI English coach · Free beta"
+        badge="AI English coach · Start free"
         title="Speak English confidently"
         emphasis="with lessons built around you."
         description="Practise work calls, interviews and everyday conversations. Get feedback on your English and Lessons shaped by your Goals."
         cta={start}
         ctaLabel="Start your free assessment"
-        note="Free beta. 10 live voice minutes/month. No card needed."
+        note="Start free. 25 live voice minutes/month. No card needed."
       >
         <ProductFrame
           label="Fluently preview: a Roleplay, an Assessment Report and a Roadmap"
@@ -188,7 +188,7 @@ function Landing() {
 
       <FinalCta
         title="Make time for your next conversation"
-        description="Start with a Voice or Written Assessment and get a Roadmap based on your answers. Free during beta, with clear voice limits."
+        description="Start with a Voice or Written Assessment and get a Roadmap based on your answers. Start free, with clear daily Lesson and live voice limits."
         cta={start}
         ctaLabel="Start your free assessment"
       />

@@ -127,13 +127,13 @@ test("sitemap.xml lists the public pages and llms.txt summarises the product", a
   assert.match(llms, /### How long is the assessment\?/);
 });
 
-test("free beta limits and AI limitations are visible before signup", async () => {
+test("Free and paid limits and AI limitations are visible before signup", async () => {
   const html = await (await visit("/")).text();
   const copy = text(html);
-  assert.match(copy, /10 live voice minutes per month/);
+  assert.match(copy, /25 free live voice minutes per month/);
   assert.match(copy, /30-minute daily cap/);
-  assert.match(copy, /Future pricing is undecided/);
-  assert.match(copy, /No automatic charge/);
+  assert.match(copy, /Pro is \$9\/month including tax/);
+  assert.match(copy, /No paid trial or automatic top-up/);
   assert.match(copy, /Written Assessments measure grammar and vocabulary, not spoken fluency/);
   assert.match(copy, /not an official test or certificate/);
   assert.match(html, /href="\/english-level-assessment"/);
@@ -170,7 +170,7 @@ test("signup and sign-in expose legal links, signup exposes voice limits", async
     const html = await response.text();
     for (const policy of ["privacy", "terms", "contact"]) assert.match(html, new RegExp(`href="/${policy}"`));
     if (path === "/sign-up") {
-      assert.match(text(html), /10 live voice minutes\/month/);
+      assert.match(text(html), /25 live voice minutes\/month/);
       assert.match(html, /href="\/#free"/);
     }
   }

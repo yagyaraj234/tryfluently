@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { schema } from "@fluently/db";
 import { eq } from "drizzle-orm";
 import type { UIMessage } from "ai";
+import { checkpointVoice, reserveVoice } from "../src/billing-credits";
 import { realtimeBroker } from "../src/realtime";
 import { fakeRealtime, fakeTimers, makeApp, makeClock, signUp } from "./helpers";
 import { testDb } from "./setup";
@@ -31,6 +32,20 @@ const utterance = (id: string) => ({
   type: "conversation.item.input_audio_transcription.completed",
   item_id: id,
   transcript: id,
+});
+
+test("a fresh broker starts after an expired crash reservation without a preceding allowance GET", async () => {
+  const { userId, broker, clock } = await setup();
+  const crashed = await reserveVoice(testDb, userId, clock(), 600, 20);
+  await checkpointVoice(testDb, crashed.reservation!.id, 7);
+  clock.advance({ seconds: 20 });
+  const started = await broker.start(
+    userId,
+    opts(async () => {}),
+  );
+  expect(started).toHaveProperty("callId");
+  expect((await broker.voiceMinutes(userId)).usedSeconds).toBe(7);
+  await broker.shutdown();
 });
 
 describe("Realtime shutdown", () => {
@@ -176,6 +191,45 @@ describe("Realtime shutdown", () => {
 });
 
 describe("Realtime close failures", () => {
+  test("failed setup settlement preserves the provider error and retries before the next call", async () => {
+    const { userId, realtime, broker } = await setup();
+    const providerError = new Error("provider unavailable");
+    let settlement: ReturnType<typeof spyOn> | undefined;
+    const create = realtime.createCall;
+    realtime.createCall = async () => {
+      settlement = spyOn(testDb, "transaction").mockRejectedValueOnce(new Error("settlement unavailable"));
+      throw providerError;
+    };
+    try {
+      await expect(
+        broker.start(
+          userId,
+          opts(async () => {}),
+        ),
+      ).rejects.toBe(providerError);
+    } finally {
+      settlement?.mockRestore();
+      realtime.createCall = create;
+    }
+    const [open] = await testDb
+      .select()
+      .from(schema.voiceReservation)
+      .where(eq(schema.voiceReservation.userId, userId));
+    expect(open!.settledAt).toBeNull();
+    expect(
+      await broker.start(
+        userId,
+        opts(async () => {}),
+      ),
+    ).toHaveProperty("callId");
+    const [released] = await testDb
+      .select()
+      .from(schema.voiceReservation)
+      .where(eq(schema.voiceReservation.id, open!.id));
+    expect(released!.settledAt).not.toBeNull();
+    await broker.shutdown();
+  });
+
   test("a sideband disconnect hangs up the provider before releasing the call or writing usage", async () => {
     const { userId, realtime, broker, clock } = await setup();
     const attach = realtime.attach;
@@ -373,15 +427,15 @@ describe("Realtime close failures", () => {
   });
 
   test("a rejected usage write settles hangup, cancels timers and releases the call", async () => {
-    const { realtime, timers, broker } = await setup();
-    // Missing Learner forces a real foreign-key failure on ai_usage.
-    const missingId = crypto.randomUUID();
+    const { userId, realtime, timers, broker } = await setup();
     const options = opts(async () => {});
-    await broker.start(missingId, options);
-    await expect(broker.hangup(missingId)).rejects.toThrow();
+    await broker.start(userId, options);
+    const write = spyOn(testDb, "transaction").mockRejectedValueOnce(new Error("usage unavailable"));
+    await expect(broker.hangup(userId)).rejects.toThrow("usage unavailable");
+    write.mockRestore();
     expect(timers.waiting()).toEqual([]);
-    expect(await broker.start(missingId, options)).toHaveProperty("answer");
-    await expect(realtime.sideband().close()).rejects.toThrow();
+    expect(await broker.start(userId, options)).toHaveProperty("answer");
+    await realtime.sideband().close();
   });
 
   test("duplicate close waits for pending saves and writes usage once", async () => {
@@ -405,5 +459,29 @@ describe("Realtime close failures", () => {
     gate.resolve();
     await Promise.all([first, second]);
     expect(await testDb.select().from(schema.aiUsage).where(eq(schema.aiUsage.userId, userId))).toHaveLength(1);
+  });
+});
+
+describe("Realtime resume", () => {
+  test("a call after a drop carries the saved transcript, so the coach continues instead of greeting again", async () => {
+    const { userId, realtime, broker } = await setup();
+    const prior: UIMessage[] = [
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "Tell me about your last project." }] },
+      { id: "u1", role: "user", parts: [{ type: "text", text: "I built a payments API." }] },
+    ];
+    await broker.start(userId, { ...opts(async () => {}), prior });
+    const { instructions } = realtime.sideband().sent.find((e) => e.type === "session.update").session;
+    expect(instructions).toStartWith("Speak English");
+    expect(instructions).toContain("You: Tell me about your last project.\nLearner: I built a payments API.");
+    expect(instructions).toContain("don't greet the Learner again");
+    expect(realtime.calls[0]!.session.instructions).toBe(instructions);
+  });
+
+  test("a first call keeps its instructions unchanged", async () => {
+    const { userId, realtime, broker } = await setup();
+    await broker.start(userId, { ...opts(async () => {}), prior: [] });
+    expect(realtime.sideband().sent.find((e) => e.type === "session.update").session.instructions).toBe(
+      "Speak English",
+    );
   });
 });

@@ -27,12 +27,27 @@ function Privacy() {
           unsubscribe link in a reminder email.
         </p>
       </section>
+      <section aria-labelledby="billing-privacy-title">
+        <h2 id="billing-privacy-title">Payments</h2>
+        <p>
+          Dodo Payments processes checkout and payment details. We send your account name, email and internal account
+          identifier to link purchases to your account. Fluently stores provider customer/subscription identifiers,
+          payment grants, balances, reservations and refund adjustments. Card details are entered with the payment
+          provider and are not stored by Fluently.
+        </p>
+        <p>
+          Deleting your Fluently account removes its linked billing records. If billing credentials are unavailable, we
+          temporarily retain the provider customer identifier to retry subscription cancellation when access returns.
+          Dodo Payments retains its own payment and invoice records under its retention rules. Webhook delivery
+          identifiers may remain to prevent duplicate processing.
+        </p>
+      </section>
       <section aria-labelledby="voice-title">
         <h2 id="voice-title">Voice recording and AI processing</h2>
         <p>
-          Voice is optional. Live Voice Assessments and voice Roleplays send audio to OpenAI. Uploaded recorded answers
-          are sent to OpenAI for transcription. Fluently does not store raw learner audio on its servers; transcripts,
-          feedback and usage information are saved with your account.
+          Voice is optional. Live Voice Assessments and voice Roleplays send audio to OpenAI or Rime, depending on the
+          configured provider. Uploaded recorded answers are sent to OpenAI for transcription. Fluently does not store
+          raw learner audio on its servers; transcripts, feedback and usage information are saved with your account.
         </p>
         <p>
           Some speaking exercises use your browser’s speech recognition, which may send audio to the browser’s speech

@@ -13,11 +13,13 @@ const FROM_HOUR = 18;
 const localHour = (d: Date, timeZone: string) =>
   Number(new Intl.DateTimeFormat("en-GB", { timeZone, hour: "numeric", hourCycle: "h23" }).format(d));
 
-const unsubscribeToken = (secret: string, userId: string) =>
-  createHmac("sha256", secret).update(`streak-reminders:${userId}`).digest("base64url");
+type ReminderKind = "streak" | "verify";
 
-export const unsubscribeUrl = (env: Deps["env"], userId: string) =>
-  `${new URL("/api/email/unsubscribe", env.WEB_ORIGIN).href}?u=${encodeURIComponent(userId)}&t=${unsubscribeToken(env.BETTER_AUTH_SECRET, userId)}`;
+const unsubscribeToken = (secret: string, userId: string, kind: ReminderKind) =>
+  createHmac("sha256", secret).update(`${kind}-reminders:${userId}`).digest("base64url");
+
+export const unsubscribeUrl = (env: Deps["env"], userId: string, kind: ReminderKind = "streak") =>
+  `${new URL(kind === "verify" ? "/api/email/unsubscribe-verification" : "/api/email/unsubscribe", env.WEB_ORIGIN).href}?u=${encodeURIComponent(userId)}&t=${unsubscribeToken(env.BETTER_AUTH_SECRET, userId, kind)}`;
 
 /** Emails each Learner whose Streak is alive but not yet extended today, once, in the last 6 hours of their day. */
 export async function sendStreakReminders(deps: Deps) {
@@ -28,12 +30,16 @@ export async function sendStreakReminders(deps: Deps) {
     .selectDistinct({ id: user.id, email: user.email, timezone: user.timezone, remindedOn: user.streakRemindedOn })
     .from(user)
     .innerJoin(lesson, eq(lesson.userId, user.id))
+    .leftJoin(schema.streakRestoration, eq(schema.streakRestoration.userId, user.id))
     .where(
       and(
         eq(user.streakReminders, true),
         eq(user.emailVerified, true),
         eq(lesson.status, "completed"),
-        gte(lesson.completedAt, new Date(at.getTime() - 50 * 3_600_000)),
+        or(
+          gte(lesson.completedAt, new Date(at.getTime() - 50 * 3_600_000)),
+          gte(schema.streakRestoration.restoredAt, new Date(at.getTime() - 72 * 3_600_000)),
+        ),
       ),
     );
   for (const learner of learners) {
@@ -88,27 +94,32 @@ export function startStreakReminders(deps: Deps) {
 }
 
 const page = (message: string, form = "") =>
-  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Streak reminders</title></head><body style="margin:0;background:#f5f5f4;color:#0e0e0f;font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.6"><main style="max-width:480px;margin:48px auto;padding:24px;background:#ffffff;border:1px solid #e4e3df;border-radius:16px"><p style="margin:0 0 16px">${message}</p>${form}</main></body></html>`;
+  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Email reminders</title></head><body style="margin:0;background:#f5f5f4;color:#0e0e0f;font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.6"><main style="max-width:480px;margin:48px auto;padding:24px;background:#ffffff;border:1px solid #e4e3df;border-radius:16px"><p style="margin:0 0 16px">${message}</p>${form}</main></body></html>`;
 
 // No session needed: the signed link identifies the Learner. GET asks first, since link scanners open links.
 // POST turns reminders off; mail apps' one-click unsubscribe (RFC 8058) posts here directly.
-export const unsubscribeRoute = ({ db, env }: Pick<Deps, "db" | "env">) =>
-  new Hono()
+export const unsubscribeRoute = ({ db, env }: Pick<Deps, "db" | "env">, kind: ReminderKind = "streak") => {
+  const label = kind === "verify" ? "verification" : "Streak";
+  return new Hono()
     .get("/", (c) => {
       const { u = "", t = "" } = c.req.query();
       return c.html(
         page(
-          "Stop the emails that remind you to keep your Streak?",
-          `<form method="post" action="?u=${encodeURIComponent(u)}&amp;t=${encodeURIComponent(t)}"><button style="font:inherit;font-weight:bold;background:#2f3bd6;color:#ffffff;border:0;border-radius:999px;padding:12px 22px;cursor:pointer">Stop Streak reminders</button></form>`,
+          `Stop ${label} reminder emails?`,
+          `<form method="post" action="?u=${encodeURIComponent(u)}&amp;t=${encodeURIComponent(t)}"><button style="font:inherit;font-weight:bold;background:#2f3bd6;color:#ffffff;border:0;border-radius:999px;padding:12px 22px;cursor:pointer">Stop ${label} reminders</button></form>`,
         ),
       );
     })
     .post("/", async (c) => {
       const { u = "", t = "" } = c.req.query();
-      const expected = Buffer.from(unsubscribeToken(env.BETTER_AUTH_SECRET, u));
+      const expected = Buffer.from(unsubscribeToken(env.BETTER_AUTH_SECRET, u, kind));
       const given = Buffer.from(t);
       if (!u || given.length !== expected.length || !timingSafeEqual(given, expected))
-        return c.html(page("This link isn't valid. Open the latest Streak reminder and try its link again."), 400);
-      await db.update(user).set({ streakReminders: false }).where(eq(user.id, u));
-      return c.html(page("Done. You won't get Streak reminders any more."));
+        return c.html(page(`This link isn't valid. Open the latest ${label} reminder and try its link again.`), 400);
+      await db
+        .update(user)
+        .set(kind === "verify" ? { verifyReminders: false } : { streakReminders: false })
+        .where(eq(user.id, u));
+      return c.html(page(`Done. You won't get ${label} reminders any more.`));
     });
+};

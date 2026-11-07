@@ -2,16 +2,17 @@ import { MicrophoneSlash } from "@phosphor-icons/react";
 import { EmptyState, ErrorState, LoadingState, Stack, Text, TextLink } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 import { voiceMinutesQuery } from "../../lib/queries";
 import { resetsOn, voiceTime } from "../../lib/voiceMinutes";
 
 type Budget = Awaited<ReturnType<NonNullable<typeof voiceMinutesQuery.queryFn>>>;
 
-export function BetaVoiceCredits() {
+export function VoicePlans() {
   return (
     <Text tone="muted">
-      We're in beta. Every account includes 10 free voice minutes each month. Email{" "}
-      <TextLink render={<a href="mailto:hey@yagyaraj.com" />}>hey@yagyaraj.com</TextLink> to request more voice credits.
+      Free includes 25 live minutes each month. Pro includes 150 minutes per billing period; purchased minutes never
+      expire. <TextLink render={<Link to="/profile" />}>View plans or add minutes</TextLink>.
     </Text>
   );
 }
@@ -23,7 +24,11 @@ export function VoiceAllowance() {
       {minutes.data ? (
         <>
           <Text tabular>
-            {voiceTime(minutes.data.remainingSeconds)} of {minutes.data.limitMinutes} minutes left this month.
+            {voiceTime(minutes.data.monthlyRemainingSeconds ?? minutes.data.remainingSeconds)} of{" "}
+            {minutes.data.limitMinutes} monthly minutes left.
+          </Text>
+          <Text tabular>
+            {voiceTime(minutes.data.purchasedRemainingSeconds ?? 0)} purchased minutes left. No expiry.
           </Text>
           <Text tone="muted">Renews {resetsOn(minutes.data.resetsAt)}.</Text>
         </>
@@ -32,7 +37,7 @@ export function VoiceAllowance() {
       ) : (
         <Text tone="muted">Loading voice minutes…</Text>
       )}
-      <BetaVoiceCredits />
+      <VoicePlans />
     </Stack>
   );
 }
@@ -52,11 +57,11 @@ export function VoiceLimit({
     <Stack gap={3}>
       <EmptyState
         icon={MicrophoneSlash}
-        title="You've used this month's voice minutes"
+        title="You've used your available voice minutes"
         description={`${allowance?.resetsAt ? `Your voice minutes renew ${resetsOn(allowance.resetsAt)}. ` : ""}${description ?? "You can continue with text instead."}`}
         action={action}
       />
-      <BetaVoiceCredits />
+      <VoicePlans />
     </Stack>
   );
 }

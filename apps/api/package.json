@@ -14,11 +14,12 @@
   "dependencies": {
     "@ai-sdk/google": "4.0.96",
     "@ai-sdk/openai": "4.0.94",
-    "@hono/zod-validator": "^0.9.1",
     "@fluently/db": "workspace:*",
+    "@hono/zod-validator": "^0.9.1",
     "@scalar/hono-api-reference": "^0.12.13",
     "ai": "7.0.141",
     "better-auth": "^1.7.10",
+    "dodopayments": "^2.59.0",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.13",
     "openai": "^7.38.0",

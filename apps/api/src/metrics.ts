@@ -7,6 +7,13 @@ export const metricsRegistry = new Registry();
 
 collectDefaultMetrics({ register: metricsRegistry, prefix: "fluently_" });
 
+export const billingFailures = new Counter({
+  name: "fluently_billing_failures_total",
+  help: "Billing deliveries requiring reconciliation or manual payment review",
+  labelNames: ["reason"],
+  registers: [metricsRegistry],
+});
+
 const requests = new Counter({
   name: "fluently_http_requests_total",
   help: "Total HTTP requests",

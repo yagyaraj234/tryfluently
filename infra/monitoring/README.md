@@ -20,3 +20,19 @@ uses another port.
 
 Metrics collection is disabled unless `METRICS_ENABLED=true`. Production should
 use a private scrape network and authentication before enabling the endpoint.
+
+Prometheus loads `billing-alerts.yml` and shows `FluentlyBillingFailure` at
+http://localhost:9090/alerts when the API has observed a billing failure. See
+`docs/billing.md` for reconciliation steps and the process-lifetime alert semantics.
+External notifications require an operator-configured Alertmanager receiver.
+After updating this configuration, recreate Prometheus to load the new mount:
+
+```sh
+docker compose -f docker-compose.monitoring.yml up -d --force-recreate prometheus
+```
+
+Validate the alert's firing and healthy states without starting the stack:
+
+```sh
+docker run --rm --entrypoint /bin/promtool -v "$PWD/infra/monitoring:/etc/prometheus:ro" -w /etc/prometheus prom/prometheus:v3.4.1 test rules billing-alerts.test.yml
+```

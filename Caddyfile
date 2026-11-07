@@ -1,3 +1,9 @@
 {$WEB_ORIGIN} {
-	reverse_proxy web:3001
+	# Rime calls' WebSockets (ADR 0005); the web server's /api pass-through can't carry them.
+	handle /api/realtime/* {
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy web:3001
+	}
 }

@@ -17,6 +17,7 @@ import type { Realtime, RealtimeEvent, RealtimeSession } from "../src/realtime";
 import { testDb } from "./setup";
 import { runAssessmentJobs } from "../src/assessment-jobs";
 import { sendStreakReminders } from "../src/streak-reminders";
+import { sendVerifyReminders } from "../src/verify-reminders";
 
 export const WEB_ORIGIN = "http://localhost:5173";
 
@@ -30,6 +31,7 @@ type Overrides = {
   schedule?: Schedule;
   transcriber?: Transcriber;
   settings?: Partial<Settings>;
+  payments?: Deps["payments"];
 };
 
 // Transcribes each recording to the next scripted text (or a default) and records what it was sent.
@@ -58,29 +60,38 @@ export function fakeSpeech() {
 
 // Stands in for OpenAI Realtime: records calls and lets a test play sideband events and close the call.
 export function fakeRealtime() {
-  const calls: { sdp: string; session: RealtimeSession; callId: string }[] = [];
+  const calls: { sdp: string; session: RealtimeSession; callId: string; avoid?: string; voiceKey?: string }[] = [];
   const sidebands = new Map<
     string,
-    { sent: any[]; hungUp: boolean; emit: (e: RealtimeEvent) => Promise<void>; close: () => Promise<void> }
+    {
+      sent: any[];
+      hungUp: boolean;
+      // Runs while the provider is hanging up, as late sideband events do.
+      onHangup?: () => Promise<void>;
+      emit: (e: RealtimeEvent) => Promise<void>;
+      close: () => Promise<void>;
+    }
   >();
   const realtime: Realtime = {
-    async createCall(sdp, session) {
+    async createCall(sdp, session, avoid, voiceKey) {
       const callId = `rtc_${calls.length + 1}`;
-      calls.push({ sdp, session, callId });
-      return { answer: `v=0 answer for ${callId}`, callId };
+      calls.push({ sdp, session, callId, avoid, voiceKey });
+      return { answer: `v=0 answer for ${callId}`, callId, provider: "openai" as const };
     },
     attach(callId, { onEvent, onClose }) {
       const sb = {
         sent: [] as any[],
         hungUp: false,
+        onHangup: undefined as undefined | (() => Promise<void>),
         emit: async (e: RealtimeEvent) => void (await onEvent(e)),
-        close: async () => onClose(),
+        close: async (failed?: boolean) => onClose(failed),
       };
       sidebands.set(callId, sb);
       return {
         send: (e: object) => void sb.sent.push(e),
         hangup: async () => {
           sb.hungUp = true;
+          await sb.onHangup?.();
         },
       };
     },
@@ -134,6 +145,7 @@ export function makeApp({
   schedule = fakeTimers().schedule,
   settings,
   env,
+  payments,
 }: Overrides = {}) {
   const deps: Deps = {
     db: testDb,
@@ -144,6 +156,7 @@ export function makeApp({
     transcriber,
     schedule,
     settings,
+    payments,
     models: {
       step: unscripted("step"),
       brief: unscripted("brief"),
@@ -163,6 +176,7 @@ export function makeApp({
   return Object.assign(createApp(deps), {
     runJobs: (userId: string) => runAssessmentJobs(deps, userId),
     remindStreaks: () => sendStreakReminders(deps),
+    remindUnverified: () => sendVerifyReminders(deps),
   });
 }
 
@@ -272,6 +286,19 @@ export const json = (body: unknown, cookie?: string, method = "POST") => ({
 });
 
 export const get = (cookie: string) => ({ headers: { cookie } });
+
+export async function grantPro(userId: string, at = new Date("2026-10-15T09:00:00Z")) {
+  await testDb.insert(schema.billingCredit).values({
+    id: `test-payment-${crypto.randomUUID()}`,
+    userId,
+    kind: "pro",
+    startsAt: at,
+    expiresAt: new Date(at.getTime() + 30 * 86400000),
+    seconds: 9000,
+    amount: 900,
+    currency: "USD",
+  });
+}
 export const del = (cookie: string) => ({ method: "DELETE", headers: { cookie, origin: WEB_ORIGIN } });
 
 // Turns Set-Cookie headers into a Cookie header for the next request.

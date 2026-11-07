@@ -54,6 +54,7 @@ export {
   type ErrorStateProps,
   type LoadingStateProps,
 } from "./States";
+export { Figure, type FigureProps } from "./Figure";
 export { FocusItemCard, type FocusItemCardProps } from "./FocusItemCard";
 export { Grid, type GridProps } from "./Grid";
 export { Heading, type HeadingProps } from "./Heading";

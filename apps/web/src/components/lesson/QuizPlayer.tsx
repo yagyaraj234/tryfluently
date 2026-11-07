@@ -20,7 +20,7 @@ import {
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../../lib/api";
+import { api, errorOf } from "../../lib/api";
 import { lessonPagesQuery } from "../../lib/lessons";
 import { PagedComplete } from "./PagedComplete";
 import { SpeakingBlock, type PagedData } from "./PagedPlayer";
@@ -34,9 +34,6 @@ export type QuizItem = {
   result?: PageResult;
 };
 type QuizData = PagedData & { quiz: QuizItem[]; practice: "preparing" | "failed" | null; learnMore: boolean };
-
-const errorOf = async (response: { json: () => Promise<unknown> }, fallback: string) =>
-  new Error(((await response.json().catch(() => null)) as { error?: string } | null)?.error ?? fallback);
 
 /** Right answers out of the checked ones. Spoken answers still being analysed have no verdict yet and are left out. */
 export function quizScore(items: QuizItem[]) {

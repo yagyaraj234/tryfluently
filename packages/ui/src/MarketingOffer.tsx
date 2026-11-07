@@ -20,14 +20,14 @@ export function MarketingOffer({
       className="my-8 grid gap-6 rounded-3xl border border-line bg-paper p-6 sm:p-8 md:grid-cols-2"
     >
       <div className="grid content-start justify-items-start gap-4">
-        <span className="text-sm font-semibold text-primary">Free during beta · No card needed</span>
+        <span className="text-sm font-semibold text-primary">Start free · No card needed</span>
         <h2 id="free-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
           Know what’s included
         </h2>
         <p className="text-muted">{afterLimit}</p>
         <p className="text-sm text-muted">{pricing}</p>
         <Button render={start}>Create a free account</Button>
-        <TextLink render={<a href="mailto:hey@yagyaraj.com" />}>Ask about more voice credits</TextLink>
+        <TextLink render={<a href="mailto:hey@yagyaraj.com" />}>Ask a billing question</TextLink>
       </div>
       <ul className="grid content-start gap-4 text-muted">
         {includes.map((item) => (

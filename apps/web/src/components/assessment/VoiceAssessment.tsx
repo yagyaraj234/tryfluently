@@ -2,7 +2,7 @@ import { CoachCall, ErrorState, Notice, Stack, TextLink } from "@fluently/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { MicrophoneProblem } from "../voice/MicrophoneProblem";
-import { VoiceAccess, VoiceLimit, BetaVoiceCredits } from "../voice/VoiceCredits";
+import { VoiceAccess, VoiceLimit, VoicePlans } from "../voice/VoiceCredits";
 import { voiceMinutesQuery } from "../../lib/queries";
 import { minutesLeft, useCallClock } from "../../lib/voiceMinutes";
 import { useEffect, useState } from "react";
@@ -65,7 +65,7 @@ function VoiceAssessmentCall({ assessment }: { assessment: Assessment }) {
   const [over, setOver] = useState<"dropped" | "timesUp">();
   const running = session.ending === "running";
   const call = useRealtimeCall(`/api/assessments/${assessment.id}/call`, {
-    // The API can't rejoin a call, so a dropped one ends the Assessment with what was said so far.
+    // A drop has already been resumed once (useRealtimeCall), so a second one ends the Assessment with what was said.
     onDropped: () => {
       if (!running) return;
       setOver(left !== undefined && left <= 5_000 ? "timesUp" : "dropped");
@@ -84,8 +84,8 @@ function VoiceAssessmentCall({ assessment }: { assessment: Assessment }) {
     if (timesUp) {
       setOver("timesUp");
       void session.finish();
-    }
-  }, [timesUp, session.finish]);
+    } else if (call.status === "ended" && running) void session.finish();
+  }, [timesUp, call.status, running, session.finish]);
 
   // Mute while /end hangs up the call and writes the Report; let go of the call once that's done.
   const { mute, hangUp } = call;
@@ -101,7 +101,7 @@ function VoiceAssessmentCall({ assessment }: { assessment: Assessment }) {
         {over === "timesUp" && (
           <>
             <Notice tone="info">Your voice time ran out, so the Assessment ended there.</Notice>
-            <BetaVoiceCredits />
+            <VoicePlans />
           </>
         )}
         <AssessmentEnding session={session} />
